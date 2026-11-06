@@ -63,11 +63,13 @@ export function sampleRoster(): RosterEntry[] {
 
 /**
  * Everyone selectable in the simulators: the character being edited (when it
- * is finished), saved characters, then the ready-made samples. Unfinished
+ * is finished), saved characters, then the ready-made samples. The saved copy
+ * of the character being edited is left out since the live draft supersedes it. Unfinished
  * characters are left out since the simulators need a full bag and inventory.
  */
 export function buildRoster(
   current: CharacterDraft,
+  currentSavedId: string | null,
   saved: SavedCharacter[],
   samples: RosterEntry[] = sampleRoster(),
 ): RosterEntry[] {
@@ -81,6 +83,7 @@ export function buildRoster(
     })
   }
   for (const s of saved) {
+    if (s.id === currentSavedId) continue
     if (!buildCharacter(s.draft).complete) continue
     entries.push({
       key: `saved:${s.id}`,

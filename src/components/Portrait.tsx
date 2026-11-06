@@ -20,7 +20,6 @@ export function Portrait({ kind, id, size = 'md', className = '' }: PortraitProp
       alt=""
       width={256}
       height={256}
-      loading="lazy"
       draggable={false}
     />
   )

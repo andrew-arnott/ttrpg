@@ -81,7 +81,7 @@ export function BagSimulator({ roster }: { roster: RosterEntry[] }) {
     setSummary(null)
   }
 
-  const remainingInBag = built.stats.size - shown.length
+  const remainingInBag = busy ? built.stats.size - shown.length : built.stats.size
 
   return (
     <div className="layout">

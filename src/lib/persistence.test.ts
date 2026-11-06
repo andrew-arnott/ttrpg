@@ -121,11 +121,18 @@ describe('roster', () => {
       { id: 'done', savedAt: 'x', draft: { ...sample.draft, name: 'Done' } },
       { id: 'wip', savedAt: 'x', draft: unfinished },
     ]
-    const roster = buildRoster({ ...sample.draft, name: 'Live' }, saved, [])
+    const roster = buildRoster({ ...sample.draft, name: 'Live' }, null, saved, [])
     expect(roster.map((r) => [r.key, r.source])).toEqual([
       ['current', 'current'],
       ['saved:done', 'saved'],
     ])
-    expect(buildRoster(unfinished, [], []).map((r) => r.key)).toEqual([])
+    expect(buildRoster(unfinished, null, [], []).map((r) => r.key)).toEqual([])
+  })
+
+  it('leaves out the saved copy of the character being edited', () => {
+    const [sample] = sampleRoster()
+    const saved = [{ id: 'mine', savedAt: 'x', draft: sample.draft }]
+    const roster = buildRoster(sample.draft, 'mine', saved, [])
+    expect(roster.map((r) => r.key)).toEqual(['current'])
   })
 })

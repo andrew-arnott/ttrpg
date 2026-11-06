@@ -39,8 +39,9 @@ function TorchGauge({ torch }: { torch: TorchState }) {
       aria-label={`${torch.remaining} of ${total} Intervals of burn time left`}
     >
       {Array.from({ length: total }, (_, i) => {
-        const level = torchLevel({ spec: torch.spec, remaining: i + 1 })
-        return <span key={i} className={`seg ${level}${i < torch.remaining ? ' on' : ''}`} />
+        const level = torchLevel({ spec: torch.spec, remaining: total - i })
+        const burnt = i < total - torch.remaining
+        return <span key={i} className={`seg ${level}${burnt ? '' : ' on'}`} />
       })}
     </div>
   )

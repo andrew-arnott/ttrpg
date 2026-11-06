@@ -30,6 +30,25 @@ function wrapLabel(name: string, maxChars: number): string[] {
   return lines
 }
 
+const UNSEEN_STUB = 60
+
+/**
+ * A corridor between two seen rooms spans their centres. When only one end has
+ * been seen it stops just past that room's wall, hinting at an exit without
+ * revealing where it leads.
+ */
+function corridorEnds(a: DungeonRoom, b: DungeonRoom, aKnown: boolean, bKnown: boolean) {
+  const ca = roomCenter(a)
+  const cb = roomCenter(b)
+  if (aKnown && bKnown) return { from: ca, to: cb }
+  const [known, ck, co] = aKnown ? [a, ca, cb] : [b, cb, ca]
+  const distance = Math.hypot(co.x - ck.x, co.y - ck.y)
+  const horizontal = Math.abs(co.x - ck.x) >= Math.abs(co.y - ck.y)
+  const reach = Math.min(distance, (horizontal ? known.w : known.h) / 2 + UNSEEN_STUB)
+  const end = { x: ck.x + ((co.x - ck.x) / distance) * reach, y: ck.y + ((co.y - ck.y) / distance) * reach }
+  return aKnown ? { from: ck, to: end } : { from: end, to: ck }
+}
+
 function avatarPositions(room: DungeonRoom, count: number, labelLines: number) {
   const perRow = Math.max(1, Math.floor((room.w - 16) / AVATAR_SPACING))
   const rows = Math.ceil(count / perRow)
@@ -118,16 +137,21 @@ export function DungeonMap({ state, onMove }: Props) {
       <rect width={dungeon.width} height={dungeon.height} fill="#02030f" />
 
       {dungeon.links.map((link) => {
-        const a = roomCenter(roomById(dungeon, link.from))
-        const b = roomCenter(roomById(dungeon, link.to))
-        const seen = known.has(link.from) || known.has(link.to)
-        if (!seen) return null
+        const fromKnown = known.has(link.from)
+        const toKnown = known.has(link.to)
+        if (!fromKnown && !toKnown) return null
+        const { from, to } = corridorEnds(
+          roomById(dungeon, link.from),
+          roomById(dungeon, link.to),
+          fromKnown,
+          toKnown,
+        )
         const opacity = lit.has(link.from) || lit.has(link.to) ? 1 : 0.4
         return (
           <g key={`${link.from}-${link.to}`} opacity={opacity}>
-            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#000" strokeWidth={CORRIDOR_WIDTH + 8} />
-            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#9fb0f5" strokeWidth={CORRIDOR_WIDTH + 2} />
-            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#1b2468" strokeWidth={CORRIDOR_WIDTH - 4} />
+            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#000" strokeWidth={CORRIDOR_WIDTH + 8} />
+            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#9fb0f5" strokeWidth={CORRIDOR_WIDTH + 2} />
+            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#1b2468" strokeWidth={CORRIDOR_WIDTH - 4} />
           </g>
         )
       })}
