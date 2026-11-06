@@ -40,10 +40,38 @@ deletes them. JSON export/import still works for moving a character between brow
 
 The guide doesn't price equipment yet, so costs and effects in `src/data/items.ts` are proposals:
 Torch 1, Ration 1, Bandage 2, Antidote 3, Smoke Bomb 3, Healing Potion 5 coins. Weapons and armor are
-not included. An ordinary torch burns Bright for 2 Intervals, Steady for 2, then Dim for 2 (the Holy
-Light ability's 3/3/2 torch is the enhanced version). The party starts the dungeon with one lit torch;
-*Pass an Interval* burns it down. Bright light shows rooms two doorways away, Steady one, Dim only the
-room you are in.
+not included.
+
+An ordinary torch burns Bright for 1 Interval, Steady for 3, then Dim for 2. The Priest's Holy Light
+lights a torch that burns Bright 3, Steady 3, Dim 2 (8 Intervals) instead, consuming one ordinary torch.
+
+### Dungeon intervals
+
+The party starts with one lit torch. Time passes in **Intervals**:
+
+- **Moving** to an adjacent room takes an Interval.
+- Otherwise, each Interval every character chooses what they want to do, and the choices resolve in
+  party order, followed by the torch burning down one step. Light reach depends on the torch: Bright
+  shows rooms two doorways away, Steady one, Dim only the room you are in.
+- Right-clicking a torch in a pack lights it straight away, replacing the burning one, without using
+  an Interval.
+
+Actions on offer:
+
+- **Search the room** — a Perception test to uncover whatever is hidden there.
+- **Rest** — regain 1 of your profession's resource (Resolve, Cunning, Faith or Mana), up to 2 above
+  what you started with.
+- **Keep watch.**
+- **Room interaction** — a one-off thing to try in the current room, such as studying the runes on the
+  floor.
+- **Class abilities** — any Interval ability the character chose: Fortify, Stand Watch, Barricade,
+  Secure Area, Scout Ahead, Case the Joint, Set an Ambush, Find a Shortcut, Tend the Afflicted, Holy
+  Light, Group Heal, Detect Magic, Identify, Dispel Magic and Scry.
+
+Tests draw from the character's token bag with the same rule as the simulator. The total is the token
+sum plus the relevant SPECIAL value against a Difficulty set per room (see `src/data/dungeon.ts`).
+Critical Success always passes and Critical Failure always fails. Working with the torch out adds 3 to
+the Difficulty. Resolution plays back as an animation with a text summary of what happened.
 
 ### Art
 

@@ -909,3 +909,59 @@ table.tokens-table td.num { text-align: right; }
 .dungeon-log { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .dungeon-log li { color: var(--text-muted); }
 .dungeon-log li:first-child { color: var(--text-primary); }
+
+/* --- interval planning and resolution --- */
+
+.plan-list { display: grid; gap: 14px; }
+.plan-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding-bottom: 14px;
+  border-bottom: 2px dotted var(--gridline);
+}
+.plan-row:last-child { border-bottom: 0; padding-bottom: 0; }
+@media (max-width: 640px) { .plan-row { grid-template-columns: minmax(0, 1fr); } }
+.plan-who { display: flex; gap: 12px; align-items: center; }
+.plan-choice { display: grid; gap: 6px; min-width: 0; }
+.plan-choice select { width: 100%; min-width: 0; }
+.plan-desc { max-width: 60ch; }
+
+.modal.resolution { width: min(680px, 100%); }
+.resolution-actor { display: flex; gap: 14px; align-items: center; margin-top: 6px; }
+.resolution-actor .party-avatar .portrait { width: 72px; height: 72px; }
+.resolution-intro { font-size: 24px; margin-bottom: 12px; }
+.resolution-test { display: grid; gap: 8px; margin-bottom: 8px; }
+.bag-stage.compact { margin-bottom: 4px; }
+.bag-stage.compact .table-felt { min-height: 100px; }
+.resolution-math { font-size: 22px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.resolution-math b { font-family: var(--font-pixel); font-weight: 400; font-size: 15px; color: var(--accent); }
+.result-badge {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  padding: 4px 8px;
+  border: 2px solid currentColor;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+.result-badge.success { color: var(--good); }
+.result-badge.failure { color: var(--danger); }
+.resolution-outcome { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; animation: outcome-in 0.4s ease-out; }
+.outcome.success { border-color: var(--good); }
+.outcome.failure { border-color: var(--danger); }
+@keyframes outcome-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .resolution-outcome { animation: none; } }
+.resolution-controls { gap: 10px; }
+
+.resolution-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.resolution-line {
+  padding: 8px 10px;
+  border: 2px solid var(--baseline);
+  border-radius: var(--radius);
+  background: var(--surface-inset);
+}
+.resolution-line.success { border-color: var(--good); }
+.resolution-line.failure { border-color: var(--danger); }
+.resolution-line b { color: var(--accent); font-weight: 400; }
+.resolution-line .tag { margin-left: 8px; }

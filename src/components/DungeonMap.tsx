@@ -2,6 +2,7 @@ import { artUrl } from '../lib/art'
 import type { DungeonRoom } from '../data/dungeon'
 import {
   adjacentRoomIds,
+  openLinks,
   roomById,
   roomCenter,
   visibleRoomIds,
@@ -105,11 +106,11 @@ interface Props {
 }
 
 export function DungeonMap({ state, onMove }: Props) {
-  const { dungeon, party, roomId, explored, torch } = state
+  const { dungeon, party, roomId, explored, torch, discovered } = state
   const level = torchLevel(torch)
-  const lit = new Set(visibleRoomIds(dungeon, roomId, level))
+  const lit = new Set(visibleRoomIds(dungeon, roomId, level, discovered))
   const known = new Set([...explored, ...lit])
-  const exits = new Set(adjacentRoomIds(dungeon, roomId))
+  const exits = new Set(adjacentRoomIds(dungeon, roomId, discovered))
   const origin = roomCenter(roomById(dungeon, roomId))
   const glowRadius = GLOW_RADIUS[level]
 
@@ -136,7 +137,7 @@ export function DungeonMap({ state, onMove }: Props) {
 
       <rect width={dungeon.width} height={dungeon.height} fill="#02030f" />
 
-      {dungeon.links.map((link) => {
+      {openLinks(dungeon, discovered).map((link) => {
         const fromKnown = known.has(link.from)
         const toKnown = known.has(link.to)
         if (!fromKnown && !toKnown) return null

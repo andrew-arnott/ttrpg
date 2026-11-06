@@ -1,6 +1,7 @@
 import { useMemo, useReducer, useState } from 'react'
 import { SUNKEN_CRYPT } from '../data/dungeon'
-import { ITEMS, ITEMS_BY_ID, ORDINARY_TORCH } from '../data/items'
+import { ITEMS, ITEMS_BY_ID } from '../data/items'
+import { TOKENS } from '../data/tokens'
 import { buildCharacter } from '../lib/buildCharacter'
 import {
   adjacentRoomIds,
@@ -8,27 +9,22 @@ import {
   dungeonReducer,
   roomById,
   type DungeonState,
-  type PartyMember,
 } from '../lib/dungeonState'
+import {
+  resolveInterval,
+  type InteractionPlan,
+  type ResolutionStep,
+} from '../lib/intervalActions'
+import { AVATAR_COLORS } from '../lib/partyColors'
+import { createPartyMember } from '../lib/partyMember'
 import type { RosterEntry } from '../lib/roster'
 import { torchLevel, TORCH_LEVEL_LABEL, totalIntervals, type TorchState } from '../lib/torch'
-import { AVATAR_COLORS } from '../lib/partyColors'
 import { DungeonMap } from './DungeonMap'
+import { IntervalPlanner } from './IntervalPlanner'
+import { IntervalResolution } from './IntervalResolution'
 import { Portrait } from './Portrait'
 
 const MAX_PARTY = 4
-
-function toPartyMember(entry: RosterEntry): PartyMember {
-  const built = buildCharacter(entry.draft)
-  return {
-    key: entry.key,
-    name: built.name.trim() || 'Unnamed adventurer',
-    professionId: built.profession?.id ?? '',
-    speciesId: built.species?.id ?? '',
-    hp: built.startingHp ?? 0,
-    inventory: Object.fromEntries(built.inventory.map((e) => [e.item.id, e.count])),
-  }
-}
 
 function TorchGauge({ torch }: { torch: TorchState }) {
   const total = totalIntervals(torch.spec)
@@ -143,9 +139,17 @@ function PartyPanel({
                     {i + 1}. {member.name}
                   </div>
                   <div className="hint">
-                    {member.hp} HP
+                    {member.hp}/{member.maxHp} HP
                   </div>
                 </div>
+              </div>
+              <div className="tokens" style={{ marginTop: 0 }}>
+                {Object.entries(member.resources).map(([tokenId, count]) => (
+                  <span className="chip" key={tokenId} title={TOKENS[tokenId]?.effect}>
+                    <span className="count">{count}×</span>
+                    {TOKENS[tokenId]?.name ?? tokenId}
+                  </span>
+                ))}
               </div>
               {owned.length === 0 ? (
                 <p className="hint">Empty pack.</p>
@@ -189,30 +193,52 @@ function PartyPanel({
   )
 }
 
+interface PendingResolution {
+  next: DungeonState
+  steps: ResolutionStep[]
+}
+
 function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => void }) {
   const [state, dispatch] = useReducer(dungeonReducer, initial)
+  const [plan, setPlan] = useState<InteractionPlan>({})
+  const [pending, setPending] = useState<PendingResolution | null>(null)
+
   const level = torchLevel(state.torch)
   const room = roomById(state.dungeon, state.roomId)
-  const exits = adjacentRoomIds(state.dungeon, state.roomId).map((id) => roomById(state.dungeon, id))
+  const exits = adjacentRoomIds(state.dungeon, state.roomId, state.discovered).map((id) =>
+    roomById(state.dungeon, id),
+  )
   const spareTorches = state.party.reduce((n, m) => n + (m.inventory.torch ?? 0), 0)
+  const preparations = state.prepared[state.roomId] ?? []
+  const move = (roomId: string) => dispatch({ type: 'moveTo', roomId })
+
+  const resolve = () => {
+    const { state: next, steps } = resolveInterval(state, plan, Math.random)
+    setPending({ next, steps })
+  }
+
+  const finishResolution = () => {
+    if (pending) dispatch({ type: 'replace', state: pending.next })
+    setPending(null)
+  }
 
   return (
     <>
       <section className="card torch-hud">
         <Portrait kind="item" id="torch" size="md" className={`hud-torch ${level}`} />
         <div className="torch-readout">
-          <span className="step-index">Torch</span>
+          <span className="step-index">{state.torch.spec.name}</span>
           <div className="torch-level-row">
             <span className={`torch-level ${level}`}>{TORCH_LEVEL_LABEL[level]}</span>
             <TorchGauge torch={state.torch} />
             <span className="hint">
-              {state.torch.remaining} of {totalIntervals(ORDINARY_TORCH)} Intervals left
+              {state.torch.remaining} of {totalIntervals(state.torch.spec)} Intervals left
             </span>
           </div>
           {level === 'out' && (
             <p className="blocker-text">
               {spareTorches > 0
-                ? 'Right-click a torch in a pack to light it.'
+                ? 'Right-click a torch in a pack to light it. Tests are harder in the dark.'
                 : 'No spare torches left. The party is in the dark.'}
             </p>
           )}
@@ -222,9 +248,6 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
           <b className="interval-count">{state.intervals}</b>
         </div>
         <div className="hud-actions">
-          <button className="btn primary" onClick={() => dispatch({ type: 'passInterval' })}>
-            Pass an Interval
-          </button>
           <button className="btn" onClick={onLeave}>
             Leave dungeon
           </button>
@@ -234,8 +257,10 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
       <div className="layout" style={{ marginTop: 20 }}>
         <main>
           <section className="card map-card">
-            <DungeonMap state={state} onMove={(roomId) => dispatch({ type: 'moveTo', roomId })} />
+            <DungeonMap state={state} onMove={move} />
           </section>
+
+          <IntervalPlanner state={state} plan={plan} onChange={setPlan} onResolve={resolve} />
 
           <section className="card">
             <div className="card-head">
@@ -246,14 +271,19 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
             <p className="trait">
               <b>Tip.</b> {room.lesson}
             </p>
-            <h3 className="section-title">Exits</h3>
+            {preparations.length > 0 && (
+              <div className="tokens">
+                {preparations.map((tag) => (
+                  <span className="chip" key={tag}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+            <h3 className="section-title">Exits (moving takes an Interval)</h3>
             <div className="exit-buttons">
               {exits.map((exit) => (
-                <button
-                  key={exit.id}
-                  className="btn"
-                  onClick={() => dispatch({ type: 'moveTo', roomId: exit.id })}
-                >
+                <button key={exit.id} className="btn" onClick={() => move(exit.id)}>
                   {exit.name}
                 </button>
               ))}
@@ -278,6 +308,15 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
           </section>
         </aside>
       </div>
+
+      {pending && (
+        <IntervalResolution
+          steps={pending.steps}
+          party={state.party}
+          interval={state.intervals + 1}
+          onFinish={finishResolution}
+        />
+      )}
     </>
   )
 }
@@ -288,7 +327,7 @@ export function DungeonView({ roster }: { roster: RosterEntry[] }) {
 
   const start = useMemo(
     () => (chosen: RosterEntry[]) => {
-      setInitial(createDungeonState(SUNKEN_CRYPT, chosen.map(toPartyMember)))
+      setInitial(createDungeonState(SUNKEN_CRYPT, chosen.map((e) => createPartyMember(e.key, e.draft))))
       setRunId((n) => n + 1)
     },
     [],

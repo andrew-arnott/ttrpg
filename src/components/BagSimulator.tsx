@@ -1,25 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { TOKENS } from '../data/tokens'
 import { buildCharacter } from '../lib/buildCharacter'
 import { drawTest, simulate, type SimulationSummary, type TestResult } from '../lib/drawTest'
 import type { RosterEntry } from '../lib/roster'
+import { useDrawAnimation } from '../lib/useDrawAnimation'
+import { DrawStage } from './DrawStage'
 import { Portrait } from './Portrait'
 import { BagStatTiles, TokenBag } from './TokenBag'
 import { TokenCoin } from './TokenCoin'
 
-const REVEAL_MS = 650
-const REDUCED_REVEAL_MS = 120
-const SHAKE_MS = 700
 const SIMULATION_RUNS = 5000
 const HISTORY_LIMIT = 12
 
 const fmtSigned = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`
-
-type Phase = 'idle' | 'shaking' | 'revealing' | 'done'
-
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 function outcomeText(result: TestResult): string {
   if (result.outcome === 'critical-failure') return 'Critical Failure: the test fails automatically and generates a Complication.'
@@ -32,51 +26,24 @@ export function BagSimulator({ roster }: { roster: RosterEntry[] }) {
   const entry = roster.find((r) => r.key === selectedKey) ?? roster[0]
   const built = useMemo(() => (entry ? buildCharacter(entry.draft) : null), [entry])
 
-  const [phase, setPhase] = useState<Phase>('idle')
-  const [result, setResult] = useState<TestResult | null>(null)
-  const [revealed, setRevealed] = useState(0)
   const [history, setHistory] = useState<TestResult[]>([])
   const [summary, setSummary] = useState<SimulationSummary | null>(null)
-  const timer = useRef<number | undefined>(undefined)
-
-  useEffect(() => () => window.clearTimeout(timer.current), [])
-
-  useEffect(() => {
-    if (phase === 'shaking') {
-      timer.current = window.setTimeout(() => setPhase('revealing'), prefersReducedMotion() ? 0 : SHAKE_MS)
-    } else if (phase === 'revealing' && result) {
-      const delay = prefersReducedMotion() ? REDUCED_REVEAL_MS : REVEAL_MS
-      if (revealed >= result.drawn.length) {
-        timer.current = window.setTimeout(() => {
-          setHistory((h) => [result, ...h].slice(0, HISTORY_LIMIT))
-          setPhase('done')
-        }, delay / 2)
-      } else {
-        timer.current = window.setTimeout(() => setRevealed((n) => n + 1), delay)
-      }
-    }
-    return () => window.clearTimeout(timer.current)
-  }, [phase, revealed, result])
+  const animation = useDrawAnimation((finished) =>
+    setHistory((h) => [finished, ...h].slice(0, HISTORY_LIMIT)),
+  )
+  const { phase, result, shown, busy } = animation
 
   if (!entry || !built) return <p className="hint">No characters available.</p>
 
-  const busy = phase === 'shaking' || phase === 'revealing'
-  const shown = result ? result.drawn.slice(0, revealed) : []
   const runningTotal = shown.reduce((sum, d) => sum + (d.modifier ?? 0), 0)
 
   const draw = () => {
-    if (busy) return
-    setResult(drawTest(built.bag))
-    setRevealed(0)
-    setPhase('shaking')
+    if (!busy) animation.start(drawTest(built.bag))
   }
 
   const pickCharacter = (key: string) => {
-    window.clearTimeout(timer.current)
+    animation.reset()
     setSelectedKey(key)
-    setPhase('idle')
-    setResult(null)
-    setRevealed(0)
     setHistory([])
     setSummary(null)
   }
@@ -111,29 +78,12 @@ export function BagSimulator({ roster }: { roster: RosterEntry[] }) {
             </label>
           </div>
 
-          <div className="bag-stage">
-            <div className={`bag-holder${phase === 'shaking' ? ' shaking' : ''}`}>
-              <Portrait kind="item" id="pouch" size="xl" className="bag-art" />
-              <span className="bag-count" aria-live="polite">
-                {remainingInBag} in bag
-              </span>
-            </div>
-
-            <div className="table-felt" aria-live="polite">
-              {shown.length === 0 && phase !== 'done' && (
-                <span className="hint">
-                  {busy ? 'Reaching into the bag…' : 'Draw to see what comes out.'}
-                </span>
-              )}
-              {shown.map((d, i) => (
-                <div key={i} className="drawn">
-                  <TokenCoin tokenId={d.tokenId} />
-                  <span className="drawn-name">{d.name}</span>
-                  {d.chain && <span className="drawn-chain">chain</span>}
-                </div>
-              ))}
-            </div>
-          </div>
+          <DrawStage
+            shaking={phase === 'shaking'}
+            shown={shown}
+            bagLabel={`${remainingInBag} in bag`}
+            placeholder={busy ? 'Reaching into the bag…' : 'Draw to see what comes out.'}
+          />
 
           <div className="draw-controls">
             <button className="btn primary" onClick={draw} disabled={busy}>
@@ -145,10 +95,7 @@ export function BagSimulator({ roster }: { roster: RosterEntry[] }) {
           </div>
 
           {phase === 'done' && result && (
-            <p
-              className={`outcome ${result.outcome}`}
-              role="status"
-            >
+            <p className={`outcome ${result.outcome}`} role="status">
               {outcomeText(result)}
               {result.complication && result.outcome !== 'critical-failure' && ' A Complication was drawn.'}
             </p>
