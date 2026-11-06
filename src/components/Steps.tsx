@@ -10,7 +10,14 @@ import {
   type Profession,
   type SpecialKey,
 } from '../data/types'
-import { allAbilities, type BuiltCharacter, type CharacterDraft } from '../lib/buildCharacter'
+import { ITEMS, STARTING_COINS } from '../data/items'
+import {
+  allAbilities,
+  suggestedSpecialAssignment,
+  type BuiltCharacter,
+  type CharacterDraft,
+} from '../lib/buildCharacter'
+import { Portrait } from './Portrait'
 
 interface StepProps {
   draft: CharacterDraft
@@ -48,11 +55,12 @@ export function StepProfession({ draft, update }: StepProps) {
         {PROFESSIONS.map((p) => (
           <button
             key={p.id}
-            className="option"
+            className="option with-art"
             aria-pressed={draft.professionId === p.id}
             disabled={!p.defined}
             onClick={() => choose(p)}
           >
+            <Portrait kind="profession" id={p.id} />
             <span className="name">
               {p.name}
               {p.defined ? (
@@ -90,19 +98,7 @@ export function StepSpecial({ draft, built, update }: StepProps) {
   }
 
   const autoAssign = () => {
-    const profession = built.profession
-    // Highest values to the profession's suggested attributes, in order.
-    const order: SpecialKey[] = [
-      ...(profession?.importantSpecial ?? []),
-      ...SPECIAL_KEYS.filter((k) => !profession?.importantSpecial.includes(k)),
-    ]
-    // Indices sorted by descending value.
-    const byValue = SPECIAL_ARRAY.map((v, i) => ({ v, i })).sort((a, b) => b.v - a.v)
-    const next: Partial<Record<SpecialKey, number>> = {}
-    order.forEach((key, idx) => {
-      next[key] = byValue[idx].i
-    })
-    update({ specialAssignment: next })
+    update({ specialAssignment: suggestedSpecialAssignment(built.profession) })
   }
 
   return (
@@ -180,10 +176,11 @@ export function StepSpecies({ draft, update }: StepProps) {
         {SPECIES.map((s) => (
           <button
             key={s.id}
-            className="option"
+            className="option with-art"
             aria-pressed={draft.speciesId === s.id}
             onClick={() => update({ speciesId: s.id })}
           >
+            <Portrait kind="species" id={s.id} />
             <span className="name">
               {s.name}
               <span className="tag">
@@ -223,10 +220,11 @@ export function StepBackground({ draft, update }: StepProps) {
               {group.map((b) => (
                 <button
                   key={b.id}
-                  className="option"
+                  className="option with-art"
                   aria-pressed={draft.backgroundId === b.id}
                   onClick={() => update({ backgroundId: b.id })}
                 >
+                  <Portrait kind="bg" id={b.id} size="sm" />
                   <span className="name">{b.name}</span>
                   <span className="desc">{b.blurb}</span>
                   <span className="trait">
@@ -369,6 +367,72 @@ export function StepProfessionDetail({ draft, built, update }: StepProps) {
           ))}
         </ul>
       )}
+    </section>
+  )
+}
+
+// --- Step 6: Equipment -------------------------------------------------
+
+export function StepEquipment({ draft, built, update }: StepProps) {
+  const setCount = (itemId: string, delta: number) => {
+    const current = draft.equipment[itemId] ?? 0
+    const next = Math.max(0, current + delta)
+    const equipment = { ...draft.equipment, [itemId]: next }
+    if (next === 0) delete equipment[itemId]
+    update({ equipment })
+  }
+
+  return (
+    <section className="card">
+      <CardHead
+        step="Step 6"
+        title="Buy equipment"
+        hint="Spend your starting coins on basic supplies. Weapons and armor are not available yet. Unspent coins are kept."
+      />
+
+      <div className="coin-purse" aria-live="polite">
+        <span className="coin" aria-hidden="true" />
+        <span>
+          <b>{built.coinsLeft}</b> of {STARTING_COINS} coins left
+        </span>
+      </div>
+
+      <div className="options">
+        {ITEMS.map((item) => {
+          const n = draft.equipment[item.id] ?? 0
+          return (
+            <div className="option with-art" key={item.id} style={{ cursor: 'default' }}>
+              <Portrait kind="item" id={item.id} size="sm" />
+              <span className="name">
+                {item.name}
+                <span className="tag">
+                  {item.cost} {item.cost === 1 ? 'coin' : 'coins'}
+                </span>
+              </span>
+              <span className="desc">{item.description}</span>
+              <div className="counter" style={{ marginTop: 6 }}>
+                <button
+                  onClick={() => setCount(item.id, -1)}
+                  disabled={n === 0}
+                  aria-label={`Remove one ${item.name}`}
+                >
+                  −
+                </button>
+                <span className="n" aria-label={`${item.name} owned`}>
+                  {n}
+                </span>
+                <button
+                  onClick={() => setCount(item.id, 1)}
+                  disabled={item.cost > built.coinsLeft}
+                  aria-label={`Buy one ${item.name}`}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </section>
   )
 }

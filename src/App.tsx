@@ -1,7 +1,12 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { BagSimulator } from './components/BagSimulator'
+import { SheetView } from './components/CharacterSheet'
+import { DungeonView } from './components/DungeonView'
 import { Review } from './components/Review'
+import { SavedCharactersDialog } from './components/SavedCharactersDialog'
 import {
   StepBackground,
+  StepEquipment,
   StepProfession,
   StepProfessionDetail,
   StepSpecial,
@@ -16,6 +21,11 @@ import {
   type CharacterDraft,
   type StepId,
 } from './lib/buildCharacter'
+import { parseDraft } from './lib/draftIO'
+import { buildRoster } from './lib/roster'
+import type { SavedCharacter } from './lib/savedCharacters'
+import { useSavedCharacters } from './lib/useSavedCharacters'
+import { useView, VIEWS } from './lib/useView'
 
 const EXPORT_VERSION = 1
 
@@ -26,6 +36,7 @@ const STEPS: { id: StepId | 'review'; label: string }[] = [
   { id: 'background', label: 'Background' },
   { id: 'special', label: 'SPECIAL' },
   { id: 'abilities', label: 'Abilities' },
+  { id: 'equipment', label: 'Equipment' },
   { id: 'review', label: 'Review' },
 ]
 
@@ -36,34 +47,6 @@ function download(filename: string, text: string) {
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
-}
-
-/**
- * Accepts only the fields we know about, so a hand-edited or stale file cannot
- * inject arbitrary keys into the draft.
- */
-function parseDraft(raw: unknown): CharacterDraft | string {
-  if (typeof raw !== 'object' || raw === null) return 'File is not a character object.'
-  const o = raw as Record<string, unknown>
-  const draft = o.draft && typeof o.draft === 'object' ? (o.draft as Record<string, unknown>) : o
-  const base = emptyDraft()
-  return {
-    name: typeof draft.name === 'string' ? draft.name : base.name,
-    professionId: typeof draft.professionId === 'string' ? draft.professionId : null,
-    specialAssignment:
-      typeof draft.specialAssignment === 'object' && draft.specialAssignment !== null
-        ? (draft.specialAssignment as CharacterDraft['specialAssignment'])
-        : {},
-    speciesId: typeof draft.speciesId === 'string' ? draft.speciesId : null,
-    backgroundId: typeof draft.backgroundId === 'string' ? draft.backgroundId : null,
-    tokenChoices:
-      typeof draft.tokenChoices === 'object' && draft.tokenChoices !== null
-        ? (draft.tokenChoices as CharacterDraft['tokenChoices'])
-        : {},
-    abilityIds: Array.isArray(draft.abilityIds)
-      ? draft.abilityIds.filter((a): a is string => typeof a === 'string')
-      : [],
-  }
 }
 
 /**
@@ -113,10 +96,23 @@ export default function App() {
   const [stepIndex, setStepIndex] = useState(0)
   const [showTable, setShowTable] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
+  const [savedId, setSavedId] = useState<string | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
+  const [view, setView] = useView()
+  const { saved, save, remove } = useSavedCharacters()
+
   const built = useMemo(() => buildCharacter(draft), [draft])
+  const roster = useMemo(() => buildRoster(draft, saved), [draft, saved])
   const update = (patch: Partial<CharacterDraft>) => setDraft((d) => ({ ...d, ...patch }))
+
+  useEffect(() => {
+    if (!notice) return
+    const timer = window.setTimeout(() => setNotice(null), 3500)
+    return () => window.clearTimeout(timer)
+  }, [notice])
 
   const reachable = furthestReachable(built)
   // Changing an earlier answer can invalidate a later step; never strand the
@@ -129,6 +125,29 @@ export default function App() {
   const goTo = (i: number) => {
     setStepIndex(Math.max(0, Math.min(i, STEPS.length - 1)))
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const displayName = built.name.trim() || 'Unnamed adventurer'
+
+  const onSave = (asNew: boolean) => {
+    const entry = save(draft, asNew ? null : savedId)
+    setSavedId(entry.id)
+    setNotice(`Saved ${displayName}.`)
+  }
+
+  const onLoadSaved = (character: SavedCharacter) => {
+    setDraft(character.draft)
+    setSavedId(character.id)
+    setStepIndex(STEPS.length - 1)
+    setImportError(null)
+    setDialogOpen(false)
+    setView('creator')
+    setNotice(`Loaded ${character.draft.name.trim() || 'Unnamed adventurer'}.`)
+  }
+
+  const onDeleteSaved = (id: string) => {
+    remove(id)
+    if (id === savedId) setSavedId(null)
   }
 
   const onExport = () => {
@@ -145,6 +164,8 @@ export default function App() {
         startingHp: built.startingHp,
         special: built.special,
         abilities: built.chosenAbilities.map((a) => a.name),
+        equipment: built.inventory.map((e) => `${e.count}x ${e.item.name}`),
+        coins: built.coinsLeft,
       },
     }
     const slug = (built.name.trim() || 'character').toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -159,7 +180,9 @@ export default function App() {
         setImportError(parsed)
       } else {
         setDraft(parsed)
+        setSavedId(null)
         setStepIndex(STEPS.length - 1)
+        setView('creator')
       }
     } catch {
       setImportError('That file is not valid JSON.')
@@ -170,7 +193,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="masthead">
+      <header className="masthead no-print">
         <div>
           <h1>Character Creator</h1>
           <p className="sub">A fantasy tabletop RPG of strategy, exploration, and adventure.</p>
@@ -187,6 +210,12 @@ export default function App() {
               e.target.value = ''
             }}
           />
+          <button className="btn" onClick={() => onSave(false)}>
+            {savedId ? 'Update save' : 'Save'}
+          </button>
+          <button className="btn" onClick={() => setDialogOpen(true)}>
+            Characters ({saved.length})
+          </button>
           <button className="btn" onClick={() => fileInput.current?.click()}>
             Import JSON
           </button>
@@ -194,8 +223,10 @@ export default function App() {
             className="btn"
             onClick={() => {
               setDraft(emptyDraft())
+              setSavedId(null)
               setStepIndex(0)
               setImportError(null)
+              setView('creator')
             }}
           >
             Start over
@@ -203,65 +234,105 @@ export default function App() {
         </div>
       </header>
 
+      <nav className="view-tabs no-print" aria-label="Sections">
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            className={`view-tab${view === v.id ? ' active' : ''}`}
+            aria-current={view === v.id ? 'page' : undefined}
+            onClick={() => setView(v.id)}
+          >
+            {v.label}
+          </button>
+        ))}
+      </nav>
+
+      {notice && (
+        <p className="notice no-print" role="status">
+          {notice}
+        </p>
+      )}
+
       {importError && (
-        <p className="hint" style={{ color: 'var(--danger)', marginTop: 8 }} role="alert">
+        <p className="hint no-print" style={{ color: 'var(--danger)', marginTop: 8 }} role="alert">
           {importError}
         </p>
       )}
 
-      <Stepper current={current} reachable={reachable} built={built} onGo={goTo} />
+      {view === 'creator' && (
+        <>
+          <Stepper current={current} reachable={reachable} built={built} onGo={goTo} />
 
-      <div className="layout">
-        <main>
-          {step.id === 'profession' && <StepProfession {...stepProps} />}
-          {step.id === 'species' && <StepSpecies {...stepProps} />}
-          {step.id === 'background' && <StepBackground {...stepProps} />}
-          {step.id === 'special' && <StepSpecial {...stepProps} />}
-          {step.id === 'abilities' && <StepProfessionDetail {...stepProps} />}
-          {step.id === 'review' && (
-            <Review
-              draft={draft}
-              built={built}
-              update={update}
-              onExport={onExport}
-              showTable={showTable}
-              onToggleTable={() => setShowTable((v) => !v)}
-            />
-          )}
-
-          <nav className="wizard-nav">
-            <button className="btn" onClick={() => goTo(current - 1)} disabled={current === 0}>
-              ← Back
-            </button>
-
-            <span className="wizard-progress">
-              {stepIssues.length > 0 ? (
-                <span className="blocker">{stepIssues[0]}</span>
-              ) : (
-                `Step ${current + 1} of ${STEPS.length}`
+          <div className="layout">
+            <main>
+              {step.id === 'profession' && <StepProfession {...stepProps} />}
+              {step.id === 'species' && <StepSpecies {...stepProps} />}
+              {step.id === 'background' && <StepBackground {...stepProps} />}
+              {step.id === 'special' && <StepSpecial {...stepProps} />}
+              {step.id === 'abilities' && <StepProfessionDetail {...stepProps} />}
+              {step.id === 'equipment' && <StepEquipment {...stepProps} />}
+              {step.id === 'review' && (
+                <Review
+                  draft={draft}
+                  built={built}
+                  update={update}
+                  onExport={onExport}
+                  onOpenSheet={() => setView('sheet')}
+                  showTable={showTable}
+                  onToggleTable={() => setShowTable((v) => !v)}
+                />
               )}
-            </span>
 
-            {current < STEPS.length - 1 ? (
-              <button
-                className="btn primary"
-                onClick={() => goTo(current + 1)}
-                disabled={!canAdvance}
-              >
-                {current === STEPS.length - 2 ? 'Review →' : 'Next →'}
-              </button>
-            ) : (
-              <button className="btn primary" onClick={onExport} disabled={!built.complete}>
-                Export JSON
-              </button>
-            )}
-          </nav>
-        </main>
+              <nav className="wizard-nav">
+                <button className="btn" onClick={() => goTo(current - 1)} disabled={current === 0}>
+                  ← Back
+                </button>
 
-        <aside className="sidebar">
-          <Summary built={built} />
-        </aside>
-      </div>
+                <span className="wizard-progress">
+                  {stepIssues.length > 0 ? (
+                    <span className="blocker">{stepIssues[0]}</span>
+                  ) : (
+                    `Step ${current + 1} of ${STEPS.length}`
+                  )}
+                </span>
+
+                {current < STEPS.length - 1 ? (
+                  <button
+                    className="btn primary"
+                    onClick={() => goTo(current + 1)}
+                    disabled={!canAdvance}
+                  >
+                    {current === STEPS.length - 2 ? 'Review →' : 'Next →'}
+                  </button>
+                ) : (
+                  <button className="btn primary" onClick={onExport} disabled={!built.complete}>
+                    Export JSON
+                  </button>
+                )}
+              </nav>
+            </main>
+
+            <aside className="sidebar">
+              <Summary built={built} />
+            </aside>
+          </div>
+        </>
+      )}
+
+      {view === 'sheet' && <SheetView current={draft} saved={saved} />}
+      {view === 'bag' && <BagSimulator roster={roster} />}
+      {view === 'dungeon' && <DungeonView roster={roster} />}
+
+      {dialogOpen && (
+        <SavedCharactersDialog
+          saved={saved}
+          currentSavedId={savedId}
+          onSave={onSave}
+          onLoad={onLoadSaved}
+          onDelete={onDeleteSaved}
+          onClose={() => setDialogOpen(false)}
+        />
+      )}
     </div>
   )
 }

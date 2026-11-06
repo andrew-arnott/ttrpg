@@ -1,40 +1,7 @@
 import { TOKENS } from '../data/tokens'
 import type { TokenStack } from '../data/types'
 import type { BagStats } from '../lib/buildCharacter'
-
-/**
- * Tokens are grouped into four families for the composition bar. Per-token
- * colouring would need more categorical slots than the palette safely offers,
- * and the families are what actually shape a bag's behaviour.
- */
-type Group = 'numeric' | 'chain' | 'critical' | 'species'
-
-const GROUP_OF: Record<string, Group> = {
-  plus0: 'numeric',
-  plus1: 'numeric',
-  plus2: 'numeric',
-  plus3: 'numeric',
-  plus4: 'numeric',
-  critSuccess: 'critical',
-  critFailure: 'critical',
-  opportunity: 'chain',
-  expertise: 'chain',
-  complication: 'chain',
-  shield: 'species',
-  might: 'species',
-  bless: 'chain',
-}
-
-const GROUP_META: Record<Group, { label: string; cssVar: string }> = {
-  numeric: { label: 'Numeric', cssVar: 'var(--series-numeric)' },
-  chain: { label: 'Chain', cssVar: 'var(--series-chain)' },
-  critical: { label: 'Criticals', cssVar: 'var(--series-critical)' },
-  species: { label: 'Species', cssVar: 'var(--series-species)' },
-}
-
-const GROUP_ORDER: Group[] = ['numeric', 'chain', 'critical', 'species']
-
-const groupOf = (tokenId: string): Group => GROUP_OF[tokenId] ?? 'chain'
+import { GROUP_META, GROUP_ORDER, groupOf } from '../lib/tokenGroups'
 
 const fmtMod = (m: number | null) => (m === null ? '—' : m > 0 ? `+${m}` : `${m}`)
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`

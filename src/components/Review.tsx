@@ -1,6 +1,7 @@
 import { TOKENS } from '../data/tokens'
 import { SPECIAL_KEYS, SPECIAL_LABELS } from '../data/types'
 import type { BuiltCharacter, CharacterDraft } from '../lib/buildCharacter'
+import { Portrait } from './Portrait'
 import { BagStatTiles, TokenBag, TokenTable } from './TokenBag'
 
 export function Review({
@@ -8,6 +9,7 @@ export function Review({
   built,
   update,
   onExport,
+  onOpenSheet,
   showTable,
   onToggleTable,
 }: {
@@ -15,6 +17,7 @@ export function Review({
   built: BuiltCharacter
   update: (patch: Partial<CharacterDraft>) => void
   onExport: () => void
+  onOpenSheet: () => void
   showTable: boolean
   onToggleTable: () => void
 }) {
@@ -22,13 +25,20 @@ export function Review({
 
   return (
     <section className="card">
-      <div className="card-head">
-        <span className="step-index">Review</span>
-        <h2>{built.name.trim() || 'Unnamed adventurer'}</h2>
-        <p className="hint">
-          {[species?.name, background?.name, profession?.name].filter(Boolean).join(' · ')}
-          {built.startingHp !== null && ` · ${built.startingHp} HP`}
-        </p>
+      <div className="card-head portrait-head">
+        <div className="portrait-row">
+          <Portrait kind="species" id={species?.id} size="md" />
+          <Portrait kind="bg" id={background?.id} size="md" />
+          <Portrait kind="profession" id={profession?.id} size="md" />
+        </div>
+        <div>
+          <span className="step-index">Review</span>
+          <h2>{built.name.trim() || 'Unnamed adventurer'}</h2>
+          <p className="hint">
+            {[species?.name, background?.name, profession?.name].filter(Boolean).join(' · ')}
+            {built.startingHp !== null && ` · ${built.startingHp} HP`}
+          </p>
+        </div>
       </div>
 
       <label className="step-index" htmlFor="review-name">
@@ -88,6 +98,23 @@ export function Review({
         </>
       )}
 
+      <h3 className="section-title">Equipment</h3>
+      {built.inventory.length === 0 ? (
+        <p className="hint">Nothing bought.</p>
+      ) : (
+        <div className="tokens" style={{ marginTop: 0 }}>
+          {built.inventory.map(({ item, count }) => (
+            <span className="chip" key={item.id} title={item.description}>
+              <span className="count">{count}×</span>
+              {item.name}
+            </span>
+          ))}
+        </div>
+      )}
+      <p className="hint" style={{ marginTop: 8 }}>
+        {built.coinsLeft} coins remaining.
+      </p>
+
       {species && (
         <>
           <h3 className="section-title">{species.name} traits</h3>
@@ -129,6 +156,9 @@ export function Review({
       )}
 
       <div className="review-actions">
+        <button className="btn" onClick={onOpenSheet}>
+          Open character sheet
+        </button>
         <button className="btn primary" onClick={onExport} disabled={!built.complete}>
           Export JSON
         </button>
