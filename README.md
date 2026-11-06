@@ -7,17 +7,48 @@ Static React site, deployed to GitHub Pages.
 
 ## What it does
 
-A six-step wizard, one step per screen, with a live summary alongside:
+A seven-step wizard, one step per screen, with a live summary alongside:
 
 1. **Profession** — sets starting HP and profession tokens
 2. **Species** — attribute bonus, traits, and token bag modifications
 3. **Background** — +1 to an attribute and a passive ability
 4. **SPECIAL** — distribute the fixed array `1, 2, 2, 2, 3, 3, 3`; species and background bonuses are already shown on top
 5. **Abilities** — profession resource allocation and ability picks
-6. **Review** — the finished sheet, with JSON export
+6. **Equipment** — spend 10 starting coins on basic consumables
+7. **Review** — the finished sheet, with JSON export
 
 Each step validates independently and blocks *Next* with the specific reason. Changing an earlier
 answer that invalidates a later step pulls you back rather than stranding you.
+
+Around the wizard are four sections, switched with the tabs under the title (the active one is kept
+in the URL hash, so each is linkable):
+
+- **Create** — the wizard above.
+- **Sheet** — a printable character sheet. *Print sheet* hides everything but the sheet.
+- **Token Bag** — draws tokens from a character's bag with an animated pouch and coin reveal, using
+  the real draw rule, plus a "run 5,000 tests" check against the exact odds.
+- **Dungeon** — a pre-made dungeon (The Sunken Crypt) to learn the game in. Pick up to four characters
+  (yours, saved, or ready-made samples), then explore with the torch ticking down. Right-click a torch
+  in a character's pack to light a new one.
+
+### Saved characters
+
+*Save* stores the current character in this browser's `localStorage`; *Characters* lists, loads and
+deletes them. JSON export/import still works for moving a character between browsers.
+
+### Equipment and torches
+
+The guide doesn't price equipment yet, so costs and effects in `src/data/items.ts` are proposals:
+Torch 1, Ration 1, Bandage 2, Antidote 3, Smoke Bomb 3, Healing Potion 5 coins. Weapons and armor are
+not included. An ordinary torch burns Bright for 2 Intervals, Steady for 2, then Dim for 2 (the Holy
+Light ability's 3/3/2 torch is the enhanced version). The party starts the dungeon with one lit torch;
+*Pass an Interval* burns it down. Bright light shows rooms two doorways away, Steady one, Dim only the
+room you are in.
+
+### Art
+
+Portraits and item icons in `src/assets/art/` are AI-generated pixel art in a 16-bit RPG style, one per
+profession, species, background and item.
 
 ### Token bag
 
@@ -54,9 +85,10 @@ appear in the UI as unselectable rather than being invented. Filling them in mea
 
 ```
 src/
-  data/        transcribed rules — types, tokens, species, backgrounds, professions
-  lib/         buildCharacter.ts — pure calculation, fully unit-tested
-  components/  wizard steps, token bag chart, summary sidebar
+  data/        transcribed rules — types, tokens, species, backgrounds, professions, items, dungeon
+  lib/         pure logic, unit-tested — character building, token draws, torch, dungeon state, storage
+  components/  wizard steps, sheet, simulators, dungeon map, summary sidebar
+  assets/art/  generated portraits and item icons
 ```
 
 `src/lib/` has no React imports; all the rules maths is testable in isolation.

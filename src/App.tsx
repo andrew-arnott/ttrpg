@@ -105,7 +105,7 @@ export default function App() {
   const { saved, save, remove } = useSavedCharacters()
 
   const built = useMemo(() => buildCharacter(draft), [draft])
-  const roster = useMemo(() => buildRoster(draft, saved), [draft, saved])
+  const roster = useMemo(() => buildRoster(draft, savedId, saved), [draft, savedId, saved])
   const update = (patch: Partial<CharacterDraft>) => setDraft((d) => ({ ...d, ...patch }))
 
   useEffect(() => {
