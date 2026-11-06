@@ -76,7 +76,7 @@ export function StepProfession({ draft, update }: StepProps) {
   )
 }
 
-// --- Step 2: SPECIAL ---------------------------------------------------
+// --- Step 4: SPECIAL ---------------------------------------------------
 
 export function StepSpecial({ draft, built, update }: StepProps) {
   const assignment = draft.specialAssignment
@@ -108,7 +108,7 @@ export function StepSpecial({ draft, built, update }: StepProps) {
   return (
     <section className="card">
       <CardHead
-        step="Step 2"
+        step="Step 4"
         title="Assign SPECIAL"
         hint="Distribute each value from the array exactly once. Species and background bonuses are added on top."
       />
@@ -166,13 +166,13 @@ export function StepSpecial({ draft, built, update }: StepProps) {
   )
 }
 
-// --- Step 3: Species ---------------------------------------------------
+// --- Step 2: Species ---------------------------------------------------
 
 export function StepSpecies({ draft, update }: StepProps) {
   return (
     <section className="card">
       <CardHead
-        step="Step 3"
+        step="Step 2"
         title="Choose a species"
         hint="Grants an attribute bonus, natural traits, and changes to your token bag."
       />
@@ -203,13 +203,13 @@ export function StepSpecies({ draft, update }: StepProps) {
   )
 }
 
-// --- Step 4: Background ------------------------------------------------
+// --- Step 3: Background ------------------------------------------------
 
 export function StepBackground({ draft, update }: StepProps) {
   return (
     <section className="card">
       <CardHead
-        step="Step 4"
+        step="Step 3"
         title="Choose a background"
         hint="Your life before adventuring. Grants +1 to an attribute and a passive ability."
       />

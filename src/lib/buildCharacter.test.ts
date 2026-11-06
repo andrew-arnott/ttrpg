@@ -3,7 +3,14 @@ import { SPECIES } from '../data/species'
 import { STANDARD_BAG, TOKENS } from '../data/tokens'
 import { SPECIAL_ARRAY } from '../data/types'
 import { PROFESSIONS } from '../data/professions'
-import { allAbilities, applyBagMods, bagStats, buildCharacter, emptyDraft } from './buildCharacter'
+import {
+  allAbilities,
+  applyBagMods,
+  bagStats,
+  buildCharacter,
+  emptyDraft,
+  STEP_IDS,
+} from './buildCharacter'
 
 const size = (bag: { count: number }[]) => bag.reduce((a, s) => a + s.count, 0)
 const countOf = (bag: { tokenId: string; count: number }[], id: string) =>
@@ -212,5 +219,11 @@ describe('ability pool', () => {
     for (const p of PROFESSIONS.filter((x) => x.defined)) {
       expect(allAbilities(p).length, p.name).toBeGreaterThanOrEqual(p.abilityPicks)
     }
+  })
+})
+
+describe('wizard step order', () => {
+  it('collects species and background before SPECIAL', () => {
+    expect([...STEP_IDS]).toEqual(['profession', 'species', 'background', 'special', 'abilities'])
   })
 })

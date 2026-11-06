@@ -10,9 +10,9 @@ Static React site, deployed to GitHub Pages.
 A six-step wizard, one step per screen, with a live summary alongside:
 
 1. **Profession** — sets starting HP and profession tokens
-2. **SPECIAL** — distribute the fixed array `1, 2, 2, 2, 3, 3, 3`
-3. **Species** — attribute bonus, traits, and token bag modifications
-4. **Background** — +1 to an attribute and a passive ability
+2. **Species** — attribute bonus, traits, and token bag modifications
+3. **Background** — +1 to an attribute and a passive ability
+4. **SPECIAL** — distribute the fixed array `1, 2, 2, 2, 3, 3, 3`; species and background bonuses are already shown on top
 5. **Abilities** — profession resource allocation and ability picks
 6. **Review** — the finished sheet, with JSON export
 

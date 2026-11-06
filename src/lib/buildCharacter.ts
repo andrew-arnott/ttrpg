@@ -135,7 +135,7 @@ export function bagStats(bag: TokenStack[]): BagStats {
 // --- character assembly ------------------------------------------------
 
 /** Wizard steps, in order. Issues are tagged with the step that owns them. */
-export const STEP_IDS = ['profession', 'special', 'species', 'background', 'abilities'] as const
+export const STEP_IDS = ['profession', 'species', 'background', 'special', 'abilities'] as const
 export type StepId = (typeof STEP_IDS)[number]
 
 export interface Issue {

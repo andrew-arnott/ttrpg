@@ -22,9 +22,9 @@ const EXPORT_VERSION = 1
 /** Wizard order. The review step owns no validation of its own. */
 const STEPS: { id: StepId | 'review'; label: string }[] = [
   { id: 'profession', label: 'Profession' },
-  { id: 'special', label: 'SPECIAL' },
   { id: 'species', label: 'Species' },
   { id: 'background', label: 'Background' },
+  { id: 'special', label: 'SPECIAL' },
   { id: 'abilities', label: 'Abilities' },
   { id: 'review', label: 'Review' },
 ]
@@ -214,9 +214,9 @@ export default function App() {
       <div className="layout">
         <main>
           {step.id === 'profession' && <StepProfession {...stepProps} />}
-          {step.id === 'special' && <StepSpecial {...stepProps} />}
           {step.id === 'species' && <StepSpecies {...stepProps} />}
           {step.id === 'background' && <StepBackground {...stepProps} />}
+          {step.id === 'special' && <StepSpecial {...stepProps} />}
           {step.id === 'abilities' && <StepProfessionDetail {...stepProps} />}
           {step.id === 'review' && (
             <Review
