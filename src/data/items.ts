@@ -25,8 +25,16 @@ export interface TorchSpec {
 
 export const ORDINARY_TORCH: TorchSpec = {
   name: 'Torch',
-  bright: 2,
-  steady: 2,
+  bright: 1,
+  steady: 3,
+  dim: 2,
+}
+
+/** Lit by the Priest's Holy Light ability in place of an ordinary torch. */
+export const HOLY_TORCH: TorchSpec = {
+  name: 'Holy torch',
+  bright: 3,
+  steady: 3,
   dim: 2,
 }
 

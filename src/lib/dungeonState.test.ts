@@ -1,28 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { SUNKEN_CRYPT } from '../data/dungeon'
+import { linkKey, SUNKEN_CRYPT } from '../data/dungeon'
 import { ORDINARY_TORCH } from '../data/items'
 import {
   adjacentRoomIds,
   createDungeonState,
   dungeonReducer,
   visibleRoomIds,
-  type PartyMember,
 } from './dungeonState'
+import { testMember } from './testFixtures'
 import { torchLevel, totalIntervals } from './torch'
 
-const member = (key: string, torches: number): PartyMember => ({
-  key,
-  name: key,
-  professionId: 'warrior',
-  speciesId: 'human',
-  hp: 12,
-  inventory: { torch: torches },
-})
-
-const fresh = () => createDungeonState(SUNKEN_CRYPT, [member('a', 2), member('b', 0)])
+const fresh = () => createDungeonState(SUNKEN_CRYPT, [testMember('a', 2), testMember('b', 0)])
 
 describe('dungeon layout', () => {
-  it('has links only between rooms that exist, and every room is reachable', () => {
+  const visibleLinks = SUNKEN_CRYPT.links.filter((l) => !l.hidden)
+
+  it('has links only between rooms that exist, and every room is reachable without secrets', () => {
     const ids = new Set(SUNKEN_CRYPT.rooms.map((r) => r.id))
     for (const l of SUNKEN_CRYPT.links) {
       expect(ids.has(l.from)).toBe(true)
@@ -41,16 +34,31 @@ describe('dungeon layout', () => {
     expect(reached.size).toBe(ids.size)
   })
 
-  it('keeps every corridor straight', () => {
+  it('keeps every ordinary corridor straight', () => {
     const centre = (id: string) => {
       const r = SUNKEN_CRYPT.rooms.find((x) => x.id === id)!
       return { x: r.x + r.w / 2, y: r.y + r.h / 2 }
     }
-    for (const l of SUNKEN_CRYPT.links) {
+    for (const l of visibleLinks) {
       const a = centre(l.from)
       const b = centre(l.to)
       expect(a.x === b.x || a.y === b.y, `${l.from} -> ${l.to}`).toBe(true)
     }
+  })
+
+  it('gives every room something to find and something to try', () => {
+    for (const room of SUNKEN_CRYPT.rooms) {
+      expect(room.secret.text, room.id).toBeTruthy()
+      expect(room.interaction.label, room.id).toBeTruthy()
+      expect(room.intel, room.id).toBeTruthy()
+    }
+  })
+
+  it('keeps hidden links out of the way until they are discovered', () => {
+    const hidden = SUNKEN_CRYPT.links.find((l) => l.hidden)!
+    expect(adjacentRoomIds(SUNKEN_CRYPT, hidden.from)).not.toContain(hidden.to)
+    expect(adjacentRoomIds(SUNKEN_CRYPT, hidden.from, [linkKey(hidden)])).toContain(hidden.to)
+    expect(adjacentRoomIds(SUNKEN_CRYPT, hidden.to, [linkKey(hidden)])).toContain(hidden.from)
   })
 })
 
@@ -74,19 +82,27 @@ describe('dungeonReducer', () => {
     expect(s.explored).toContain('greatHall')
   })
 
-  it('burns the torch one Interval at a time until it goes out', () => {
-    let s = fresh()
-    for (let i = 0; i < totalIntervals(ORDINARY_TORCH); i++) s = dungeonReducer(s, { type: 'passInterval' })
-    expect(torchLevel(s.torch)).toBe('out')
-    expect(s.intervals).toBe(totalIntervals(ORDINARY_TORCH))
-    expect(s.log[0]).toMatch(/goes out/)
-  })
-
   it('moves only through connected rooms', () => {
     const s = fresh()
     expect(dungeonReducer(s, { type: 'moveTo', roomId: 'crypt' })).toBe(s)
-    const moved = dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall' })
-    expect(moved.roomId).toBe('greatHall')
+    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'storeroom' })).toBe(s)
+    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall' }).roomId).toBe('greatHall')
+  })
+
+  it('passes an Interval whenever the party moves', () => {
+    let s = fresh()
+    s = dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall' })
+    expect(s.intervals).toBe(1)
+    expect(s.torch.remaining).toBe(totalIntervals(ORDINARY_TORCH) - 1)
+    expect(s.log[0]).toMatch(/Interval 1/)
+    expect(s.log.some((l) => l.includes('moves to Great Hall'))).toBe(true)
+  })
+
+  it('lets the torch go out while travelling', () => {
+    let s = fresh()
+    const route = ['greatHall', 'entrance', 'greatHall', 'entrance', 'greatHall', 'entrance']
+    for (const roomId of route) s = dungeonReducer(s, { type: 'moveTo', roomId })
+    expect(torchLevel(s.torch)).toBe('out')
   })
 
   it('remembers rooms that were seen once the light moves on', () => {
@@ -97,15 +113,20 @@ describe('dungeonReducer', () => {
     expect(s.explored).toContain('entrance')
   })
 
-  it('lights a new torch from the member inventory, replacing the active one', () => {
+  it('can travel a discovered hidden passage', () => {
+    const hidden = SUNKEN_CRYPT.links.find((l) => l.hidden)!
+    const s = { ...fresh(), discovered: [linkKey(hidden)] }
+    expect(dungeonReducer(s, { type: 'moveTo', roomId: hidden.to }).roomId).toBe(hidden.to)
+  })
+
+  it('lights a new torch from the member inventory without taking time', () => {
     let s = fresh()
-    s = dungeonReducer(s, { type: 'passInterval' })
-    s = dungeonReducer(s, { type: 'passInterval' })
-    s = dungeonReducer(s, { type: 'passInterval' })
-    const before = s.torch.remaining
+    s = dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall' })
+    s = dungeonReducer(s, { type: 'moveTo', roomId: 'entrance' })
+    const intervals = s.intervals
     s = dungeonReducer(s, { type: 'lightTorch', memberKey: 'a' })
-    expect(before).toBeLessThan(totalIntervals(ORDINARY_TORCH))
     expect(s.torch.remaining).toBe(totalIntervals(ORDINARY_TORCH))
+    expect(s.intervals).toBe(intervals)
     expect(s.party.find((m) => m.key === 'a')!.inventory.torch).toBe(1)
     expect(s.log[0]).toMatch(/replacing/)
   })
@@ -120,7 +141,7 @@ describe('dungeonReducer', () => {
     const s = fresh()
     const snapshot = JSON.stringify(s)
     dungeonReducer(s, { type: 'lightTorch', memberKey: 'a' })
-    dungeonReducer(s, { type: 'passInterval' })
+    dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall' })
     expect(JSON.stringify(s)).toBe(snapshot)
   })
 })

@@ -18,16 +18,42 @@ export interface RosterEntry {
 
 const UNNAMED = 'Unnamed adventurer'
 
+/** Each sample takes two combat abilities and two exploration abilities so they have things to do in the dungeon. */
 const SAMPLE_RECIPES = [
-  { name: 'Brann Ironhold', professionId: 'warrior', speciesId: 'dwarf', backgroundId: 'soldier' },
-  { name: 'Wren Quickfingers', professionId: 'rogue', speciesId: 'halfling', backgroundId: 'urchin' },
-  { name: 'Sister Maren', professionId: 'priest', speciesId: 'human', backgroundId: 'scholar' },
-  { name: 'Ilvara Dawnleaf', professionId: 'wizard', speciesId: 'elf', backgroundId: 'scholar' },
+  {
+    name: 'Brann Ironhold',
+    professionId: 'warrior',
+    speciesId: 'dwarf',
+    backgroundId: 'soldier',
+    explorationIds: ['fortify', 'barricade'],
+  },
+  {
+    name: 'Wren Quickfingers',
+    professionId: 'rogue',
+    speciesId: 'halfling',
+    backgroundId: 'urchin',
+    explorationIds: ['scoutAhead', 'findAShortcut'],
+  },
+  {
+    name: 'Sister Maren',
+    professionId: 'priest',
+    speciesId: 'human',
+    backgroundId: 'scholar',
+    explorationIds: ['holyLight', 'groupHeal'],
+  },
+  {
+    name: 'Ilvara Dawnleaf',
+    professionId: 'wizard',
+    speciesId: 'elf',
+    backgroundId: 'scholar',
+    explorationIds: ['detectMagic', 'dispelMagic'],
+  },
 ] as const
 
 /**
  * A complete character for the given profession, taking the first listed
- * option wherever the rules ask for a choice. Used for ready-made party members.
+ * option wherever the rules ask for a choice, and the first combat abilities
+ * alongside the recipe's exploration abilities. Used for ready-made party members.
  */
 function sampleDraft(recipe: (typeof SAMPLE_RECIPES)[number]): CharacterDraft {
   const profession = PROFESSIONS.find((p) => p.id === recipe.professionId)
@@ -37,7 +63,7 @@ function sampleDraft(recipe: (typeof SAMPLE_RECIPES)[number]): CharacterDraft {
   for (const choice of profession.tokenChoices) {
     tokenChoices[choice.id] = { [choice.options[0]]: choice.total }
   }
-  const pool = [...profession.abilities, ...profession.explorationAbilities]
+  const combatPicks = profession.abilityPicks - recipe.explorationIds.length
 
   return {
     ...emptyDraft(),
@@ -47,7 +73,10 @@ function sampleDraft(recipe: (typeof SAMPLE_RECIPES)[number]): CharacterDraft {
     backgroundId: recipe.backgroundId,
     specialAssignment: suggestedSpecialAssignment(profession),
     tokenChoices,
-    abilityIds: pool.slice(0, profession.abilityPicks).map((a) => a.id),
+    abilityIds: [
+      ...profession.abilities.slice(0, combatPicks).map((a) => a.id),
+      ...recipe.explorationIds,
+    ],
     equipment: { torch: 3, ration: 1, healingPotion: 1 },
   }
 }
