@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { SPECIES } from '../data/species'
 import { STANDARD_BAG, TOKENS } from '../data/tokens'
 import { SPECIAL_ARRAY } from '../data/types'
-import { applyBagMods, bagStats, buildCharacter, emptyDraft } from './buildCharacter'
+import { PROFESSIONS } from '../data/professions'
+import { allAbilities, applyBagMods, bagStats, buildCharacter, emptyDraft } from './buildCharacter'
 
 const size = (bag: { count: number }[]) => bag.reduce((a, s) => a + s.count, 0)
 const countOf = (bag: { tokenId: string; count: number }[], id: string) =>
@@ -146,7 +147,7 @@ describe('buildCharacter', () => {
     const draft = fullDraft()
     draft.specialAssignment.luck = 4 // already used by strength
     const c = buildCharacter(draft)
-    expect(c.issues).toContain('Each value from the array may only be used once.')
+    expect(c.issuesFor('special')).toContain('Each value from the array may only be used once.')
   })
 
   it('flags the wrong number of ability picks', () => {
@@ -159,7 +160,7 @@ describe('buildCharacter', () => {
     const draft = fullDraft()
     draft.tokenChoices = { warriorCombat: { armor: 1, power: 1 } }
     const c = buildCharacter(draft)
-    expect(c.issues.some((i) => i.includes('combat tokens'))).toBe(true)
+    expect(c.issuesFor('abilities').some((i) => i.includes('combat tokens'))).toBe(true)
   })
 
   it('refuses to complete an undefined profession', () => {
@@ -167,5 +168,49 @@ describe('buildCharacter', () => {
     const c = buildCharacter(draft)
     expect(c.complete).toBe(false)
     expect(c.startingHp).toBeNull()
+  })
+})
+
+describe('ability pool', () => {
+  const warrior = PROFESSIONS.find((p) => p.id === 'warrior')!
+
+  it('combines combat and exploration abilities', () => {
+    const pool = allAbilities(warrior)
+    expect(pool).toHaveLength(warrior.abilities.length + warrior.explorationAbilities.length)
+    expect(pool.map((a) => a.id)).toContain('provoke')
+    expect(pool.map((a) => a.id)).toContain('fortify')
+  })
+
+  it('has unique ids across both lists for every profession', () => {
+    for (const p of PROFESSIONS) {
+      const ids = allAbilities(p).map((a) => a.id)
+      expect(new Set(ids).size, `${p.name} has duplicate ability ids`).toBe(ids.length)
+    }
+  })
+
+  it('accepts a mix of combat and exploration picks', () => {
+    const draft = {
+      ...emptyDraft(),
+      professionId: 'warrior',
+      specialAssignment: {
+        strength: 4, perception: 1, endurance: 5, charisma: 0,
+        intelligence: 2, agility: 6, luck: 3,
+      },
+      speciesId: 'human',
+      backgroundId: 'soldier',
+      tokenChoices: { warriorCombat: { armor: 3 } },
+      abilityIds: ['provoke', 'shieldWall', 'fortify', 'barricade'],
+    }
+    const c = buildCharacter(draft)
+    expect(c.complete).toBe(true)
+    expect(c.chosenAbilities.map((a) => a.id).sort()).toEqual(
+      ['barricade', 'fortify', 'provoke', 'shieldWall'].sort(),
+    )
+  })
+
+  it('offers enough abilities to satisfy every defined profession', () => {
+    for (const p of PROFESSIONS.filter((x) => x.defined)) {
+      expect(allAbilities(p).length, p.name).toBeGreaterThanOrEqual(p.abilityPicks)
+    }
   })
 })

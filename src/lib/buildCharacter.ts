@@ -5,6 +5,7 @@ import { STANDARD_BAG, TOKENS } from '../data/tokens'
 import {
   SPECIAL_ARRAY,
   SPECIAL_KEYS,
+  type Ability,
   type BagMod,
   type Background,
   type Profession,
@@ -133,6 +134,24 @@ export function bagStats(bag: TokenStack[]): BagStats {
 
 // --- character assembly ------------------------------------------------
 
+/** Wizard steps, in order. Issues are tagged with the step that owns them. */
+export const STEP_IDS = ['profession', 'special', 'species', 'background', 'abilities'] as const
+export type StepId = (typeof STEP_IDS)[number]
+
+export interface Issue {
+  step: StepId
+  message: string
+}
+
+/**
+ * The full pool a profession's picks come from: combat abilities and
+ * exploration abilities are chosen together.
+ */
+export function allAbilities(profession: Profession | null): Ability[] {
+  if (!profession) return []
+  return [...profession.abilities, ...profession.explorationAbilities]
+}
+
 export interface BuiltCharacter {
   name: string
   profession: Profession | null
@@ -149,9 +168,11 @@ export interface BuiltCharacter {
   /** Profession resources, which the guide says begin in play. */
   inPlay: TokenStack[]
   stats: BagStats
-  chosenAbilities: Profession['abilities']
+  chosenAbilities: Ability[]
   complete: boolean
-  issues: string[]
+  issues: Issue[]
+  /** Issue messages for one step, for inline display. */
+  issuesFor: (step: StepId) => string[]
 }
 
 const zeroSpread = (): SpecialSpread =>
@@ -196,9 +217,7 @@ export function buildCharacter(draft: CharacterDraft): BuiltCharacter {
     }
   }
 
-  const chosenAbilities = profession
-    ? profession.abilities.filter((a) => draft.abilityIds.includes(a.id))
-    : []
+  const chosenAbilities = allAbilities(profession).filter((a) => draft.abilityIds.includes(a.id))
 
   const issues = validate(draft, profession)
 
@@ -217,43 +236,45 @@ export function buildCharacter(draft: CharacterDraft): BuiltCharacter {
     chosenAbilities,
     complete: issues.length === 0,
     issues,
+    issuesFor: (step) => issues.filter((i) => i.step === step).map((i) => i.message),
   }
 }
 
-export function validate(draft: CharacterDraft, profession: Profession | null): string[] {
-  const issues: string[] = []
+export function validate(draft: CharacterDraft, profession: Profession | null): Issue[] {
+  const issues: Issue[] = []
+  const add = (step: StepId, message: string) => issues.push({ step, message })
 
   if (!profession) {
-    issues.push('Choose a profession.')
+    add('profession', 'Choose a profession.')
   } else if (!profession.defined) {
-    issues.push(`${profession.name} is not yet defined in the Player's Guide.`)
+    add('profession', `${profession.name} is not yet defined in the Player's Guide.`)
   }
 
   const assigned = Object.values(draft.specialAssignment).filter((v) => v !== undefined)
   if (assigned.length < SPECIAL_ARRAY.length) {
-    issues.push(
+    add(
+      'special',
       `Assign all ${SPECIAL_ARRAY.length} SPECIAL values (${SPECIAL_ARRAY.length - assigned.length} left).`,
     )
   } else if (new Set(assigned).size !== assigned.length) {
-    issues.push('Each value from the array may only be used once.')
+    add('special', 'Each value from the array may only be used once.')
   }
 
-  if (!draft.speciesId) issues.push('Choose a species.')
-  if (!draft.backgroundId) issues.push('Choose a background.')
+  if (!draft.speciesId) add('species', 'Choose a species.')
+  if (!draft.backgroundId) add('background', 'Choose a background.')
 
   if (profession) {
     for (const choice of profession.tokenChoices) {
       const picked = draft.tokenChoices[choice.id] ?? {}
       const total = Object.values(picked).reduce((a, b) => a + b, 0)
       if (total !== choice.total) {
-        issues.push(
-          `Allocate all ${choice.total} combat tokens (${total} of ${choice.total} chosen).`,
-        )
+        add('abilities', `Allocate all ${choice.total} combat tokens (${total} of ${choice.total} chosen).`)
       }
     }
     if (profession.abilityPicks > 0 && draft.abilityIds.length !== profession.abilityPicks) {
-      issues.push(
-        `Choose ${profession.abilityPicks} ${profession.name} abilities (${draft.abilityIds.length} of ${profession.abilityPicks} chosen).`,
+      add(
+        'abilities',
+        `Choose ${profession.abilityPicks} abilities (${draft.abilityIds.length} of ${profession.abilityPicks} chosen).`,
       )
     }
   }

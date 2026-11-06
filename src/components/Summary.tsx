@@ -1,13 +1,10 @@
 import { TOKENS } from '../data/tokens'
 import { SPECIAL_KEYS, SPECIAL_LABELS } from '../data/types'
 import type { BuiltCharacter } from '../lib/buildCharacter'
-import { BagStatTiles, TokenBag, TokenTable } from './TokenBag'
+import { BagStatTiles, TokenBag } from './TokenBag'
 
-export function Summary({ built, showTable, onToggleTable }: {
-  built: BuiltCharacter
-  showTable: boolean
-  onToggleTable: () => void
-}) {
+/** Live running total beside the wizard. The Review step shows the full sheet. */
+export function Summary({ built }: { built: BuiltCharacter }) {
   return (
     <>
       <section className="card">
@@ -43,20 +40,9 @@ export function Summary({ built, showTable, onToggleTable }: {
         </div>
 
         <TokenBag bag={built.bag} stats={built.stats} />
-
         <div style={{ marginTop: 14 }}>
           <BagStatTiles stats={built.stats} />
         </div>
-
-        <button className="btn" style={{ marginTop: 12 }} onClick={onToggleTable}>
-          {showTable ? 'Hide' : 'Show'} token table
-        </button>
-        {showTable && <TokenTable bag={built.bag} />}
-
-        <p className="hint" style={{ marginTop: 12 }}>
-          Averages assume a single test drawn from a full bag. Chain tokens keep the draw going, so
-          a test averages {built.stats.expectedTokensDrawn.toFixed(2)} tokens.
-        </p>
       </section>
 
       {built.inPlay.length > 0 && (
@@ -64,8 +50,7 @@ export function Summary({ built, showTable, onToggleTable }: {
           <div className="card-head">
             <h2>In play at start</h2>
             <p className="hint">
-              Profession resources begin in play rather than in the bag, so they do not affect your
-              draw odds until they are spent.
+              Profession resources begin in play, so they do not affect your draw odds until spent.
             </p>
           </div>
           <div className="tokens" style={{ marginTop: 0 }}>
@@ -76,19 +61,6 @@ export function Summary({ built, showTable, onToggleTable }: {
               </span>
             ))}
           </div>
-        </section>
-      )}
-
-      {built.issues.length > 0 && (
-        <section className="card">
-          <div className="card-head">
-            <h2>To finish</h2>
-          </div>
-          <ul className="issues">
-            {built.issues.map((i) => (
-              <li key={i}>{i}</li>
-            ))}
-          </ul>
         </section>
       )}
     </>

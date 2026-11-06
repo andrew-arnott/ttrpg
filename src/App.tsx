@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Summary } from './components/Summary'
+import { Review } from './components/Review'
 import {
   StepBackground,
   StepProfession,
@@ -7,9 +7,27 @@ import {
   StepSpecial,
   StepSpecies,
 } from './components/Steps'
-import { buildCharacter, emptyDraft, type CharacterDraft } from './lib/buildCharacter'
+import { Summary } from './components/Summary'
+import {
+  buildCharacter,
+  emptyDraft,
+  STEP_IDS,
+  type BuiltCharacter,
+  type CharacterDraft,
+  type StepId,
+} from './lib/buildCharacter'
 
 const EXPORT_VERSION = 1
+
+/** Wizard order. The review step owns no validation of its own. */
+const STEPS: { id: StepId | 'review'; label: string }[] = [
+  { id: 'profession', label: 'Profession' },
+  { id: 'special', label: 'SPECIAL' },
+  { id: 'species', label: 'Species' },
+  { id: 'background', label: 'Background' },
+  { id: 'abilities', label: 'Abilities' },
+  { id: 'review', label: 'Review' },
+]
 
 function download(filename: string, text: string) {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
@@ -48,14 +66,70 @@ function parseDraft(raw: unknown): CharacterDraft | string {
   }
 }
 
+/**
+ * The furthest step the user may jump to: every step before the first one with
+ * outstanding issues, plus that step itself.
+ */
+function furthestReachable(built: BuiltCharacter): number {
+  const firstBlocked = STEP_IDS.findIndex((id) => built.issuesFor(id).length > 0)
+  return firstBlocked === -1 ? STEPS.length - 1 : firstBlocked
+}
+
+function Stepper({
+  current,
+  reachable,
+  built,
+  onGo,
+}: {
+  current: number
+  reachable: number
+  built: BuiltCharacter
+  onGo: (i: number) => void
+}) {
+  return (
+    <ol className="stepper">
+      {STEPS.map((s, i) => {
+        const done = s.id !== 'review' && built.issuesFor(s.id).length === 0 && i < reachable + 1
+        const state = i === current ? 'current' : done ? 'done' : i <= reachable ? 'open' : 'locked'
+        return (
+          <li key={s.id} className={`stepper-item ${state}`}>
+            <button
+              onClick={() => onGo(i)}
+              disabled={i > reachable}
+              aria-current={i === current ? 'step' : undefined}
+            >
+              <span className="dot">{done && i !== current ? '✓' : i + 1}</span>
+              <span className="lbl">{s.label}</span>
+            </button>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 export default function App() {
   const [draft, setDraft] = useState<CharacterDraft>(emptyDraft)
+  const [stepIndex, setStepIndex] = useState(0)
   const [showTable, setShowTable] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const built = useMemo(() => buildCharacter(draft), [draft])
   const update = (patch: Partial<CharacterDraft>) => setDraft((d) => ({ ...d, ...patch }))
+
+  const reachable = furthestReachable(built)
+  // Changing an earlier answer can invalidate a later step; never strand the
+  // user on a step they can no longer satisfy.
+  const current = Math.min(stepIndex, reachable)
+  const step = STEPS[current]
+  const stepIssues = step.id === 'review' ? [] : built.issuesFor(step.id)
+  const canAdvance = stepIssues.length === 0 && current < STEPS.length - 1
+
+  const goTo = (i: number) => {
+    setStepIndex(Math.max(0, Math.min(i, STEPS.length - 1)))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const onExport = () => {
     const payload = {
@@ -81,8 +155,12 @@ export default function App() {
     setImportError(null)
     try {
       const parsed = parseDraft(JSON.parse(await file.text()))
-      if (typeof parsed === 'string') setImportError(parsed)
-      else setDraft(parsed)
+      if (typeof parsed === 'string') {
+        setImportError(parsed)
+      } else {
+        setDraft(parsed)
+        setStepIndex(STEPS.length - 1)
+      }
     } catch {
       setImportError('That file is not valid JSON.')
     }
@@ -112,17 +190,15 @@ export default function App() {
           <button className="btn" onClick={() => fileInput.current?.click()}>
             Import JSON
           </button>
-          <button className="btn primary" onClick={onExport} disabled={!built.complete}>
-            Export JSON
-          </button>
           <button
             className="btn"
             onClick={() => {
               setDraft(emptyDraft())
+              setStepIndex(0)
               setImportError(null)
             }}
           >
-            Reset
+            Start over
           </button>
         </div>
       </header>
@@ -133,34 +209,57 @@ export default function App() {
         </p>
       )}
 
+      <Stepper current={current} reachable={reachable} built={built} onGo={goTo} />
+
       <div className="layout">
         <main>
-          <section className="card">
-            <label className="step-index" htmlFor="char-name">
-              Name
-            </label>
-            <input
-              id="char-name"
-              className="text-input"
-              placeholder="Name your adventurer"
-              value={draft.name}
-              onChange={(e) => update({ name: e.target.value })}
+          {step.id === 'profession' && <StepProfession {...stepProps} />}
+          {step.id === 'special' && <StepSpecial {...stepProps} />}
+          {step.id === 'species' && <StepSpecies {...stepProps} />}
+          {step.id === 'background' && <StepBackground {...stepProps} />}
+          {step.id === 'abilities' && <StepProfessionDetail {...stepProps} />}
+          {step.id === 'review' && (
+            <Review
+              draft={draft}
+              built={built}
+              update={update}
+              onExport={onExport}
+              showTable={showTable}
+              onToggleTable={() => setShowTable((v) => !v)}
             />
-          </section>
+          )}
 
-          <StepProfession {...stepProps} />
-          <StepSpecial {...stepProps} />
-          <StepSpecies {...stepProps} />
-          <StepBackground {...stepProps} />
-          <StepProfessionDetail {...stepProps} />
+          <nav className="wizard-nav">
+            <button className="btn" onClick={() => goTo(current - 1)} disabled={current === 0}>
+              ← Back
+            </button>
+
+            <span className="wizard-progress">
+              {stepIssues.length > 0 ? (
+                <span className="blocker">{stepIssues[0]}</span>
+              ) : (
+                `Step ${current + 1} of ${STEPS.length}`
+              )}
+            </span>
+
+            {current < STEPS.length - 1 ? (
+              <button
+                className="btn primary"
+                onClick={() => goTo(current + 1)}
+                disabled={!canAdvance}
+              >
+                {current === STEPS.length - 2 ? 'Review →' : 'Next →'}
+              </button>
+            ) : (
+              <button className="btn primary" onClick={onExport} disabled={!built.complete}>
+                Export JSON
+              </button>
+            )}
+          </nav>
         </main>
 
         <aside className="sidebar">
-          <Summary
-            built={built}
-            showTable={showTable}
-            onToggleTable={() => setShowTable((v) => !v)}
-          />
+          <Summary built={built} />
         </aside>
       </div>
     </div>

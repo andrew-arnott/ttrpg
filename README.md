@@ -7,14 +7,17 @@ Static React site, deployed to GitHub Pages.
 
 ## What it does
 
-Walks the four character creation steps from the Player's Guide and computes the result live:
+A six-step wizard, one step per screen, with a live summary alongside:
 
 1. **Profession** — sets starting HP and profession tokens
 2. **SPECIAL** — distribute the fixed array `1, 2, 2, 2, 3, 3, 3`
 3. **Species** — attribute bonus, traits, and token bag modifications
 4. **Background** — +1 to an attribute and a passive ability
+5. **Abilities** — profession resource allocation and ability picks
+6. **Review** — the finished sheet, with JSON export
 
-Then profession resource allocation and ability selection.
+Each step validates independently and blocks *Next* with the specific reason. Changing an earlier
+answer that invalidates a later step pulls you back rather than stranding you.
 
 ### Token bag
 
@@ -44,8 +47,8 @@ appear in the UI as unselectable rather than being invented. Filling them in mea
 
 ### Interpretation calls
 
-- `choose 4 abilities` is read as applying to the combat ability list only. Exploration abilities
-  are granted in full, since the guide attaches no choice language to them.
+- `choose 4 abilities` draws from the combat and exploration lists **together** — the four picks
+  come from one combined pool.
 
 ## Layout
 

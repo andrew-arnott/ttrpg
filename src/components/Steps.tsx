@@ -10,7 +10,7 @@ import {
   type Profession,
   type SpecialKey,
 } from '../data/types'
-import type { BuiltCharacter, CharacterDraft } from '../lib/buildCharacter'
+import { allAbilities, type BuiltCharacter, type CharacterDraft } from '../lib/buildCharacter'
 
 interface StepProps {
   draft: CharacterDraft
@@ -260,6 +260,8 @@ export function StepProfessionDetail({ draft, built, update }: StepProps) {
     })
   }
 
+  const pool = allAbilities(profession)
+
   const toggleAbility = (id: string) => {
     const has = draft.abilityIds.includes(id)
     if (has) {
@@ -333,12 +335,14 @@ export function StepProfessionDetail({ draft, built, update }: StepProps) {
         Abilities — choose {profession.abilityPicks}
       </h3>
       <p className="hint" style={{ marginBottom: 10 }}>
+        Combat and exploration abilities draw from the same pool.{' '}
         {draft.abilityIds.length} of {profession.abilityPicks} chosen
       </p>
       <div className="options">
-        {profession.abilities.map((a) => {
+        {pool.map((a) => {
           const selected = draft.abilityIds.includes(a.id)
           const atLimit = !selected && draft.abilityIds.length >= profession.abilityPicks
+          const isExploration = profession.explorationAbilities.some((e) => e.id === a.id)
           return (
             <button
               key={a.id}
@@ -350,27 +354,12 @@ export function StepProfessionDetail({ draft, built, update }: StepProps) {
               <span className="ability-head">
                 <span className="nm">{a.name}</span>
                 <span className="tag">{a.types.join(' + ')}</span>
-                <span className="tag">{a.cost}</span>
+                {!isExploration && <span className="tag">{a.cost}</span>}
               </span>
               <span className="desc">{a.text}</span>
             </button>
           )
         })}
-      </div>
-
-      <h3 style={{ fontSize: 14, margin: '18px 0 8px' }}>
-        Exploration abilities — all granted
-      </h3>
-      <div className="options">
-        {profession.explorationAbilities.map((a) => (
-          <div className="ability" key={a.id}>
-            <div className="ability-head">
-              <span className="nm">{a.name}</span>
-              <span className="tag">{a.types.join(' + ')}</span>
-            </div>
-            <div className="text">{a.text}</div>
-          </div>
-        ))}
       </div>
 
       {profession.notes.length > 0 && (
