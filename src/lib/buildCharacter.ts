@@ -1,4 +1,5 @@
 import { BACKGROUNDS } from '../data/backgrounds'
+import { ITEMS_BY_ID, STARTING_COINS, type Item } from '../data/items'
 import { PROFESSIONS } from '../data/professions'
 import { SPECIES } from '../data/species'
 import { STANDARD_BAG, TOKENS } from '../data/tokens'
@@ -26,6 +27,8 @@ export interface CharacterDraft {
   /** Keyed by TokenChoice id, then token id -> count. */
   tokenChoices: Record<string, Record<string, number>>
   abilityIds: string[]
+  /** Item id -> quantity bought with starting coins. */
+  equipment: Record<string, number>
 }
 
 export function emptyDraft(): CharacterDraft {
@@ -37,6 +40,7 @@ export function emptyDraft(): CharacterDraft {
     backgroundId: null,
     tokenChoices: {},
     abilityIds: [],
+    equipment: {},
   }
 }
 
@@ -135,7 +139,7 @@ export function bagStats(bag: TokenStack[]): BagStats {
 // --- character assembly ------------------------------------------------
 
 /** Wizard steps, in order. Issues are tagged with the step that owns them. */
-export const STEP_IDS = ['profession', 'species', 'background', 'special', 'abilities'] as const
+export const STEP_IDS = ['profession', 'species', 'background', 'special', 'abilities', 'equipment'] as const
 export type StepId = (typeof STEP_IDS)[number]
 
 export interface Issue {
@@ -150,6 +154,11 @@ export interface Issue {
 export function allAbilities(profession: Profession | null): Ability[] {
   if (!profession) return []
   return [...profession.abilities, ...profession.explorationAbilities]
+}
+
+export interface InventoryEntry {
+  item: Item
+  count: number
 }
 
 export interface BuiltCharacter {
@@ -169,6 +178,9 @@ export interface BuiltCharacter {
   inPlay: TokenStack[]
   stats: BagStats
   chosenAbilities: Ability[]
+  inventory: InventoryEntry[]
+  coinsSpent: number
+  coinsLeft: number
   complete: boolean
   issues: Issue[]
   /** Issue messages for one step, for inline display. */
@@ -219,6 +231,9 @@ export function buildCharacter(draft: CharacterDraft): BuiltCharacter {
 
   const chosenAbilities = allAbilities(profession).filter((a) => draft.abilityIds.includes(a.id))
 
+  const inventory = ownedItems(draft)
+  const coinsSpent = inventory.reduce((a, e) => a + e.item.cost * e.count, 0)
+
   const issues = validate(draft, profession)
 
   return {
@@ -234,10 +249,19 @@ export function buildCharacter(draft: CharacterDraft): BuiltCharacter {
     inPlay: toStacks(inPlayMap),
     stats: bagStats(bag),
     chosenAbilities,
+    inventory,
+    coinsSpent,
+    coinsLeft: STARTING_COINS - coinsSpent,
     complete: issues.length === 0,
     issues,
     issuesFor: (step) => issues.filter((i) => i.step === step).map((i) => i.message),
   }
+}
+
+function ownedItems(draft: CharacterDraft): InventoryEntry[] {
+  return Object.entries(draft.equipment)
+    .map(([id, count]) => ({ item: ITEMS_BY_ID[id], count }))
+    .filter((e): e is InventoryEntry => e.item !== undefined && e.count > 0)
 }
 
 export function validate(draft: CharacterDraft, profession: Profession | null): Issue[] {
@@ -279,6 +303,11 @@ export function validate(draft: CharacterDraft, profession: Profession | null): 
     }
   }
 
+  const spent = ownedItems(draft).reduce((a, e) => a + e.item.cost * e.count, 0)
+  if (spent > STARTING_COINS) {
+    add('equipment', `You have spent ${spent} coins but only started with ${STARTING_COINS}.`)
+  }
+
   return issues
 }
 
@@ -286,4 +315,21 @@ export function validate(draft: CharacterDraft, profession: Profession | null): 
 export function remainingArrayIndices(draft: CharacterDraft): number[] {
   const used = new Set(Object.values(draft.specialAssignment).filter((v) => v !== undefined))
   return SPECIAL_ARRAY.map((_, i) => i).filter((i) => !used.has(i))
+}
+
+/**
+ * Highest array values go to the profession's suggested attributes, in the
+ * order the profession lists them, then the rest in canonical order.
+ */
+export function suggestedSpecialAssignment(
+  profession: Profession | null,
+): Partial<Record<SpecialKey, number>> {
+  const suggested = profession?.importantSpecial ?? []
+  const order: SpecialKey[] = [...suggested, ...SPECIAL_KEYS.filter((k) => !suggested.includes(k))]
+  const byValue = SPECIAL_ARRAY.map((v, i) => ({ v, i })).sort((a, b) => b.v - a.v)
+  const assignment: Partial<Record<SpecialKey, number>> = {}
+  order.forEach((key, idx) => {
+    assignment[key] = byValue[idx].i
+  })
+  return assignment
 }

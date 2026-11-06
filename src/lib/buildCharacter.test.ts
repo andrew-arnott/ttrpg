@@ -10,6 +10,7 @@ import {
   buildCharacter,
   emptyDraft,
   STEP_IDS,
+  suggestedSpecialAssignment,
 } from './buildCharacter'
 
 const size = (bag: { count: number }[]) => bag.reduce((a, s) => a + s.count, 0)
@@ -224,6 +225,66 @@ describe('ability pool', () => {
 
 describe('wizard step order', () => {
   it('collects species and background before SPECIAL', () => {
-    expect([...STEP_IDS]).toEqual(['profession', 'species', 'background', 'special', 'abilities'])
+    expect([...STEP_IDS]).toEqual([
+      'profession',
+      'species',
+      'background',
+      'special',
+      'abilities',
+      'equipment',
+    ])
+  })
+})
+
+describe('equipment', () => {
+  const base = () => ({
+    ...emptyDraft(),
+    professionId: 'warrior',
+    speciesId: 'human',
+    backgroundId: 'soldier',
+  })
+
+  it('starts with 10 coins and nothing bought', () => {
+    const c = buildCharacter(base())
+    expect(c.coinsSpent).toBe(0)
+    expect(c.coinsLeft).toBe(10)
+    expect(c.inventory).toEqual([])
+  })
+
+  it('prices purchases against the starting coins', () => {
+    const c = buildCharacter({ ...base(), equipment: { torch: 3, healingPotion: 1 } })
+    expect(c.coinsSpent).toBe(8)
+    expect(c.coinsLeft).toBe(2)
+    expect(c.inventory.map((e) => [e.item.id, e.count])).toEqual([
+      ['torch', 3],
+      ['healingPotion', 1],
+    ])
+  })
+
+  it('ignores unknown items and zero quantities', () => {
+    const c = buildCharacter({ ...base(), equipment: { nonsense: 4, torch: 0 } })
+    expect(c.inventory).toEqual([])
+  })
+
+  it('flags overspending on the equipment step', () => {
+    const c = buildCharacter({ ...base(), equipment: { healingPotion: 3 } })
+    expect(c.coinsLeft).toBe(-5)
+    expect(c.issuesFor('equipment')).toHaveLength(1)
+  })
+
+  it('lets a character keep unspent coins', () => {
+    expect(buildCharacter(base()).issuesFor('equipment')).toEqual([])
+  })
+})
+
+describe('suggestedSpecialAssignment', () => {
+  it('uses every array slot exactly once, best values on suggested attributes', () => {
+    const warrior = PROFESSIONS.find((p) => p.id === 'warrior')!
+    const assignment = suggestedSpecialAssignment(warrior)
+    const indices = Object.values(assignment)
+    expect(new Set(indices).size).toBe(SPECIAL_ARRAY.length)
+    for (const key of warrior.importantSpecial) {
+      expect(SPECIAL_ARRAY[assignment[key]!]).toBe(3)
+    }
   })
 })
