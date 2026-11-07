@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { defaultTurn, resolveRound, type BattlePlan } from '../lib/battle'
+import { currentPlayer, endTurn, runEnemyPhase, takeAction, type BattleState, type PlannedCombat } from '../lib/battle'
 import { endBattle, type DungeonAction, type DungeonState } from '../lib/dungeonState'
 import type { ResolutionStep } from '../lib/resolution'
+import { ActionPrompt } from './ActionPrompt'
 import { BattleBoard } from './BattleBoard'
-import { CombatPlanner } from './CombatPlanner'
 import { ResolutionOverlay } from './ResolutionOverlay'
 
 interface Props {
@@ -12,37 +12,66 @@ interface Props {
   onLeave: () => void
 }
 
+interface Playback {
+  id: number
+  heading: string
+  steps: ResolutionStep[]
+  /** Dungeon state to commit once the steps have played. */
+  next: DungeonState
+}
+
 export function BattleView({ state, dispatch, onLeave }: Props) {
   const battle = state.battle!
-  const [plan, setPlan] = useState<BattlePlan>({})
-  const [pending, setPending] = useState<{ next: DungeonState; steps: ResolutionStep[] } | null>(null)
+  const [playback, setPlayback] = useState<Playback | null>(null)
+  const [playbackCount, setPlaybackCount] = useState(0)
 
   const opening = battle.opening.length > 0 ? battle.opening : null
+  const player = currentPlayer(battle)
 
-  const finishOpening = () =>
-    dispatch({ type: 'replace', state: { ...state, battle: { ...battle, opening: [] } } })
+  const withBattle = (next: BattleState): DungeonState => ({ ...state, battle: next })
 
-  const resolve = () => {
-    const fullPlan: BattlePlan = Object.fromEntries(
-      battle.players.map((p) => [p.key, plan[p.key] ?? defaultTurn(battle, p)]),
-    )
-    const result = resolveRound(battle, fullPlan, Math.random)
-    setPending({ next: { ...state, battle: result.battle }, steps: result.steps })
+  const play = (heading: string, steps: ResolutionStep[], next: DungeonState) => {
+    setPlaybackCount((n) => n + 1)
+    setPlayback({ id: playbackCount + 1, heading, steps, next })
   }
 
-  const finishRound = () => {
-    if (pending) dispatch({ type: 'replace', state: pending.next })
-    setPending(null)
-    setPlan({})
+  /** Once every player has acted the enemies go straight away; otherwise just move on. */
+  const settle = (next: DungeonState) => {
+    const b = next.battle
+    if (b && b.result === 'ongoing' && b.phase === 'enemies') {
+      const result = runEnemyPhase(b, Math.random)
+      play(`Round ${b.round} \u00b7 enemy phase`, result.steps, { ...next, battle: result.battle })
+    } else {
+      setPlayback(null)
+      dispatch({ type: 'replace', state: next })
+    }
+  }
+
+  const act = (planned: PlannedCombat | null) => {
+    const result = takeAction(battle, planned, Math.random)
+    const next = withBattle(result.battle)
+    if (result.steps.length === 0) settle(next)
+    else play(`Round ${battle.round}`, result.steps, next)
+  }
+
+  const finishOpening = () => {
+    const cleared = withBattle({ ...battle, opening: [] })
+    settle(cleared)
   }
 
   return (
     <div className="layout" style={{ marginTop: 20 }}>
       <main>
-        <BattleBoard battle={battle} />
+        <BattleBoard battle={battle} activeKey={player?.key ?? null} />
 
-        {battle.result === 'ongoing' && (
-          <CombatPlanner battle={battle} plan={plan} onChange={setPlan} onResolve={resolve} />
+        {player && !playback && !opening && (
+          <ActionPrompt
+            key={`${battle.round}-${battle.turnIndex}-${battle.actionsUsed}-${battle.log.length}`}
+            battle={battle}
+            player={player}
+            onAct={act}
+            onEndTurn={() => settle(withBattle(endTurn(battle)))}
+          />
         )}
 
         {battle.result === 'victory' && (
@@ -91,11 +120,16 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
         </section>
       </aside>
 
-      {opening && !pending && (
+      {opening && !playback && (
         <ResolutionOverlay heading="Battle begins" steps={opening} onFinish={finishOpening} />
       )}
-      {pending && (
-        <ResolutionOverlay heading={`Round ${battle.round}`} steps={pending.steps} onFinish={finishRound} />
+      {playback && (
+        <ResolutionOverlay
+          key={playback.id}
+          heading={playback.heading}
+          steps={playback.steps}
+          onFinish={() => settle(playback.next)}
+        />
       )}
     </div>
   )

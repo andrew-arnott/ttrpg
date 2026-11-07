@@ -7,6 +7,7 @@ import {
   type BattleState,
 } from '../lib/battle'
 import { AVATAR_COLORS } from '../lib/partyColors'
+import { EnemyStatCard } from './EnemyStatCard'
 import { Portrait } from './Portrait'
 
 function HpBar({ hp, max }: { hp: number; max: number }) {
@@ -20,10 +21,10 @@ function HpBar({ hp, max }: { hp: number; max: number }) {
   )
 }
 
-function PlayerCard({ p }: { p: BattlePlayer }) {
+function PlayerCard({ p, active }: { p: BattlePlayer; active: boolean }) {
   const down = p.hp <= 0
   return (
-    <div className={`combatant player${down ? ' down' : ''}`}>
+    <div className={`combatant player${down ? ' down' : ''}${active ? ' active' : ''}`}>
       <span className="party-avatar" style={{ borderColor: AVATAR_COLORS[p.colorIndex % AVATAR_COLORS.length] }}>
         <Portrait kind="profession" id={p.professionId} size="sm" />
       </span>
@@ -57,7 +58,7 @@ function EnemyCard({ e }: { e: BattleEnemy }) {
   const down = e.hp <= 0
   const defense = enemyDefense(e)
   return (
-    <div className={`combatant enemy${down ? ' down' : ''}`}>
+    <div className={`combatant enemy stat-hover${down ? ' down' : ''}`} tabIndex={0}>
       <span className="party-avatar" style={{ borderColor: '#ff6a6a' }}>
         <Portrait kind="enemy" id={e.defId} size="sm" />
       </span>
@@ -79,11 +80,12 @@ function EnemyCard({ e }: { e: BattleEnemy }) {
           {e.empowered > 0 && <span className="chip">+{e.empowered} attack</span>}
         </div>
       </div>
+      <EnemyStatCard enemy={e} />
     </div>
   )
 }
 
-export function BattleBoard({ battle }: { battle: BattleState }) {
+export function BattleBoard({ battle, activeKey }: { battle: BattleState; activeKey: string | null }) {
   const groups = engagementGroups(battle)
   const downPlayers = battle.players.filter((p) => p.hp <= 0)
   const defeated = battle.enemies.filter((e) => e.hp <= 0)
@@ -95,7 +97,7 @@ export function BattleBoard({ battle }: { battle: BattleState }) {
         <h2>Engagement groups</h2>
         <p className="hint">
           Players and enemies can only attack those in their own group. Enemies attack after everyone has
-          acted.
+          acted. Hover an enemy for its stat card.
         </p>
       </div>
 
@@ -106,7 +108,7 @@ export function BattleBoard({ battle }: { battle: BattleState }) {
             <div className="engagement-sides">
               <div className="stack">
                 {g.players.map((p) => (
-                  <PlayerCard key={p.key} p={p} />
+                  <PlayerCard key={p.key} p={p} active={p.key === activeKey} />
                 ))}
               </div>
               <span className="versus" aria-hidden="true">
@@ -130,7 +132,7 @@ export function BattleBoard({ battle }: { battle: BattleState }) {
           <div className="engagement-sides">
             <div className="stack">
               {downPlayers.map((p) => (
-                <PlayerCard key={p.key} p={p} />
+                <PlayerCard key={p.key} p={p} active={p.key === activeKey} />
               ))}
             </div>
             <span />

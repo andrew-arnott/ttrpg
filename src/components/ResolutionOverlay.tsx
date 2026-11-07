@@ -1,21 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { SPECIAL_LABELS } from '../data/types'
 import { AVATAR_COLORS } from '../lib/partyColors'
-import type { ResolutionStep } from '../lib/resolution'
+import type { Clash, ResolutionStep } from '../lib/resolution'
 import { useDrawAnimation } from '../lib/useDrawAnimation'
 import { DrawStage } from './DrawStage'
 import { Portrait } from './Portrait'
+import { Typewriter } from './Typewriter'
 
-const INTRO_MS = 1100
-const OUTCOME_MS = 2600
-const REDUCED_MS = 400
+const AFTER_INTRO_MS = 350
+const AFTER_OUTCOME_MS = 1300
+const REDUCED_MS = 300
+const CLASH_REVEAL_MS = 900
+const CLASH_TOTAL_MS = 2000
 const ENEMY_COLOR = '#ff6a6a'
 
 const fmtSigned = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-type Stage = 'intro' | 'drawing' | 'outcome'
+type Stage = 'intro' | 'drawing' | 'clash' | 'outcome'
 
 function testBadge(step: ResolutionStep): string {
   const outcome = step.test?.result.outcome
@@ -35,6 +38,62 @@ function StepSummary({ step }: { step: ResolutionStep }) {
 
 function actorColor(colorIndex: number): string {
   return colorIndex < 0 ? ENEMY_COLOR : AVATAR_COLORS[colorIndex % AVATAR_COLORS.length]
+}
+
+/** An enemy's attack value set against a player's Defense score, then the result. */
+function ClashPanel({ clash, onDone }: { clash: Clash; onDone: () => void }) {
+  const [resolved, setResolved] = useState(false)
+  const done = useRef(onDone)
+
+  useEffect(() => {
+    done.current = onDone
+  })
+
+  useEffect(() => {
+    const quick = reducedMotion()
+    const reveal = window.setTimeout(() => setResolved(true), quick ? 0 : CLASH_REVEAL_MS)
+    const finish = window.setTimeout(() => done.current(), quick ? REDUCED_MS : CLASH_TOTAL_MS)
+    return () => {
+      window.clearTimeout(reveal)
+      window.clearTimeout(finish)
+    }
+  }, [])
+
+  const scale = Math.max(clash.defenseBefore, clash.attack, 1)
+  const defense = resolved ? clash.defenseAfter : clash.defenseBefore
+
+  return (
+    <div className="clash" role="img" aria-label={`Attack ${clash.attack} against Defense ${clash.defenseBefore}`}>
+      <div className="clash-side attack">
+        <span className="step-index">Attack</span>
+        <b className="clash-num">{clash.attack}</b>
+      </div>
+      <span className="versus" aria-hidden="true">
+        vs
+      </span>
+      <div className="clash-side defense">
+        <span className="clash-target">
+          <Portrait
+            kind={clash.target.artKind}
+            id={clash.target.artId}
+            size="sm"
+            className={resolved && clash.breaks ? 'hit-flash' : ''}
+          />
+          <span className="step-index">{clash.target.name}&rsquo;s Defense</span>
+        </span>
+        <b className="clash-num">{defense}</b>
+        <span className="clash-bar">
+          <span style={{ width: `${(defense / scale) * 100}%` }} />
+        </span>
+      </div>
+      <span
+        className={`result-badge clash-badge ${resolved ? (clash.breaks ? 'failure' : 'success') : 'pending'}`}
+        aria-live="polite"
+      >
+        {resolved ? (clash.breaks ? 'Breaks through' : 'Blocked') : '...'}
+      </span>
+    </div>
+  )
 }
 
 interface Props {
@@ -73,7 +132,7 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
       start(step.test.result)
       setStage('drawing')
     } else {
-      setStage('outcome')
+      setStage(step.clash ? 'clash' : 'outcome')
     }
   }
 
@@ -82,16 +141,15 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
     latest.current = { beginStep, advance }
   })
 
-  useEffect(() => {
-    if (finished) return
-    const slow = !reducedMotion()
-    if (stage === 'intro') {
-      timer.current = window.setTimeout(() => latest.current.beginStep(), slow ? INTRO_MS : REDUCED_MS)
-    } else if (stage === 'outcome') {
-      timer.current = window.setTimeout(() => latest.current.advance(), slow ? OUTCOME_MS : REDUCED_MS * 2)
-    }
-    return () => window.clearTimeout(timer.current)
-  }, [stage, index, finished])
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+
+  const afterIntro = () => {
+    timer.current = window.setTimeout(() => latest.current.beginStep(), reducedMotion() ? REDUCED_MS : AFTER_INTRO_MS)
+  }
+
+  const afterOutcome = () => {
+    timer.current = window.setTimeout(() => latest.current.advance(), reducedMotion() ? REDUCED_MS : AFTER_OUTCOME_MS)
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -104,6 +162,14 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
   const test = step.test
   const tokensTotal = animation.shown.reduce((sum, d) => sum + (d.modifier ?? 0), 0)
   const drawnAll = animation.phase === 'done'
+  const attacking = Boolean(actor && actor.colorIndex < 0 && step.clash && stage === 'clash')
+
+  const next = () => {
+    window.clearTimeout(timer.current)
+    if (stage === 'intro') beginStep()
+    else if (stage === 'clash') setStage('outcome')
+    else advance()
+  }
 
   return (
     <div className="modal-backdrop">
@@ -133,7 +199,10 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
               </span>
               <div className="resolution-actor">
                 {actor ? (
-                  <span className="party-avatar" style={{ borderColor: actorColor(actor.colorIndex) }}>
+                  <span
+                    className={`party-avatar${attacking ? ' lunge' : ''}`}
+                    style={{ borderColor: actorColor(actor.colorIndex) }}
+                  >
                     <Portrait kind={actor.artKind} id={actor.artId} size="md" />
                   </span>
                 ) : (
@@ -146,22 +215,25 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
               </div>
             </div>
 
-            <p className="resolution-intro">{step.intro}</p>
+            <p className="resolution-intro">
+              {stage === 'intro' ? <Typewriter key={`${index}-intro`} text={step.intro} onDone={afterIntro} /> : step.intro}
+            </p>
 
             {test && (
               <div className="resolution-test">
                 <p className="hint">
-                  {step.testMode === 'score'
-                    ? `${SPECIAL_LABELS[test.attribute]} test · the result is added to the score`
-                    : `${SPECIAL_LABELS[test.attribute]} test · Difficulty ${test.difficulty}${
-                        test.penalty > 0 ? ` +${test.penalty} for darkness` : ''
-                      }`}
+                  {step.testHeading ??
+                    (step.testMode === 'score'
+                      ? `${SPECIAL_LABELS[test.attribute]} test \u00b7 the result is added to the score`
+                      : `${SPECIAL_LABELS[test.attribute]} test \u00b7 Difficulty ${test.difficulty}${
+                          test.penalty > 0 ? ` +${test.penalty} for darkness` : ''
+                        }`)}
                 </p>
                 <DrawStage
                   compact
                   shaking={animation.phase === 'shaking'}
                   shown={animation.shown}
-                  bagLabel={`${actor?.name ?? ''}'s bag`}
+                  bagLabel={step.bagLabel ?? `${actor?.name ?? ''}'s bag`}
                   placeholder="Reaching into the bag…"
                 />
                 {drawnAll && (
@@ -180,13 +252,13 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
               </div>
             )}
 
-            {!test && step.resultLine && stage === 'outcome' && (
-              <p className={`resolution-math ${step.tone}`}>{step.resultLine}</p>
+            {step.clash && (stage === 'clash' || stage === 'outcome') && (
+              <ClashPanel key={`${index}-clash`} clash={step.clash} onDone={() => stage === 'clash' && setStage('outcome')} />
             )}
 
             {stage === 'outcome' && (
               <p className={`outcome resolution-outcome ${step.tone}`} role="status">
-                {step.outcome}
+                <Typewriter key={`${index}-outcome`} text={step.outcome} onDone={afterOutcome} />
               </p>
             )}
 
@@ -194,11 +266,7 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
               <button className="btn" onClick={() => setFinished(true)}>
                 Skip to summary
               </button>
-              <button
-                className="btn primary"
-                onClick={stage === 'intro' ? beginStep : advance}
-                disabled={stage === 'drawing'}
-              >
+              <button className="btn primary" onClick={next} disabled={stage === 'drawing'}>
                 {stage === 'drawing' ? 'Drawing…' : isLast && stage === 'outcome' ? 'Finish' : 'Next'}
               </button>
             </div>

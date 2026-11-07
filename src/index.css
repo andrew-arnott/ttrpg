@@ -1008,8 +1008,79 @@ table.tokens-table td.num { text-align: right; }
   text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000;
 }
 
-.slots { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); min-width: 0; }
-.slot { display: grid; gap: 6px; align-content: start; min-width: 0; }
-.slot select { width: 100%; min-width: 0; }
-.battle-row { grid-template-columns: minmax(130px, 170px) minmax(0, 1fr); }
-@media (max-width: 640px) { .battle-row { grid-template-columns: minmax(0, 1fr); } }
+/* --- battle wizard, enemy attacks and stat cards --- */
+
+.caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.9em;
+  margin-left: 2px;
+  vertical-align: -1px;
+  background: var(--accent);
+  animation: caret-blink 0.8s steps(2, start) infinite;
+}
+@keyframes caret-blink { 50% { opacity: 0; } }
+
+.combatant { position: relative; }
+.combatant.active { outline: 2px solid var(--accent); outline-offset: 4px; }
+.combatant.active .party-name::before { content: '\25B6'; color: var(--accent); margin-right: 6px; font-size: 0.8em; }
+
+.prompt-target { display: grid; gap: 4px; margin-top: 14px; max-width: 460px; }
+.prompt-target select { width: 100%; }
+.prompt-actions { gap: 10px; flex-wrap: wrap; }
+
+.party-avatar.lunge { animation: lunge 0.5s ease-in-out 2; }
+@keyframes lunge {
+  0%, 100% { transform: translateX(0); }
+  40% { transform: translateX(26px) scale(1.12); }
+}
+
+.clash {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr);
+  gap: 14px;
+  align-items: center;
+  margin: 10px 0;
+  padding: 12px 14px;
+  border: 2px solid var(--baseline);
+  border-radius: var(--radius);
+  background: var(--surface-inset);
+}
+.clash-side { display: grid; gap: 4px; justify-items: center; text-align: center; }
+.clash-target { display: grid; gap: 4px; justify-items: center; }
+.clash-num { font-family: var(--font-pixel); font-weight: 400; font-size: 28px; line-height: 1.3; transition: color 0.3s; }
+.clash-side.attack .clash-num { color: var(--danger); }
+.clash-side.defense .clash-num { color: #8fc2ff; }
+.clash-bar { width: 100%; height: 12px; background: #15153a; border: 2px solid #000; }
+.clash-bar > span { display: block; height: 100%; background: #6fb0ff; transition: width 0.8s ease-out; }
+.clash-badge { grid-column: 1 / -1; justify-self: center; }
+.result-badge.pending { color: var(--text-muted); }
+.hit-flash { animation: hit-flash 0.5s steps(4, end) 2; }
+@keyframes hit-flash { 50% { filter: brightness(2) sepia(1) hue-rotate(-30deg) saturate(6); } }
+
+.stat-hover:hover .statcard,
+.stat-hover:focus .statcard,
+.stat-hover:focus-within .statcard { display: block; }
+.statcard {
+  display: none;
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(320px, 82vw);
+  padding: 12px 14px;
+  background: var(--window-bg);
+  border: 2px solid var(--frame);
+  border-radius: var(--radius);
+  box-shadow: var(--window-frame);
+  text-align: left;
+}
+.statcard-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+.statcard-stats { display: flex; gap: 10px; margin: 0 0 8px; }
+.statcard-stats div { border: 2px solid var(--baseline); background: var(--surface-inset); padding: 4px 10px; min-width: 86px; }
+.statcard-stats dt { font-family: var(--font-pixel); font-size: 7px; text-transform: uppercase; color: var(--text-muted); }
+.statcard-stats dd { margin: 2px 0 0; font-family: var(--font-pixel); font-size: 14px; line-height: 1.4; color: var(--accent); }
+.statcard-stats small { font-family: var(--font-body); font-size: 16px; color: var(--text-secondary); }
+.statcard-title { font-size: 8px; text-transform: uppercase; color: var(--accent); margin: 10px 0 4px; }
+.statcard-list { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.statcard-list b { color: var(--accent); font-weight: 400; }

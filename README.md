@@ -75,17 +75,29 @@ the Difficulty. Resolution plays back as an animation with a text summary of wha
 
 ### Battles
 
-A goblin patrol (two Goblin Scouts and a Cave Troll) finds the party at Interval 4, wherever they are.
-Anyone keeping watch in the Interval before hears it coming. Preparations made in that room carry over:
-Fortify gives the character +2 Defense in round 1, and Set an Ambush gives a free opening attack. The HUD's
-*Start sample battle* button springs it at any time.
+A goblin patrol (two Goblin Scouts and a Cave Troll) finds the party at Interval 4, wherever they are. The HUD's
+*Start sample battle* button springs it at any time. Preparations made in that room carry over: Fortify gives the
+character +2 Defense in round 1, and Set an Ambush gives a free opening attack.
 
-Each round:
+**Surprise.** When the patrol arrives its group makes a Perception test (Perception 2 plus a draw from a standard
+bag) against a Difficulty of 4 plus:
 
-1. Every player gets **2 actions** plus any number of free **Fast** abilities, planned up front and
-   resolved in party order with the animated bag.
-2. **Enemies act after all the players**, in random order.
-3. **Defense scores reset** at the end of the round.
+- **+2** if someone used Stand Watch in the last Interval, or **+1** for the basic Keep watch (the better one counts)
+- **+1** for a Bright torch, **0** Steady, **-1** Dim, **-2** if the torch is out
+
+If the enemies succeed they get a **surprise round**: a full round of attacks before anyone can act. Moving between
+rooms clears the watch bonus.
+
+**A round** is played one question at a time:
+
+1. The game asks "Brann's action 1 of 2: what should they do?". Pick an action and a target, and it resolves
+   with the animated bag before the next question. Fast abilities are free, so they resolve without using up
+   the action. You can skip an action or end a turn early.
+2. After the last player's second action the **enemy phase** plays automatically: each enemy attack is shown
+   as an Attack versus Defense clash with typed text. Enemies act in random order.
+3. **Defense scores reset** and the next round begins.
+
+Hover an enemy icon for its stat card: HP, Defense, attacks, triggered abilities and status effects.
 
 Players and enemies sit in **engagement groups** and can only attack the other side within their own
 group. Players start in a group each and every enemy engages a random player. *Change engagement* (an
