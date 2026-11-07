@@ -5,11 +5,14 @@ import {
   adjacentRoomIds,
   createDungeonState,
   dungeonReducer,
+  endBattle,
   visibleRoomIds,
 } from './dungeonState'
+import { mulberry32 } from './drawTest'
 import { testMember } from './testFixtures'
 import { torchLevel, totalIntervals } from './torch'
 
+const rng = mulberry32(5)
 const fresh = () => createDungeonState(SUNKEN_CRYPT, [testMember('a', 2), testMember('b', 0)])
 
 describe('dungeon layout', () => {
@@ -84,14 +87,14 @@ describe('dungeonReducer', () => {
 
   it('moves only through connected rooms', () => {
     const s = fresh()
-    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'crypt' })).toBe(s)
-    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'storeroom' })).toBe(s)
-    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall' }).roomId).toBe('greatHall')
+    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'crypt', rng })).toBe(s)
+    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'storeroom', rng })).toBe(s)
+    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall', rng }).roomId).toBe('greatHall')
   })
 
   it('passes an Interval whenever the party moves', () => {
     let s = fresh()
-    s = dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall' })
+    s = dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall', rng })
     expect(s.intervals).toBe(1)
     expect(s.torch.remaining).toBe(totalIntervals(ORDINARY_TORCH) - 1)
     expect(s.log[0]).toMatch(/Interval 1/)
@@ -99,16 +102,16 @@ describe('dungeonReducer', () => {
   })
 
   it('lets the torch go out while travelling', () => {
-    let s = fresh()
+    let s = { ...fresh(), patrolTriggered: true }
     const route = ['greatHall', 'entrance', 'greatHall', 'entrance', 'greatHall', 'entrance']
-    for (const roomId of route) s = dungeonReducer(s, { type: 'moveTo', roomId })
+    for (const roomId of route) s = dungeonReducer(s, { type: 'moveTo', roomId, rng })
     expect(torchLevel(s.torch)).toBe('out')
   })
 
   it('remembers rooms that were seen once the light moves on', () => {
     let s = fresh()
-    s = dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall' })
-    s = dungeonReducer(s, { type: 'moveTo', roomId: 'shrine' })
+    s = dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall', rng })
+    s = dungeonReducer(s, { type: 'moveTo', roomId: 'shrine', rng })
     expect(s.explored).toContain('library')
     expect(s.explored).toContain('entrance')
   })
@@ -116,13 +119,13 @@ describe('dungeonReducer', () => {
   it('can travel a discovered hidden passage', () => {
     const hidden = SUNKEN_CRYPT.links.find((l) => l.hidden)!
     const s = { ...fresh(), discovered: [linkKey(hidden)] }
-    expect(dungeonReducer(s, { type: 'moveTo', roomId: hidden.to }).roomId).toBe(hidden.to)
+    expect(dungeonReducer(s, { type: 'moveTo', roomId: hidden.to, rng }).roomId).toBe(hidden.to)
   })
 
   it('lights a new torch from the member inventory without taking time', () => {
     let s = fresh()
-    s = dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall' })
-    s = dungeonReducer(s, { type: 'moveTo', roomId: 'entrance' })
+    s = dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall', rng })
+    s = dungeonReducer(s, { type: 'moveTo', roomId: 'entrance', rng })
     const intervals = s.intervals
     s = dungeonReducer(s, { type: 'lightTorch', memberKey: 'a' })
     expect(s.torch.remaining).toBe(totalIntervals(ORDINARY_TORCH))
@@ -141,7 +144,62 @@ describe('dungeonReducer', () => {
     const s = fresh()
     const snapshot = JSON.stringify(s)
     dungeonReducer(s, { type: 'lightTorch', memberKey: 'a' })
-    dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall' })
+    dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall', rng })
     expect(JSON.stringify(s)).toBe(snapshot)
+  })
+})
+
+describe('the patrol', () => {
+  const route = ['greatHall', 'entrance', 'greatHall', 'entrance']
+
+  it('finds the party once enough Intervals have passed, wherever they are', () => {
+    let s = fresh()
+    for (const roomId of route.slice(0, 3)) s = dungeonReducer(s, { type: 'moveTo', roomId, rng })
+    expect(s.battle).toBeNull()
+    s = dungeonReducer(s, { type: 'moveTo', roomId: route[3], rng })
+    expect(s.battle).not.toBeNull()
+    expect(s.battle!.enemies).toHaveLength(SUNKEN_CRYPT.patrol.enemyIds.length)
+    expect(s.patrolTriggered).toBe(true)
+  })
+
+  it('does not return once it has been dealt with', () => {
+    let s = fresh()
+    for (const roomId of route) s = dungeonReducer(s, { type: 'moveTo', roomId, rng })
+    s = dungeonReducer(s, { type: 'replace', state: endBattle(s) })
+    s = dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall', rng })
+    expect(s.battle).toBeNull()
+  })
+
+  it('blocks moving and lighting torches while the fight is on', () => {
+    const s = dungeonReducer(fresh(), { type: 'startBattle', rng })
+    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall', rng })).toBe(s)
+    expect(dungeonReducer(s, { type: 'lightTorch', memberKey: 'a' })).toBe(s)
+  })
+
+  it('can be called in early', () => {
+    const s = dungeonReducer(fresh(), { type: 'startBattle', rng })
+    expect(s.battle?.round).toBe(1)
+    expect(s.intervals).toBe(0)
+  })
+
+  it('lets a preparation made in the room count when the patrol arrives', () => {
+    const base = fresh()
+    const prepared = { entrance: [{ tag: 'Fortified', memberKey: 'a' }] }
+    const s = dungeonReducer({ ...base, prepared }, { type: 'startBattle', rng })
+    expect(s.battle!.players.find((p) => p.key === 'a')!.defense).toBe(2)
+    expect(s.battle!.opening.some((st) => st.title === 'Fortified')).toBe(true)
+  })
+
+  it('carries HP and resources out of a fight and revives the fallen at 1 HP', () => {
+    const s = dungeonReducer(fresh(), { type: 'startBattle', rng })
+    const battle = structuredClone(s.battle!)
+    battle.players[0].hp = 0
+    battle.players[1].hp = 1
+    battle.players[0].resources.resolve = 1
+    const after = endBattle({ ...s, battle })
+    expect(after.battle).toBeNull()
+    expect(after.party[0].hp).toBe(1)
+    expect(after.party[0].resources.resolve).toBe(1)
+    expect(after.party[1].hp).toBe(1)
   })
 })

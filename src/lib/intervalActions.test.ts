@@ -58,7 +58,7 @@ describe('resolveInterval', () => {
   it('resolves characters in party order, then burns the torch', () => {
     const s = stateWith(testMember('a', 0), testMember('b', 0), testMember('c', 0))
     const { state, steps } = resolveInterval(s, {}, rng())
-    expect(steps.map((st) => st.memberKey)).toEqual(['a', 'b', 'c', null])
+    expect(steps.map((st) => st.actor?.key ?? null)).toEqual(['a', 'b', 'c', null])
     expect(state.intervals).toBe(1)
     expect(state.torch.remaining).toBe(totalIntervals(ORDINARY_TORCH) - 1)
   })
@@ -230,9 +230,13 @@ describe('resolveInterval', () => {
     it('Fortify and Barricade leave a preparation on the room', () => {
       const s = stateWith(sampleMember('warrior', 'w'))
       const { state } = resolveInterval(s, { w: { actionId: 'ability:fortify' } }, rng())
-      expect(state.prepared.entrance).toEqual(['Fortified'])
+      expect(state.prepared.entrance.map((p) => p.tag)).toEqual(['Fortified'])
+      expect(state.prepared.entrance[0].memberKey).toBe('w')
       const barricaded = resolveInterval(state, { w: { actionId: 'ability:barricade', targetRoomId: 'greatHall' } }, rng())
-      expect(barricaded.state.prepared.entrance).toEqual(['Fortified', 'Barricaded toward Great Hall'])
+      expect(barricaded.state.prepared.entrance.map((p) => p.tag)).toEqual([
+        'Fortified',
+        'Barricaded toward Great Hall',
+      ])
     })
 
     it('Dispel Magic tests Intelligence against the room magic', () => {

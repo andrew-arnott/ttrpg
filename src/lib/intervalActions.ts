@@ -8,13 +8,16 @@ import {
   adjacentRoomIds,
   burnTorchInterval,
   lightFreshTorch,
+  patrolIsDue,
   REST_BONUS_LIMIT,
   revealVisible,
   roomById,
+  springPatrol,
   withLog,
   type DungeonState,
   type PartyMember,
 } from './dungeonState'
+import { playerActor, type ResolutionStep, type StepTone } from './resolution'
 import { performSkillTest, type SkillTestOutcome } from './skillTest'
 import { totalIntervals, torchLevel } from './torch'
 
@@ -38,19 +41,6 @@ export interface PlannedAction {
 }
 
 export type InteractionPlan = Record<string, PlannedAction>
-
-export type StepTone = 'success' | 'failure' | 'neutral'
-
-/** One beat of an Interval's resolution, played back in order by the UI. */
-export interface ResolutionStep {
-  /** Null for events that belong to no one, such as the torch burning down. */
-  memberKey: string | null
-  title: string
-  intro: string
-  test?: SkillTestOutcome
-  outcome: string
-  tone: StepTone
-}
 
 export const DARKNESS_PENALTY = 3
 export const DEFAULT_ACTION: PlannedAction = { actionId: 'watch' }
@@ -147,10 +137,10 @@ function giveReward(state: DungeonState, memberKey: string, reward: RoomReward |
   return { state: next, text: ` ${reward.count}\u00d7 ${item?.name ?? reward.itemId} added to their pack.` }
 }
 
-function addPrepared(state: DungeonState, roomId: string, tag: string): DungeonState {
+function addPrepared(state: DungeonState, roomId: string, tag: string, memberKey: string): DungeonState {
   const existing = state.prepared[roomId] ?? []
-  if (existing.includes(tag)) return state
-  return { ...state, prepared: { ...state.prepared, [roomId]: [...existing, tag] } }
+  if (existing.some((p) => p.tag === tag && p.memberKey === memberKey)) return state
+  return { ...state, prepared: { ...state.prepared, [roomId]: [...existing, { tag, memberKey }] } }
 }
 
 const markDone = (state: DungeonState, flag: string): DungeonState =>
@@ -182,9 +172,18 @@ function narrate(
   const complication = test?.result.complication
     ? ' A Complication was drawn, so the GM may add a consequence.'
     : ''
+  const colorIndex = ctx.state.party.findIndex((m) => m.key === ctx.member.key)
   return {
     state,
-    step: { memberKey: ctx.member.key, title, intro, test, outcome: outcome + complication, tone },
+    step: {
+      actor: playerActor(ctx.member, colorIndex),
+      title,
+      intro,
+      test,
+      testMode: test ? 'check' : undefined,
+      outcome: outcome + complication,
+      tone,
+    },
   }
 }
 
@@ -339,7 +338,7 @@ function dispelMagic(ctx: Context, ability: Ability): Resolution {
 function performAbility(ctx: Context, ability: Ability): Resolution {
   const { member, room, state } = ctx
   const prepare = (tag: string, outcome: string) =>
-    narrate(ctx, ability.name, `${member.name} prepares ${room.name}.`, outcome, 'success', addPrepared(state, room.id, tag))
+    narrate(ctx, ability.name, `${member.name} prepares ${room.name}.`, outcome, 'success', addPrepared(state, room.id, tag, member.key))
 
   switch (ability.id) {
     case 'fortify':
@@ -357,7 +356,7 @@ function performAbility(ctx: Context, ability: Ability): Resolution {
         `${member.name} reinforces the passage to ${target.name}.`,
         'Creatures forcing their way through must succeed on a Strength test.',
         'success',
-        addPrepared(state, room.id, `Barricaded toward ${target.name}`),
+        addPrepared(state, room.id, `Barricaded toward ${target.name}`, member.key),
       )
     }
     case 'standWatch':
@@ -455,12 +454,32 @@ export function resolveInterval(
   }
 
   const burned = burnTorchInterval(working)
+  const { patrol } = burned.state.dungeon
+  const watching = state.party.some((m) => {
+    const choice = plan[m.key]?.actionId
+    return choice === 'watch' || choice === 'ability:standWatch'
+  })
+  const warned =
+    watching &&
+    !burned.state.patrolTriggered &&
+    burned.state.intervals === patrol.arrivesAtInterval - 1
   steps.push({
-    memberKey: null,
+    actor: null,
     title: 'The Interval ends',
     intro: 'Time passes in the dark halls.',
-    outcome: burned.message,
-    tone: 'neutral',
+    outcome: warned ? `${burned.message} ${patrol.warning}` : burned.message,
+    tone: warned ? 'failure' : 'neutral',
   })
-  return { state: withLog(burned.state, burned.message), steps }
+  let finished = withLog(burned.state, burned.message)
+  if (patrolIsDue(finished)) {
+    finished = springPatrol(finished, rng)
+    steps.push({
+      actor: null,
+      title: 'Interrupted!',
+      intro: patrol.arrival,
+      outcome: 'Combat begins.',
+      tone: 'failure',
+    })
+  }
+  return { state: finished, steps }
 }

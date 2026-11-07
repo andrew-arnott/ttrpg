@@ -53,6 +53,15 @@ export interface DungeonLink {
   hidden?: { discovery: string }
 }
 
+/** A group of enemies that finds the party after a number of Intervals, wherever they are. */
+export interface Patrol {
+  arrivesAtInterval: number
+  enemyIds: string[]
+  /** Heard by anyone keeping watch in the Interval before the patrol arrives. */
+  warning: string
+  arrival: string
+}
+
 export interface Dungeon {
   id: string
   name: string
@@ -62,6 +71,7 @@ export interface Dungeon {
   startRoomId: string
   rooms: DungeonRoom[]
   links: DungeonLink[]
+  patrol: Patrol
 }
 
 export const linkKey = (link: Pick<DungeonLink, 'from' | 'to'>): string => `${link.from}>${link.to}`
@@ -297,4 +307,10 @@ export const SUNKEN_CRYPT: Dungeon = {
       hidden: { discovery: 'a servants\u2019 passage, hidden behind a loose panel, running from the entrance down to the storeroom' },
     },
   ],
+  patrol: {
+    arrivesAtInterval: 4,
+    enemyIds: ['goblin', 'goblin', 'troll'],
+    warning: 'Boots scrape and something heavy drags along the stone. A patrol is close.',
+    arrival: 'A goblin patrol led by a cave troll stumbles into the party!',
+  },
 }

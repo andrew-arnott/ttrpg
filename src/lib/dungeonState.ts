@@ -1,6 +1,8 @@
 import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
 import { linkKey, type Dungeon, type DungeonRoom } from '../data/dungeon'
 import type { SpecialSpread, TokenStack } from '../data/types'
+import { startBattle, type BattleState } from './battle'
+import type { Rng } from './drawTest'
 import { burnInterval, lightTorch, torchLevel, TORCH_LEVEL_LABEL, type TorchLevel, type TorchState } from './torch'
 
 export interface PartyMember {
@@ -22,6 +24,12 @@ export interface PartyMember {
   abilityIds: string[]
 }
 
+/** Something a character set up in a room, such as Fortify, that matters if combat starts there. */
+export interface Preparation {
+  tag: string
+  memberKey: string
+}
+
 export interface DungeonState {
   dungeon: Dungeon
   party: PartyMember[]
@@ -33,15 +41,18 @@ export interface DungeonState {
   /** One-off room features already dealt with, e.g. `secret:entrance`. */
   done: string[]
   /** Preparations made in each room, e.g. "Fortified". */
-  prepared: Record<string, string[]>
+  prepared: Record<string, Preparation[]>
   torch: TorchState
   intervals: number
   log: string[]
+  battle: BattleState | null
+  patrolTriggered: boolean
 }
 
 export type DungeonAction =
-  | { type: 'moveTo'; roomId: string }
+  | { type: 'moveTo'; roomId: string; rng: Rng }
   | { type: 'lightTorch'; memberKey: string }
+  | { type: 'startBattle'; rng: Rng }
   | { type: 'replace'; state: DungeonState }
 
 /** How many doorways away the party's light reaches at each torch level. */
@@ -110,6 +121,8 @@ export function createDungeonState(dungeon: Dungeon, party: PartyMember[]): Dung
     torch,
     intervals: 0,
     log: [`The party enters ${dungeon.name} with a lit torch.`],
+    battle: null,
+    patrolTriggered: false,
   }
 }
 
@@ -142,23 +155,60 @@ export function burnTorchInterval(state: DungeonState): { state: DungeonState; m
   return { state: revealVisible({ ...state, torch, intervals }), message }
 }
 
+/** The patrol finds the party wherever they are, and any preparations made in that room come into play. */
+export function springPatrol(state: DungeonState, rng: Rng): DungeonState {
+  const { patrol } = state.dungeon
+  const battle = startBattle(state.party, state.prepared[state.roomId] ?? [], patrol.enemyIds, rng, patrol.arrival)
+  return withLog({ ...state, battle, patrolTriggered: true }, patrol.arrival)
+}
+
+export function patrolIsDue(state: DungeonState): boolean {
+  return !state.battle && !state.patrolTriggered && state.intervals >= state.dungeon.patrol.arrivesAtInterval
+}
+
+export function springPatrolIfDue(state: DungeonState, rng: Rng): DungeonState {
+  return patrolIsDue(state) ? springPatrol(state, rng) : state
+}
+
+/** Carries HP, resources and bags out of the fight. Anyone who was knocked out comes round with 1 HP. */
+export function endBattle(state: DungeonState): DungeonState {
+  const { battle } = state
+  if (!battle) return state
+  const party = state.party.map((m) => {
+    const fought = battle.players.find((p) => p.key === m.key)
+    if (!fought) return m
+    return {
+      ...m,
+      hp: Math.max(1, fought.hp),
+      resources: fought.resources,
+      bag: fought.bag,
+    }
+  })
+  return withLog({ ...state, party, battle: null }, 'The fight is over. Everyone catches their breath.')
+}
+
 export function dungeonReducer(state: DungeonState, action: DungeonAction): DungeonState {
   switch (action.type) {
     case 'replace':
       return action.state
 
+    case 'startBattle':
+      return state.battle ? state : springPatrol(state, action.rng)
+
     case 'moveTo': {
+      if (state.battle) return state
       if (!adjacentRoomIds(state.dungeon, state.roomId, state.discovered).includes(action.roomId)) return state
       const room = roomById(state.dungeon, action.roomId)
       const burned = burnTorchInterval(state)
-      return revealVisible(
+      const moved = revealVisible(
         withLog({ ...burned.state, roomId: action.roomId }, `The party moves to ${room.name}.`, burned.message),
       )
+      return springPatrolIfDue(moved, action.rng)
     }
 
     case 'lightTorch': {
       const member = state.party.find((m) => m.key === action.memberKey)
-      if (!member || (member.inventory.torch ?? 0) <= 0) return state
+      if (state.battle || !member || (member.inventory.torch ?? 0) <= 0) return state
       const party = state.party.map((m) =>
         m.key === member.key ? { ...m, inventory: { ...m.inventory, torch: (m.inventory.torch ?? 0) - 1 } } : m,
       )

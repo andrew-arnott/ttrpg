@@ -4,7 +4,7 @@ const modules = import.meta.glob('../assets/art/*.webp', {
   import: 'default',
 }) as Record<string, string>
 
-export type ArtKind = 'profession' | 'species' | 'bg' | 'item'
+export type ArtKind = 'profession' | 'species' | 'bg' | 'item' | 'enemy'
 
 export function artUrl(kind: ArtKind, id: string): string | undefined {
   return modules[`../assets/art/${kind}-${id}.webp`]
