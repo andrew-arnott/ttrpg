@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { SPECIAL_LABELS } from '../data/types'
-import type { PartyMember } from '../lib/dungeonState'
-import type { ResolutionStep } from '../lib/intervalActions'
 import { AVATAR_COLORS } from '../lib/partyColors'
+import type { ResolutionStep } from '../lib/resolution'
 import { useDrawAnimation } from '../lib/useDrawAnimation'
 import { DrawStage } from './DrawStage'
 import { Portrait } from './Portrait'
@@ -10,14 +9,13 @@ import { Portrait } from './Portrait'
 const INTRO_MS = 1100
 const OUTCOME_MS = 2600
 const REDUCED_MS = 400
+const ENEMY_COLOR = '#ff6a6a'
 
 const fmtSigned = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 type Stage = 'intro' | 'drawing' | 'outcome'
-
-const TONE_LABEL = { success: 'Success', failure: 'Failure', neutral: '' } as const
 
 function testBadge(step: ResolutionStep): string {
   const outcome = step.test?.result.outcome
@@ -30,19 +28,23 @@ function StepSummary({ step }: { step: ResolutionStep }) {
   return (
     <li className={`resolution-line ${step.tone}`}>
       <b>{step.title}.</b> {step.intro} {step.outcome}
-      {step.test && <span className="tag">{testBadge(step)}</span>}
+      {step.test && step.testMode === 'check' && <span className="tag">{testBadge(step)}</span>}
     </li>
   )
 }
 
+function actorColor(colorIndex: number): string {
+  return colorIndex < 0 ? ENEMY_COLOR : AVATAR_COLORS[colorIndex % AVATAR_COLORS.length]
+}
+
 interface Props {
+  /** e.g. "Interval 3" or "Round 2". */
+  heading: string
   steps: ResolutionStep[]
-  party: PartyMember[]
-  interval: number
   onFinish: () => void
 }
 
-export function IntervalResolution({ steps, party, interval, onFinish }: Props) {
+export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
   const [index, setIndex] = useState(0)
   const [stage, setStage] = useState<Stage>('intro')
   const [finished, setFinished] = useState(false)
@@ -52,8 +54,7 @@ export function IntervalResolution({ steps, party, interval, onFinish }: Props) 
 
   const step = steps[index]
   const isLast = index >= steps.length - 1
-  const memberIndex = party.findIndex((m) => m.key === step.memberKey)
-  const member = memberIndex >= 0 ? party[memberIndex] : null
+  const actor = step.actor
 
   const advance = () => {
     window.clearTimeout(timer.current)
@@ -110,7 +111,7 @@ export function IntervalResolution({ steps, party, interval, onFinish }: Props) 
         {finished ? (
           <>
             <div className="card-head">
-              <span className="step-index">Interval {interval}</span>
+              <span className="step-index">{heading}</span>
               <h2 id="resolution-title">What happened</h2>
             </div>
             <ul className="resolution-list">
@@ -128,22 +129,19 @@ export function IntervalResolution({ steps, party, interval, onFinish }: Props) 
           <>
             <div className="card-head">
               <span className="step-index">
-                Interval {interval} · Step {index + 1} of {steps.length}
+                {heading} · Step {index + 1} of {steps.length}
               </span>
               <div className="resolution-actor">
-                {member ? (
-                  <span
-                    className="party-avatar"
-                    style={{ borderColor: AVATAR_COLORS[memberIndex % AVATAR_COLORS.length] }}
-                  >
-                    <Portrait kind="profession" id={member.professionId} size="md" />
+                {actor ? (
+                  <span className="party-avatar" style={{ borderColor: actorColor(actor.colorIndex) }}>
+                    <Portrait kind={actor.artKind} id={actor.artId} size="md" />
                   </span>
                 ) : (
                   <Portrait kind="item" id="torch" size="md" />
                 )}
                 <div>
                   <h2 id="resolution-title">{step.title}</h2>
-                  <p className="hint">{member ? member.name : 'The party'}</p>
+                  <p className="hint">{actor ? actor.name : 'The party'}</p>
                 </div>
               </div>
             </div>
@@ -153,30 +151,42 @@ export function IntervalResolution({ steps, party, interval, onFinish }: Props) 
             {test && (
               <div className="resolution-test">
                 <p className="hint">
-                  {SPECIAL_LABELS[test.attribute]} test · Difficulty {test.difficulty}
-                  {test.penalty > 0 && ` +${test.penalty} for darkness`}
+                  {step.testMode === 'score'
+                    ? `${SPECIAL_LABELS[test.attribute]} test · the result is added to the score`
+                    : `${SPECIAL_LABELS[test.attribute]} test · Difficulty ${test.difficulty}${
+                        test.penalty > 0 ? ` +${test.penalty} for darkness` : ''
+                      }`}
                 </p>
                 <DrawStage
                   compact
                   shaking={animation.phase === 'shaking'}
                   shown={animation.shown}
-                  bagLabel={`${member?.name ?? ''}'s bag`}
+                  bagLabel={`${actor?.name ?? ''}'s bag`}
                   placeholder="Reaching into the bag…"
                 />
                 {drawnAll && (
                   <p className={`resolution-math ${step.tone}`}>
-                    Tokens {fmtSigned(tokensTotal)} + {SPECIAL_LABELS[test.attribute]} {test.attributeValue} ={' '}
-                    <b>{test.total}</b> against {test.difficulty + test.penalty}
-                    <span className={`result-badge ${step.tone}`}>{testBadge(step)}</span>
+                    {step.resultLine ?? (
+                      <>
+                        Tokens {fmtSigned(tokensTotal)} + {SPECIAL_LABELS[test.attribute]} {test.attributeValue} ={' '}
+                        <b>{test.total}</b> against {test.difficulty + test.penalty}
+                      </>
+                    )}
+                    {step.testMode === 'check' && (
+                      <span className={`result-badge ${step.tone}`}>{testBadge(step)}</span>
+                    )}
                   </p>
                 )}
               </div>
             )}
 
+            {!test && step.resultLine && stage === 'outcome' && (
+              <p className={`resolution-math ${step.tone}`}>{step.resultLine}</p>
+            )}
+
             {stage === 'outcome' && (
               <p className={`outcome resolution-outcome ${step.tone}`} role="status">
                 {step.outcome}
-                {!test && TONE_LABEL[step.tone] && <span className="tag">{TONE_LABEL[step.tone]}</span>}
               </p>
             )}
 

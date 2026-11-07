@@ -73,6 +73,42 @@ sum plus the relevant SPECIAL value against a Difficulty set per room (see `src/
 Critical Success always passes and Critical Failure always fails. Working with the torch out adds 3 to
 the Difficulty. Resolution plays back as an animation with a text summary of what happened.
 
+### Battles
+
+A goblin patrol (two Goblin Scouts and a Cave Troll) finds the party at Interval 4, wherever they are.
+Anyone keeping watch in the Interval before hears it coming. Preparations made in that room carry over:
+Fortify gives the character +2 Defense in round 1, and Set an Ambush gives a free opening attack. The HUD's
+*Start sample battle* button springs it at any time.
+
+Each round:
+
+1. Every player gets **2 actions** plus any number of free **Fast** abilities, planned up front and
+   resolved in party order with the animated bag.
+2. **Enemies act after all the players**, in random order.
+3. **Defense scores reset** at the end of the round.
+
+Players and enemies sit in **engagement groups** and can only attack the other side within their own
+group. Players start in a group each and every enemy engages a random player. *Change engagement* (an
+Agility test, Difficulty 4) moves you to another group or breaks away alone, and a Provoked enemy is pulled
+into the Provoker's group.
+
+- **Attack:** a Strength test against the enemy's Defense. A hit deals 1 damage, plus 1 for each Might token
+  drawn.
+- **Defend:** an Agility test whose result (Agility plus token total) is added to your Defense score for the
+  round. Two Defends stack. A Critical Failure adds nothing.
+- **Enemy attacks** subtract their attack value from the target's Defense score. If the value was greater than the
+  score, the attack deals its damage (usually 1). Several attacks on one player keep wearing the same score down.
+- **Shield tokens** drawn during a test wait in play and absorb damage from the next hit, then return to the bag.
+  Bless tokens are used up when drawn.
+- **Complications** (including the one a Critical Failure generates) set off enemy triggers: goblins lunge at
+  whoever drew it, and the troll bellows for extra attack value.
+- A fight ends when all of one side is at 0 HP. After a win, fallen characters wake with 1 HP.
+
+Class abilities that work in battle: Provoke, Disable, Cheap Shot, Smite, Backstab, Slip Away, Heal, Bless,
+Magic Missile and Fireball. Other combat abilities appear greyed out, and Triggered abilities are not offered
+yet. Sealed tokens (Provoke, Disable, Cheap Shot) return to their owner when the enemy is defeated. Enemy
+numbers live in `src/data/enemies.ts` and the patrol in `src/data/dungeon.ts`.
+
 ### Art
 
 Portraits and item icons in `src/assets/art/` are AI-generated pixel art in a 16-bit RPG style, one per

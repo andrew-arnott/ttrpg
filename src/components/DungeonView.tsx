@@ -10,18 +10,16 @@ import {
   roomById,
   type DungeonState,
 } from '../lib/dungeonState'
-import {
-  resolveInterval,
-  type InteractionPlan,
-  type ResolutionStep,
-} from '../lib/intervalActions'
+import { resolveInterval, type InteractionPlan } from '../lib/intervalActions'
 import { AVATAR_COLORS } from '../lib/partyColors'
 import { createPartyMember } from '../lib/partyMember'
+import type { ResolutionStep } from '../lib/resolution'
 import type { RosterEntry } from '../lib/roster'
 import { torchLevel, TORCH_LEVEL_LABEL, totalIntervals, type TorchState } from '../lib/torch'
+import { BattleView } from './BattleView'
 import { DungeonMap } from './DungeonMap'
 import { IntervalPlanner } from './IntervalPlanner'
-import { IntervalResolution } from './IntervalResolution'
+import { ResolutionOverlay } from './ResolutionOverlay'
 import { Portrait } from './Portrait'
 
 const MAX_PARTY = 4
@@ -210,7 +208,7 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
   )
   const spareTorches = state.party.reduce((n, m) => n + (m.inventory.torch ?? 0), 0)
   const preparations = state.prepared[state.roomId] ?? []
-  const move = (roomId: string) => dispatch({ type: 'moveTo', roomId })
+  const move = (roomId: string) => dispatch({ type: 'moveTo', roomId, rng: Math.random })
 
   const resolve = () => {
     const { state: next, steps } = resolveInterval(state, plan, Math.random)
@@ -248,11 +246,21 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
           <b className="interval-count">{state.intervals}</b>
         </div>
         <div className="hud-actions">
+          {!state.battle && !state.patrolTriggered && (
+            <button className="btn" onClick={() => dispatch({ type: 'startBattle', rng: Math.random })}>
+              Start sample battle
+            </button>
+          )}
           <button className="btn" onClick={onLeave}>
             Leave dungeon
           </button>
         </div>
       </section>
+
+      {state.battle ? (
+        <BattleView state={state} dispatch={dispatch} onLeave={onLeave} />
+      ) : (
+        <>
 
       <div className="layout" style={{ marginTop: 20 }}>
         <main>
@@ -273,9 +281,9 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
             </p>
             {preparations.length > 0 && (
               <div className="tokens">
-                {preparations.map((tag) => (
-                  <span className="chip" key={tag}>
-                    {tag}
+                {preparations.map((p) => (
+                  <span className="chip" key={`${p.memberKey}-${p.tag}`}>
+                    {p.tag}
                   </span>
                 ))}
               </div>
@@ -308,12 +316,13 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
           </section>
         </aside>
       </div>
+        </>
+      )}
 
       {pending && (
-        <IntervalResolution
+        <ResolutionOverlay
+          heading={`Interval ${state.intervals + 1}`}
           steps={pending.steps}
-          party={state.party}
-          interval={state.intervals + 1}
           onFinish={finishResolution}
         />
       )}
