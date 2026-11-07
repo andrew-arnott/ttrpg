@@ -8,14 +8,17 @@ import {
   adjacentRoomIds,
   burnTorchInterval,
   lightFreshTorch,
+  KEEP_WATCH,
   patrolIsDue,
   REST_BONUS_LIMIT,
   revealVisible,
   roomById,
   springPatrol,
+  STAND_WATCH,
   withLog,
   type DungeonState,
   type PartyMember,
+  type Watchfulness,
 } from './dungeonState'
 import { playerActor, type ResolutionStep, type StepTone } from './resolution'
 import { performSkillTest, type SkillTestOutcome } from './skillTest'
@@ -435,12 +438,15 @@ export function resolveInterval(
   let working = state
   const steps: ResolutionStep[] = []
   const penalty = torchLevel(state.torch) === 'out' ? DARKNESS_PENALTY : 0
+  let watch: Watchfulness | null = null
 
   for (const original of state.party) {
     const member = working.party.find((m) => m.key === original.key) ?? original
     const planned = plan[member.key] ?? DEFAULT_ACTION
     const option = availableActions(working, member).find((o) => o.id === planned.actionId)
     const usable = option && !option.disabledReason ? planned : DEFAULT_ACTION
+    if (usable.actionId === 'ability:standWatch') watch = STAND_WATCH
+    else if (usable.actionId === 'watch' && !watch) watch = KEEP_WATCH
     const { state: next, step } = resolveAction({
       state: working,
       member,
@@ -455,14 +461,7 @@ export function resolveInterval(
 
   const burned = burnTorchInterval(working)
   const { patrol } = burned.state.dungeon
-  const watching = state.party.some((m) => {
-    const choice = plan[m.key]?.actionId
-    return choice === 'watch' || choice === 'ability:standWatch'
-  })
-  const warned =
-    watching &&
-    !burned.state.patrolTriggered &&
-    burned.state.intervals === patrol.arrivesAtInterval - 1
+  const warned = Boolean(watch) && !burned.state.patrolTriggered && burned.state.intervals === patrol.arrivesAtInterval - 1
   steps.push({
     actor: null,
     title: 'The Interval ends',
@@ -470,7 +469,7 @@ export function resolveInterval(
     outcome: warned ? `${burned.message} ${patrol.warning}` : burned.message,
     tone: warned ? 'failure' : 'neutral',
   })
-  let finished = withLog(burned.state, burned.message)
+  let finished = withLog({ ...burned.state, watch }, burned.message)
   if (patrolIsDue(finished)) {
     finished = springPatrol(finished, rng)
     steps.push({

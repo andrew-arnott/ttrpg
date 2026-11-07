@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { linkKey, SUNKEN_CRYPT } from '../data/dungeon'
 import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
 import { mulberry32 } from './drawTest'
-import { adjacentRoomIds, createDungeonState, REST_BONUS_LIMIT, type DungeonState } from './dungeonState'
+import {
+  adjacentRoomIds,
+  createDungeonState,
+  KEEP_WATCH,
+  REST_BONUS_LIMIT,
+  STAND_WATCH,
+  type DungeonState,
+} from './dungeonState'
 import { availableActions, resolveInterval, type InteractionPlan } from './intervalActions'
 import { createPartyMember } from './partyMember'
 import { sampleRoster } from './roster'
@@ -228,7 +235,8 @@ describe('resolveInterval', () => {
     })
 
     it('Fortify and Barricade leave a preparation on the room', () => {
-      const s = stateWith(sampleMember('warrior', 'w'))
+      const warrior = { ...sampleMember('warrior', 'w') }
+      const s = stateWith({ ...warrior, abilityIds: [...warrior.abilityIds, 'barricade'] })
       const { state } = resolveInterval(s, { w: { actionId: 'ability:fortify' } }, rng())
       expect(state.prepared.entrance.map((p) => p.tag)).toEqual(['Fortified'])
       expect(state.prepared.entrance[0].memberKey).toBe('w')
@@ -270,5 +278,42 @@ describe('resolveInterval', () => {
     expect(steps[0].tone).toBe('success')
     expect(steps[1].title).toBe('Keep watch')
     expect(state.party[0].inventory.torch).toBe(1)
+  })
+})
+
+describe('watching during an Interval', () => {
+  it('records Stand Watch for the surprise check', () => {
+    const s = stateWith(sampleMember('warrior', 'w'))
+    const { state } = resolveInterval(s, { w: { actionId: 'ability:standWatch' } }, rng())
+    expect(state.watch).toEqual(STAND_WATCH)
+  })
+
+  it('records the weaker Keep watch, including by default', () => {
+    const s = stateWith(testMember('a', 0))
+    expect(resolveInterval(s, { a: { actionId: 'watch' } }, rng()).state.watch).toEqual(KEEP_WATCH)
+    expect(resolveInterval(s, {}, rng()).state.watch).toEqual(KEEP_WATCH)
+  })
+
+  it('takes the best watch when several characters watch', () => {
+    const s = stateWith(testMember('a', 0), sampleMember('warrior', 'w'))
+    const { state } = resolveInterval(
+      s,
+      { a: { actionId: 'watch' }, w: { actionId: 'ability:standWatch' } },
+      rng(),
+    )
+    expect(state.watch).toEqual(STAND_WATCH)
+  })
+
+  it('records nothing when everyone is busy with something else', () => {
+    const s = stateWith(testMember('a', 0, { bag: ALWAYS_FAIL }))
+    expect(resolveInterval(s, { a: { actionId: 'search' } }, rng()).state.watch).toBeNull()
+  })
+
+  it('warns watchers one Interval before the patrol, but not anyone else', () => {
+    const base = { ...stateWith(testMember('a', 0)), intervals: 2 }
+    const watched = resolveInterval(base, { a: { actionId: 'watch' } }, rng())
+    expect(watched.steps[watched.steps.length - 1].outcome).toMatch(/patrol is close/)
+    const busy = resolveInterval(base, { a: { actionId: 'search' } }, rng())
+    expect(busy.steps[busy.steps.length - 1].outcome).not.toMatch(/patrol is close/)
   })
 })

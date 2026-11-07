@@ -1,6 +1,6 @@
 import { ENEMIES_BY_ID, type EnemyAttack, type EnemyDef, type EnemyTrigger } from '../data/enemies'
 import { PROFESSIONS } from '../data/professions'
-import { TOKENS } from '../data/tokens'
+import { STANDARD_BAG, TOKENS } from '../data/tokens'
 import type { Ability, SpecialKey, SpecialSpread, TokenStack } from '../data/types'
 import { drawTest, type Rng, type TestResult } from './drawTest'
 import type { PartyMember, Preparation } from './dungeonState'
@@ -16,6 +16,8 @@ export const FORTIFY_DEFENSE = 2
 export const BACKSTAB_DAMAGE = 2
 export const HEAL_AMOUNT = 2
 export const MAX_FIREBALL_MANA = 3
+/** Difficulty for the enemies' Perception test to surprise the party, before watchfulness and light. */
+export const SURPRISE_BASE_DIFFICULTY = 4
 const LOG_LIMIT = 40
 const NEW_GROUP = 'new'
 
@@ -66,6 +68,12 @@ export interface BattleState {
   nextGroup: number
   log: string[]
   result: BattleResult
+  /** `players`: someone is choosing an action. `enemies`: everyone has acted and the enemies are next. */
+  phase: 'players' | 'enemies'
+  /** Index into `players` of whoever is choosing an action. */
+  turnIndex: number
+  /** Actions the current player has used this round. Fast abilities are free and do not count. */
+  actionsUsed: number
   /** Steps leading into round 1, played once when the battle begins. */
   opening: ResolutionStep[]
 }
@@ -75,12 +83,11 @@ export interface PlannedCombat {
   targetId?: string
 }
 
-export interface TurnPlan {
-  actions: [PlannedCombat | null, PlannedCombat | null]
-  fast: PlannedCombat | null
+/** Inputs to the enemies' Perception test to surprise the party. */
+export interface SurpriseCheck {
+  perception: number
+  modifiers: { label: string; value: number }[]
 }
-
-export type BattlePlan = Record<string, TurnPlan>
 
 export interface TargetChoice {
   id: string
@@ -101,13 +108,10 @@ export interface CombatOption {
   disabledReason?: string
 }
 
-export const EMPTY_TURN: TurnPlan = { actions: [null, null], fast: null }
-
-/** What a player does if the user leaves their slots alone: attack if engaged, otherwise defend, then defend. */
-export function defaultTurn(b: BattleState, p: BattlePlayer): TurnPlan {
+/** What to pre-select for a player: attack an engaged enemy if there is one, otherwise defend. */
+export function suggestedAction(b: BattleState, p: BattlePlayer): PlannedCombat {
   const target = engagedEnemies(b, p)[0]
-  const first: PlannedCombat = target ? { actionId: 'attack', targetId: target.id } : { actionId: 'defend' }
-  return { actions: [first, { actionId: 'defend' }], fast: null }
+  return target ? { actionId: 'attack', targetId: target.id } : { actionId: 'defend' }
 }
 
 // --- lookups -----------------------------------------------------------
@@ -246,6 +250,7 @@ export function startBattle(
   enemyIds: string[],
   rng: Rng,
   arrival: string,
+  surprise: SurpriseCheck | null,
 ): BattleState {
   const defs = enemyIds.flatMap((id) => (ENEMIES_BY_ID[id] ? [ENEMIES_BY_ID[id]] : []))
   const b: BattleState = {
@@ -280,6 +285,9 @@ export function startBattle(
     nextGroup: 0,
     log: [arrival],
     result: 'ongoing',
+    phase: 'players',
+    turnIndex: 0,
+    actionsUsed: 0,
     opening: [],
   }
 
@@ -317,9 +325,58 @@ export function startBattle(
     }
   }
 
+  if (surprise && b.result === 'ongoing') surpriseCheck(engine, surprise)
+
   updateResult(b)
+  finalStep(engine)
+  b.turnIndex = Math.max(0, b.players.findIndex((p) => p.hp > 0))
   b.opening = engine.steps
   return b
+}
+
+/**
+ * The enemy group makes a Perception test to surprise the party. Stand Watch, Keep Watch
+ * and a bright torch make that harder; a dim or dead torch makes it easier. If they
+ * succeed they get a full round of attacks before anyone can act.
+ */
+function surpriseCheck(engine: Engine, check: SurpriseCheck) {
+  const { b } = engine
+  const difficulty = SURPRISE_BASE_DIFFICULTY + check.modifiers.reduce((sum, m) => sum + m.value, 0)
+  const test = performSkillTest(STANDARD_BAG, 'perception', check.perception, difficulty, engine.rng)
+  const lead = livingEnemies(b)[0]
+  const surprised = test.passed
+  const breakdown = [
+    `${SURPRISE_BASE_DIFFICULTY} base`,
+    ...check.modifiers.map((m) => `${fmtSigned(m.value)} ${m.label}`),
+  ].join(', ')
+
+  addStep(engine, {
+    actor: lead ? enemyActorOf(lead) : null,
+    title: 'Surprise?',
+    intro: 'The enemies creep closer, trying to catch the party off guard.',
+    test,
+    testMode: 'score',
+    testHeading: `Enemy Perception test \u00b7 Difficulty ${difficulty} (${breakdown})`,
+    bagLabel: "The enemies' bag",
+    resultLine: `Tokens ${fmtSigned(test.result.total)} + Perception ${check.perception} = ${test.total} against ${difficulty}: ${
+      surprised ? 'the enemies succeed' : 'the party notices them'
+    }`,
+    outcome: surprised
+      ? 'The enemies strike from the shadows! They get a surprise round before anyone can act.'
+      : 'The party spots them in time. Combat begins on even terms.',
+    tone: surprised ? 'failure' : 'success',
+  })
+  if (!surprised) return
+
+  addStep(engine, {
+    actor: null,
+    title: 'Surprise round',
+    intro: 'The party is caught flat-footed.',
+    outcome: 'The enemies attack before anyone can defend.',
+    tone: 'failure',
+  })
+  enemyActions(engine)
+  resetRoundState(b)
 }
 
 // --- resolving tests and effects --------------------------------------
@@ -382,12 +439,20 @@ function strikePlayer(
   target.defense = Math.max(0, defense - value)
 
   const resultLine = `Attack ${value} against Defense ${defense}: ${breaks ? 'breaks through' : 'blocked'}`
+  const clash = {
+    attack: value,
+    defenseBefore: defense,
+    defenseAfter: target.defense,
+    breaks,
+    target: playerActorOf(target),
+  }
   if (!breaks) {
     addStep(engine, {
       actor: enemyActorOf(e),
       title: attack.name,
       intro,
       resultLine,
+      clash,
       outcome: `${target.name} turns the blow aside. Defense is now ${target.defense}.`,
       tone: 'success',
     })
@@ -406,6 +471,7 @@ function strikePlayer(
     title: attack.name,
     intro,
     resultLine,
+    clash,
     outcome:
       dealt > 0
         ? `${target.name} takes ${dealt} damage (${target.hp}/${target.maxHp} HP).${notes.length ? ` ${notes.join(' ')}` : ''}${falls}`
@@ -958,45 +1024,115 @@ function enemyTurn(engine: Engine, e: BattleEnemy) {
   }
 }
 
-/**
- * Plays one round: players act in order (free Fast ability first, then up to two
- * actions), then enemies act in random order, then Defense scores reset.
- */
-export function resolveRound(
-  battle: BattleState,
-  plan: BattlePlan,
-  rng: Rng,
-): { battle: BattleState; steps: ResolutionStep[] } {
-  const engine: Engine = { b: structuredClone(battle), rng, steps: [] }
-  const { b } = engine
-  b.opening = []
-
-  for (const original of b.players) {
-    const p = playerByKey(b, original.key)
-    const turn = plan[original.key] ?? EMPTY_TURN
-    if (!p) continue
-    for (const planned of [turn.fast, ...turn.actions]) {
-      if (b.result !== 'ongoing' || p.hp <= 0) break
-      if (planned) performAction(engine, p, planned)
-    }
-  }
-
-  if (b.result === 'ongoing') {
-    for (const e of shuffled(livingEnemies(b), rng)) {
-      if (b.result !== 'ongoing') break
-      if (e.hp > 0) enemyTurn(engine, e)
-    }
-  }
-
+function resetRoundState(b: BattleState) {
   b.players.forEach((p) => {
     p.defense = 0
   })
   b.enemies.forEach((e) => {
     e.empowered = 0
   })
+}
+
+function enemyActions(engine: Engine) {
+  const { b, rng } = engine
+  for (const e of shuffled(livingEnemies(b), rng)) {
+    if (b.result !== 'ongoing') break
+    if (e.hp > 0) enemyTurn(engine, e)
+  }
+}
+
+function finalStep(engine: Engine) {
+  const { result } = engine.b
+  if (result === 'ongoing') return
+  addStep(engine, {
+    actor: null,
+    title: result === 'victory' ? 'Victory!' : 'Defeat',
+    intro: result === 'victory' ? 'The last enemy falls.' : 'The party is overwhelmed.',
+    outcome: result === 'victory' ? 'The fight is won.' : 'Every adventurer has fallen.',
+    tone: result === 'victory' ? 'success' : 'failure',
+  })
+}
+
+/** The player who is choosing an action right now, if any. */
+export function currentPlayer(b: BattleState): BattlePlayer | null {
+  if (b.result !== 'ongoing' || b.phase !== 'players') return null
+  const p = b.players[b.turnIndex]
+  return p && p.hp > 0 ? p : null
+}
+
+function advanceTurn(b: BattleState) {
+  const current = b.players[b.turnIndex]
+  if (b.actionsUsed < ACTIONS_PER_TURN && current && current.hp > 0) return
+  const next = b.players.findIndex((p, i) => i > b.turnIndex && p.hp > 0)
+  b.actionsUsed = 0
+  if (next === -1) {
+    b.phase = 'enemies'
+  } else {
+    b.turnIndex = next
+  }
+}
+
+/**
+ * Resolves the current player's choice and moves on. `null` skips the action. A Fast
+ * ability is free, so it resolves without using up one of the player's actions.
+ */
+export function takeAction(
+  battle: BattleState,
+  planned: PlannedCombat | null,
+  rng: Rng,
+): { battle: BattleState; steps: ResolutionStep[] } {
+  const engine: Engine = { b: structuredClone(battle), rng, steps: [] }
+  const { b } = engine
+  b.opening = []
+  const p = currentPlayer(b)
+  if (!p) return { battle: b, steps: [] }
+
+  let free = false
+  if (planned) {
+    free = availableCombatActions(b, p).find((o) => o.id === planned.actionId)?.slot === 'fast'
+    performAction(engine, p, planned)
+  }
+  if (!free) b.actionsUsed += 1
+
+  if (b.result === 'ongoing') advanceTurn(b)
+  finalStep(engine)
+  return { battle: b, steps: engine.steps }
+}
+
+/** The current player gives up their remaining actions this round. */
+export function endTurn(battle: BattleState): BattleState {
+  const b = structuredClone(battle)
+  if (!currentPlayer(b)) return b
+  b.actionsUsed = ACTIONS_PER_TURN
+  advanceTurn(b)
+  return b
+}
+
+/** Every player has acted: the enemies attack in random order, Defense resets, and a new round begins. */
+export function runEnemyPhase(
+  battle: BattleState,
+  rng: Rng,
+): { battle: BattleState; steps: ResolutionStep[] } {
+  const engine: Engine = { b: structuredClone(battle), rng, steps: [] }
+  const { b } = engine
+  b.opening = []
+  if (b.result !== 'ongoing' || b.phase !== 'enemies') return { battle: b, steps: [] }
+
+  addStep(engine, {
+    actor: null,
+    title: 'Enemy phase',
+    intro: 'Every adventurer has acted.',
+    outcome: 'Now the enemies strike back!',
+    tone: 'failure',
+  })
+  enemyActions(engine)
+  resetRoundState(b)
 
   if (b.result === 'ongoing') {
     b.round += 1
+    b.phase = 'players'
+    b.turnIndex = Math.max(0, b.players.findIndex((p) => p.hp > 0))
+    b.actionsUsed = 0
     addStep(engine, {
       actor: null,
       title: 'Round ends',
@@ -1004,14 +1140,7 @@ export function resolveRound(
       outcome: `Defense scores reset. Round ${b.round} begins.`,
       tone: 'neutral',
     })
-  } else {
-    addStep(engine, {
-      actor: null,
-      title: b.result === 'victory' ? 'Victory!' : 'Defeat',
-      intro: b.result === 'victory' ? 'The last enemy falls.' : 'The party is overwhelmed.',
-      outcome: b.result === 'victory' ? 'The fight is won.' : 'Every adventurer has fallen.',
-      tone: b.result === 'victory' ? 'success' : 'failure',
-    })
   }
+  finalStep(engine)
   return { battle: b, steps: engine.steps }
 }

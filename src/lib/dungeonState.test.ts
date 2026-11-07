@@ -6,6 +6,9 @@ import {
   createDungeonState,
   dungeonReducer,
   endBattle,
+  KEEP_WATCH,
+  STAND_WATCH,
+  surpriseCheckFor,
   visibleRoomIds,
 } from './dungeonState'
 import { mulberry32 } from './drawTest'
@@ -201,5 +204,48 @@ describe('the patrol', () => {
     expect(after.party[0].hp).toBe(1)
     expect(after.party[0].resources.resolve).toBe(1)
     expect(after.party[1].hp).toBe(1)
+  })
+})
+
+describe('the surprise check', () => {
+  const withTorch = (remaining: number) => {
+    const s = fresh()
+    return { ...s, torch: { ...s.torch, remaining } }
+  }
+
+  it('gets +1 to the party’s awareness from a bright torch', () => {
+    expect(surpriseCheckFor(fresh()).modifiers).toEqual([{ label: 'Bright torch', value: 1 }])
+  })
+
+  it('has no modifier for a steady torch, -1 for dim and -2 once it is out', () => {
+    expect(surpriseCheckFor(withTorch(4)).modifiers).toEqual([])
+    expect(surpriseCheckFor(withTorch(2)).modifiers).toEqual([{ label: 'Dim torch', value: -1 }])
+    expect(surpriseCheckFor(withTorch(0)).modifiers).toEqual([{ label: 'No torch', value: -2 }])
+  })
+
+  it('adds the watch bonus on top of the torch', () => {
+    const s = { ...fresh(), watch: STAND_WATCH }
+    expect(surpriseCheckFor(s).modifiers).toEqual([STAND_WATCH, { label: 'Bright torch', value: 1 }])
+    expect(STAND_WATCH.value).toBe(2)
+  })
+
+  it('uses the patrol’s Perception', () => {
+    expect(surpriseCheckFor(fresh()).perception).toBe(SUNKEN_CRYPT.patrol.perception)
+  })
+
+  it('feeds the Difficulty of the test when the patrol arrives', () => {
+    const s = dungeonReducer({ ...fresh(), watch: STAND_WATCH }, { type: 'startBattle', rng })
+    const step = s.battle!.opening.find((o) => o.title === 'Surprise?')!
+    expect(step.test!.difficulty).toBe(4 + 2 + 1)
+  })
+
+  it('is easier on the enemies once the torch is dim and nobody is watching', () => {
+    const s = dungeonReducer(withTorch(2), { type: 'startBattle', rng })
+    expect(s.battle!.opening.find((o) => o.title === 'Surprise?')!.test!.difficulty).toBe(4 - 1)
+  })
+
+  it('forgets watching as soon as the party moves', () => {
+    const s = dungeonReducer({ ...fresh(), watch: KEEP_WATCH }, { type: 'moveTo', roomId: 'greatHall', rng })
+    expect(s.watch).toBeNull()
   })
 })

@@ -1,7 +1,7 @@
 import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
 import { linkKey, type Dungeon, type DungeonRoom } from '../data/dungeon'
 import type { SpecialSpread, TokenStack } from '../data/types'
-import { startBattle, type BattleState } from './battle'
+import { startBattle, type BattleState, type SurpriseCheck } from './battle'
 import type { Rng } from './drawTest'
 import { burnInterval, lightTorch, torchLevel, TORCH_LEVEL_LABEL, type TorchLevel, type TorchState } from './torch'
 
@@ -30,6 +30,23 @@ export interface Preparation {
   memberKey: string
 }
 
+/** Someone keeping watch during the last Interval makes it harder for enemies to surprise the party. */
+export interface Watchfulness {
+  label: string
+  value: number
+}
+
+export const STAND_WATCH: Watchfulness = { label: 'Stand Watch', value: 2 }
+export const KEEP_WATCH: Watchfulness = { label: 'Keeping watch', value: 1 }
+
+/** How the torch affects the enemies' chance to surprise the party: better light means more warning. */
+export const TORCH_AWARENESS: Record<TorchLevel, { label: string; value: number }> = {
+  bright: { label: 'Bright torch', value: 1 },
+  steady: { label: 'Steady torch', value: 0 },
+  dim: { label: 'Dim torch', value: -1 },
+  out: { label: 'No torch', value: -2 },
+}
+
 export interface DungeonState {
   dungeon: Dungeon
   party: PartyMember[]
@@ -47,6 +64,8 @@ export interface DungeonState {
   log: string[]
   battle: BattleState | null
   patrolTriggered: boolean
+  /** Set when someone kept watch in the Interval that just ended; cleared by moving. */
+  watch: Watchfulness | null
 }
 
 export type DungeonAction =
@@ -123,6 +142,7 @@ export function createDungeonState(dungeon: Dungeon, party: PartyMember[]): Dung
     log: [`The party enters ${dungeon.name} with a lit torch.`],
     battle: null,
     patrolTriggered: false,
+    watch: null,
   }
 }
 
@@ -156,9 +176,24 @@ export function burnTorchInterval(state: DungeonState): { state: DungeonState; m
 }
 
 /** The patrol finds the party wherever they are, and any preparations made in that room come into play. */
+export function surpriseCheckFor(state: DungeonState): SurpriseCheck {
+  const light = TORCH_AWARENESS[torchLevel(state.torch)]
+  return {
+    perception: state.dungeon.patrol.perception,
+    modifiers: [state.watch, light].flatMap((m) => (m && m.value !== 0 ? [m] : [])),
+  }
+}
+
 export function springPatrol(state: DungeonState, rng: Rng): DungeonState {
   const { patrol } = state.dungeon
-  const battle = startBattle(state.party, state.prepared[state.roomId] ?? [], patrol.enemyIds, rng, patrol.arrival)
+  const battle = startBattle(
+    state.party,
+    state.prepared[state.roomId] ?? [],
+    patrol.enemyIds,
+    rng,
+    patrol.arrival,
+    surpriseCheckFor(state),
+  )
   return withLog({ ...state, battle, patrolTriggered: true }, patrol.arrival)
 }
 
@@ -201,7 +236,11 @@ export function dungeonReducer(state: DungeonState, action: DungeonAction): Dung
       const room = roomById(state.dungeon, action.roomId)
       const burned = burnTorchInterval(state)
       const moved = revealVisible(
-        withLog({ ...burned.state, roomId: action.roomId }, `The party moves to ${room.name}.`, burned.message),
+        withLog(
+          { ...burned.state, roomId: action.roomId, watch: null },
+          `The party moves to ${room.name}.`,
+          burned.message,
+        ),
       )
       return springPatrolIfDue(moved, action.rng)
     }
