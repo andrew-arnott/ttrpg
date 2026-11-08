@@ -19,7 +19,7 @@ import { AVATAR_COLORS } from '../lib/partyColors'
 import { createPartyMember } from '../lib/partyMember'
 import type { ResolutionStep } from '../lib/resolution'
 import type { RosterEntry } from '../lib/roster'
-import { torchLevel, TORCH_LEVEL_LABEL, totalIntervals, type TorchState } from '../lib/torch'
+import { torchAdvice, torchLevel, TORCH_LEVEL_LABEL, totalIntervals, type TorchState } from '../lib/torch'
 import { BattleView } from './BattleView'
 import { DungeonMap } from './DungeonMap'
 import { IntervalPlanner } from './IntervalPlanner'
@@ -277,6 +277,7 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
   const exits = adjacentRoomIds(state.dungeon, state.roomId, passages).map((id) => roomById(state.dungeon, id))
   const locked = lockedExits(state.dungeon, state.roomId, passages)
   const spareTorches = state.party.reduce((n, m) => n + (m.inventory.torch ?? 0), 0)
+  const advice = torchAdvice(level, spareTorches)
   const preparations = state.prepared[state.roomId] ?? []
   const move = (roomId: string) => dispatch({ type: 'moveTo', roomId, rng: Math.random })
 
@@ -303,13 +304,7 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
               {state.torch.remaining} of {totalIntervals(state.torch.spec)} Intervals left
             </span>
           </div>
-          {level === 'out' && (
-            <p className="blocker-text">
-              {spareTorches > 0
-                ? 'Right-click a torch in a pack to light it. Tests are harder in the dark.'
-                : 'No spare torches left. The party is in the dark.'}
-            </p>
-          )}
+          {advice && <p className="blocker-text">{advice}</p>}
         </div>
         <div className="hud-meta">
           <span className="step-index">Interval</span>
