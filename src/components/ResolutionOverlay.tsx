@@ -241,7 +241,7 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
                     {step.resultLine ?? (
                       <>
                         Tokens {fmtSigned(tokensTotal)} + {SPECIAL_LABELS[test.attribute]} {test.attributeValue}
-                        {test.bonus ? ` + ${test.bonus.label} ${test.bonus.value}` : ''} ={' '}
+                        {test.bonuses.map((b) => ` + ${b.label} ${b.value}`).join('')} ={' '}
                         <b>{test.total}</b> against {test.difficulty + test.penalty}
                       </>
                     )}

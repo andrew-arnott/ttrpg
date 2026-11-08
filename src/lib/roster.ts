@@ -25,6 +25,7 @@ const SAMPLE_RECIPES = [
     professionId: 'warrior',
     speciesId: 'dwarf',
     backgroundId: 'soldier',
+    combatIds: ['provoke', 'intercept'],
     explorationIds: ['fortify', 'standWatch'],
   },
   {
@@ -32,6 +33,7 @@ const SAMPLE_RECIPES = [
     professionId: 'rogue',
     speciesId: 'halfling',
     backgroundId: 'urchin',
+    combatIds: ['backstab', 'flanking'],
     explorationIds: ['scoutAhead', 'findAShortcut'],
   },
   {
@@ -39,6 +41,7 @@ const SAMPLE_RECIPES = [
     professionId: 'priest',
     speciesId: 'human',
     backgroundId: 'scholar',
+    combatIds: ['heal', 'prayer'],
     explorationIds: ['holyLight', 'groupHeal'],
   },
   {
@@ -46,14 +49,15 @@ const SAMPLE_RECIPES = [
     professionId: 'wizard',
     speciesId: 'elf',
     backgroundId: 'scholar',
+    combatIds: ['magicMissile', 'fireball'],
     explorationIds: ['detectMagic', 'dispelMagic'],
   },
 ] as const
 
 /**
  * A complete character for the given profession, taking the first listed
- * option wherever the rules ask for a choice, and the first combat abilities
- * alongside the recipe's exploration abilities. Used for ready-made party members.
+ * option wherever the rules ask for a choice, with the recipe's combat and
+ * exploration abilities. Used for ready-made party members.
  */
 function sampleDraft(recipe: (typeof SAMPLE_RECIPES)[number]): CharacterDraft {
   const profession = PROFESSIONS.find((p) => p.id === recipe.professionId)
@@ -63,7 +67,6 @@ function sampleDraft(recipe: (typeof SAMPLE_RECIPES)[number]): CharacterDraft {
   for (const choice of profession.tokenChoices) {
     tokenChoices[choice.id] = { [choice.options[0]]: choice.total }
   }
-  const combatPicks = profession.abilityPicks - recipe.explorationIds.length
 
   return {
     ...emptyDraft(),
@@ -73,10 +76,7 @@ function sampleDraft(recipe: (typeof SAMPLE_RECIPES)[number]): CharacterDraft {
     backgroundId: recipe.backgroundId,
     specialAssignment: suggestedSpecialAssignment(profession),
     tokenChoices,
-    abilityIds: [
-      ...profession.abilities.slice(0, combatPicks).map((a) => a.id),
-      ...recipe.explorationIds,
-    ],
+    abilityIds: [...recipe.combatIds, ...recipe.explorationIds],
     equipment: { torch: 3, ration: 1, healingPotion: 1 },
   }
 }

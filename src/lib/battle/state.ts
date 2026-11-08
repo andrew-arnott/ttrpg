@@ -4,7 +4,7 @@ import type { Ability } from '../../data/types'
 import type { Rng } from '../drawTest'
 import { adjustBag } from '../tokenFlow'
 import { playerActor, type ResolutionStep, type StepActor } from '../resolution'
-import type { BattleEnemy, BattlePlayer, BattleState } from './types'
+import type { BattleEnemy, BattlePlayer, BattleState, ReactionAnswer, ReactionRequest } from './types'
 import { LOG_LIMIT } from './types'
 
 export const allAbilities: Ability[] = PROFESSIONS.flatMap((p) => [...p.abilities, ...p.explorationAbilities])
@@ -76,11 +76,33 @@ export function parseCost(cost: string): { tokenId: string; amount: number } | n
 
 export const tokenName = (tokenId: string) => TOKENS[tokenId]?.name ?? tokenId
 
+/** An enemy that was defeated during the current action, for abilities that react to it. */
+export interface Defeat {
+  enemyId: string
+  byKey: string
+  groupId: string
+  /** Defeated by an attack, as opposed to a spell that needs no attack test. */
+  viaAttack: boolean
+}
+
 export interface Engine {
   b: BattleState
   rng: Rng
   steps: ResolutionStep[]
+  defeats: Defeat[]
+  /** Asks a player whether to use a Triggered ability. Without reactions it always declines. */
+  ask(request: ReactionRequest): ReactionAnswer
 }
+
+export const declineReactions = (): ReactionAnswer => ({ use: false })
+
+export const createEngine = (b: BattleState, rng: Rng): Engine => ({
+  b,
+  rng,
+  steps: [],
+  defeats: [],
+  ask: declineReactions,
+})
 
 export const playerActorOf = (p: BattlePlayer): StepActor => playerActor(p, p.colorIndex)
 

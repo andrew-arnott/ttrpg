@@ -37,13 +37,14 @@ export function enemyTurn(engine: Engine, e: BattleEnemy) {
     const intro = engaged.closedIn
       ? `${e.name} closes in on ${engaged.target.name} and strikes with ${attack.name}.`
       : `${e.name} attacks ${engaged.target.name} with ${attack.name}.`
-    strikePlayer(engine, e, attack, engaged.target, intro)
+    strikePlayer(engine, e, attack, engaged.target, intro, { interceptable: true })
   }
 }
 
 export function resetRoundState(b: BattleState) {
   b.players.forEach((p) => {
     p.defense = 0
+    p.usedThisRound = []
   })
   b.enemies.forEach((e) => {
     e.empowered = 0

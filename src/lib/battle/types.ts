@@ -31,6 +31,8 @@ export interface BattlePlayer {
   /** Defense score for this round. Resets at the end of the round. */
   defense: number
   colorIndex: number
+  /** Triggered abilities already used this round that only work once per round. */
+  usedThisRound?: string[]
 }
 
 export interface SealedToken {
@@ -76,6 +78,41 @@ export interface BattleState {
   actionsUsed: number
   /** Steps leading into round 1, played once when the battle begins. */
   opening: ResolutionStep[]
+  /** Set while the battle waits for a player to decide whether to use a Triggered ability. */
+  pending?: PendingReaction | null
+}
+
+/** A Triggered ability a player may use right now. */
+export interface ReactionRequest {
+  abilityId: string
+  reactorKey: string
+  title: string
+  prompt: string
+  /** What using it costs, for display. */
+  cost: string
+  /** Enemies the player may choose between, for abilities that make another attack. */
+  targets?: TargetChoice[]
+}
+
+export interface ReactionAnswer {
+  use: boolean
+  targetId?: string
+}
+
+export type BattleFlow = { kind: 'action'; planned: PlannedCombat | null } | { kind: 'enemies' }
+
+/**
+ * Everything needed to run the interrupted action again with the player's answer. The
+ * dice are recorded in `tape` so the replay repeats the same outcomes up to the question.
+ */
+export interface PendingReaction {
+  request: ReactionRequest
+  snapshot: BattleState
+  flow: BattleFlow
+  tape: number[]
+  answers: ReactionAnswer[]
+  /** Steps already played before the question. */
+  stepsShown: number
 }
 
 export interface PlannedCombat {

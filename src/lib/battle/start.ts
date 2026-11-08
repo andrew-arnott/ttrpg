@@ -7,6 +7,7 @@ import { attackEnemy } from './effects'
 import { enemyActions, resetRoundState } from './enemies'
 import {
   addStep,
+  createEngine,
   describeGroup,
   distinctGroupIds,
   enemyActorOf,
@@ -96,7 +97,7 @@ export function startBattle(
   const targets = livingPlayers(b)
   b.enemies.forEach((e) => moveToGroup(b, e.id, groupOf(b, pick(targets, rng).key)))
 
-  const engine: Engine = { b, rng, steps: [] }
+  const engine = createEngine(b, rng)
   const engagements = distinctGroupIds(b).map((g) => describeGroup(b, g))
   addStep(engine, {
     actor: null,

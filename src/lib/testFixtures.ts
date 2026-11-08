@@ -1,5 +1,14 @@
 import type { TokenStack } from '../data/types'
-import { currentPlayer, runEnemyPhase, takeAction, type BattleState, type PlannedCombat } from './battle'
+import {
+  currentPlayer,
+  respondToReaction,
+  runEnemyPhase,
+  takeAction,
+  type BattleState,
+  type PlannedCombat,
+  type ReactionAnswer,
+  type ReactionRequest,
+} from './battle'
 import type { Rng } from './drawTest'
 import type { PartyMember } from './dungeonState'
 import { createPartyMember } from './partyMember'
@@ -29,6 +38,12 @@ export interface TurnPlan {
 
 export type BattlePlan = Record<string, TurnPlan>
 
+/** Decides each Triggered ability question that comes up while a round plays. */
+export type Reactions = (request: ReactionRequest) => ReactionAnswer
+
+export const declineAll: Reactions = () => ({ use: false })
+export const acceptAll: Reactions = (request) => ({ use: true, targetId: request.targets?.[0]?.id })
+
 export const EMPTY_TURN: TurnPlan = { actions: [null, null], fast: null }
 
 /**
@@ -39,14 +54,16 @@ export function playRound(
   battle: BattleState,
   plan: BattlePlan,
   rng: Rng,
+  reactions: Reactions = declineAll,
 ): { battle: BattleState; steps: ResolutionStep[] } {
   let b = battle
   const steps: ResolutionStep[] = []
-  const take = (planned: PlannedCombat | null) => {
-    const result = takeAction(b, planned, rng)
+  const settle = (result: { battle: BattleState; steps: ResolutionStep[] }) => {
     b = result.battle
     steps.push(...result.steps)
+    while (b.pending) settle(respondToReaction(b, reactions(b.pending.request), rng))
   }
+  const take = (planned: PlannedCombat | null) => settle(takeAction(b, planned, rng))
 
   while (b.result === 'ongoing' && b.phase === 'players') {
     const player = currentPlayer(b)
@@ -62,9 +79,7 @@ export function playRound(
   }
 
   if (b.result === 'ongoing' && b.phase === 'enemies') {
-    const result = runEnemyPhase(b, rng)
-    b = result.battle
-    steps.push(...result.steps)
+    settle(runEnemyPhase(b, rng))
   }
   return { battle: b, steps }
 }

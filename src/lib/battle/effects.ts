@@ -1,10 +1,11 @@
 import { ENEMIES_BY_ID, type EnemyAttack, type EnemyTrigger } from '../../data/enemies'
 import type { SpecialKey } from '../../data/types'
 import { drawTest, drewComplication, type TestResult } from '../drawTest'
-import type { SkillTestOutcome } from '../skillTest'
-import { performSkillTest } from '../skillTest'
+import { performSkillTest, type SkillTestOutcome, type TestBonus } from '../skillTest'
+import { recoverToken } from '../tokenFlow'
 import { engageBreakdown, engageDifficulty } from './engagement'
-import { putDrawnResourcesInPlay, type Commitment } from './tokens'
+import { INTERCEPT_DEFENSE, offerIntercept, offerPrayer } from './reactions'
+import { putDrawnResourcesInPlay, releaseCommitment, type Commitment } from './tokens'
 import {
   adjustBag,
   addStep,
@@ -13,6 +14,7 @@ import {
   enemyActorOf,
   enemyDefense,
   fmtSigned,
+  groupOf,
   livingEnemies,
   moveToGroup,
   newGroup,
@@ -70,6 +72,14 @@ export function damageEnemy(b: BattleState, e: BattleEnemy, amount: number): boo
 }
 
 
+export interface StrikeOptions {
+  /** A single-target attack that allies with Intercept may take instead. */
+  interceptable?: boolean
+  /** Defense gained against this attack only, as a reduction of its Attack value. */
+  defenseBonus?: number
+  bonusLabel?: string
+}
+
 /** One enemy strike against one player. Attack value wears down Defense; damage lands only if it exceeds it. */
 export function strikePlayer(
   engine: Engine,
@@ -77,13 +87,28 @@ export function strikePlayer(
   attack: Pick<EnemyAttack, 'name' | 'attackValue' | 'damage'>,
   target: BattlePlayer,
   intro: string,
+  options: StrikeOptions = {},
 ): void {
-  const value = attack.attackValue + e.empowered
+  if (options.interceptable) {
+    const taken = offerIntercept(engine, e, attack.name, target)
+    if (taken) {
+      const { interceptor } = taken
+      strikePlayer(engine, e, attack, interceptor, `${interceptor.name} steps in front of ${target.name}.`, {
+        defenseBonus: INTERCEPT_DEFENSE,
+        bonusLabel: 'Intercept',
+      })
+      releaseCommitment(interceptor, taken.commit)
+      return
+    }
+  }
+  const raw = attack.attackValue + e.empowered
+  const bonus = options.defenseBonus ?? 0
+  const value = Math.max(0, raw - bonus)
   const defense = target.defense
   const breaks = value > defense
   target.defense = Math.max(0, defense - value)
 
-  const resultLine = `Attack ${value} against Defense ${defense}: ${breaks ? 'breaks through' : 'blocked'}`
+  const resultLine = `Attack ${raw}${bonus > 0 ? ` - ${bonus} ${options.bonusLabel}` : ''} against Defense ${defense}: ${breaks ? 'breaks through' : 'blocked'}`
   const clash = {
     attack: value,
     defenseBefore: defense,
@@ -161,6 +186,7 @@ export function applyTrigger(engine: Engine, e: BattleEnemy, trigger: EnemyTrigg
     { name: trigger.name, attackValue: effect.attackValue, damage: effect.damage },
     drawer,
     `${e.name} seizes the opening and lunges at ${drawer.name}.`,
+    { interceptable: true },
   )
 }
 
@@ -180,9 +206,10 @@ export function playerTest(
   p: BattlePlayer,
   attribute: SpecialKey,
   difficulty: number,
-  bonus?: { label: string; value: number },
+  bonuses: TestBonus[] = [],
 ): SkillTestOutcome {
-  const test = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng, 0, bonus)
+  const rolled = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng, 0, bonuses)
+  const test = offerPrayer(engine, p, rolled)
   afterTest(p, test.result, test.passed)
   return test
 }
@@ -202,7 +229,7 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
   const { b } = engine
   const attribute = options.attribute ?? ATTACK_ATTRIBUTE
   const defense = enemyDefense(e)
-  const test = playerTest(engine, p, attribute, defense, options.power ? { label: 'Power', value: options.power } : undefined)
+  const test = playerTest(engine, p, attribute, defense, options.power ? [{ label: 'Power', value: options.power }] : [])
   const title = options.title ?? 'Attack'
   const intro = options.intro ?? `${p.name} attacks ${e.name}.`
   const might = test.result.drawn.filter((d) => d.tokenId === 'might').length
@@ -223,7 +250,10 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
 
   const damage = 1 + might + (options.bonusDamage ?? 0)
   const extra = options.onHit?.(e) ?? ''
+  const groupId = groupOf(b, e.id)
   const defeated = damageEnemy(b, e, damage)
+  if (defeated) engine.defeats.push({ enemyId: e.id, byKey: p.key, groupId, viaAttack: true })
+  const flanked = flankingRecovery(p, e, b)
   addStep(engine, {
     actor: playerActorOf(p),
     title,
@@ -232,12 +262,22 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
     testMode: 'check',
     outcome: `${p.name} hits ${e.name} for ${damage} damage (${e.hp}/${e.maxHp} HP).${
       might > 0 ? ` Might adds ${might}.` : ''
-    }${extra ? ` ${extra}` : ''}${defeated ? ` ${e.name} is defeated!` : ''}`,
+    }${extra ? ` ${extra}` : ''}${flanked}${defeated ? ` ${e.name} is defeated!` : ''}`,
     tone: 'success',
   })
   updateResult(b)
   runTriggers(engine, p, test.result)
   return true
+}
+
+/** Flanking: once a round, hitting an enemy beside one of your allies recovers a Cunning. */
+function flankingRecovery(p: BattlePlayer, e: BattleEnemy, b: BattleState): string {
+  const used = p.usedThisRound ?? []
+  if (!p.abilityIds.includes('flanking') || p.hp <= 0 || used.includes('flanking')) return ''
+  if (!playersInGroup(b, groupOf(b, e.id)).some((a) => a.key !== p.key)) return ''
+  if (!recoverToken(p, 'cunning')) return ''
+  p.usedThisRound = [...used, 'flanking']
+  return ' Flanking: recovers 1 Cunning.'
 }
 
 /** Seals the committed tokens on an enemy. They stay there until it is defeated. */
@@ -270,7 +310,7 @@ export function defend(engine: Engine, p: BattlePlayer, armor = 0) {
     attributeValue,
     difficulty: 0,
     penalty: 0,
-    bonus: armor > 0 ? { label: 'Armor', value: armor } : undefined,
+    bonuses: armor > 0 ? [{ label: 'Armor', value: armor }] : [],
     result,
     total,
     passed: gain > 0,
@@ -349,7 +389,9 @@ export function blessAlly(engine: Engine, caster: BattlePlayer, target: BattlePl
 }
 
 export function magicMissile(engine: Engine, caster: BattlePlayer, e: BattleEnemy) {
+  const groupId = groupOf(engine.b, e.id)
   const defeated = damageEnemy(engine.b, e, 1)
+  if (defeated) engine.defeats.push({ enemyId: e.id, byKey: caster.key, groupId, viaAttack: false })
   addStep(engine, {
     actor: playerActorOf(caster),
     title: 'Magic Missile',
@@ -385,7 +427,9 @@ export function fireball(engine: Engine, caster: BattlePlayer, groupId: string, 
         tone: 'failure',
       })
     } else {
+      const groupId = groupOf(b, e.id)
       const defeated = damageEnemy(b, e, mana)
+      if (defeated) engine.defeats.push({ enemyId: e.id, byKey: caster.key, groupId, viaAttack: true })
       addStep(engine, {
         actor: playerActorOf(caster),
         title: 'Fireball',

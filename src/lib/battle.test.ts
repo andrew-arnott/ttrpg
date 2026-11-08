@@ -6,6 +6,7 @@ import {
   endTurn,
   enemyDefense,
   engageBreakdown,
+  respondToReaction,
   engageDifficulty,
   runEnemyPhase,
   startBattle,
@@ -22,9 +23,12 @@ import {
   ALWAYS_FAIL,
   ALWAYS_PASS,
   bagOf,
+  acceptAll,
+  declineAll,
   playRound,
   testMember,
   type BattlePlan,
+  type Reactions,
 } from './testFixtures'
 
 const flat = { strength: 1, perception: 1, endurance: 1, charisma: 1, intelligence: 1, agility: 1, luck: 1 }
@@ -494,7 +498,7 @@ describe('Power and Armor', () => {
     expect(miss.steps[0].outcome).toMatch(/misses/)
 
     const hit = playRound(warrior(), { p: turn({ ...attack('e'), boost: 2 }) }, rng())
-    expect(hit.steps[0].test?.bonus).toEqual({ label: 'Power', value: 2 })
+    expect(hit.steps[0].test?.bonuses).toEqual([{ label: 'Power', value: 2 }])
     expect(hit.steps[0].test?.total).toBe(4)
     expect(hit.steps[0].outcome).toMatch(/hits/)
     expect(hit.battle.players[0].resources.power).toBe(0)
@@ -503,7 +507,7 @@ describe('Power and Armor', () => {
 
   it('cannot commit more than the player has', () => {
     const { steps, battle } = playRound(warrior({ resources: { power: 1 } }), { p: turn({ ...attack('e'), boost: 5 }) }, rng())
-    expect(steps[0].test?.bonus?.value).toBe(1)
+    expect(steps[0].test?.bonuses[0]?.value).toBe(1)
     expect(battle.players[0].resources.power).toBe(0)
   })
 
@@ -519,10 +523,262 @@ describe('Power and Armor', () => {
   it('stack with the ability cost: Power goes to the attack, Resolve to the ability', () => {
     const b = warrior({ abilityIds: ['disable'], resources: { power: 1, resolve: 1 } })
     const { battle, steps } = playRound(b, { p: turn({ actionId: 'ability:disable', targetId: 'e', boost: 1 }) }, rng())
-    expect(steps[0].test?.bonus?.value).toBe(1)
+    expect(steps[0].test?.bonuses[0]?.value).toBe(1)
     expect(steps[0].outcome).toMatch(/hits/)
     expect(battle.enemies[0].sealed).toHaveLength(1)
     expect(bagCount(battle.players[0], 'power')).toBe(1)
+  })
+})
+
+describe('Triggered abilities', () => {
+  const weak = (id: string) => enemy('goblin', id, { hp: 1 })
+  const asks = (abilityId: string, answer: Reactions = acceptAll): { seen: string[]; reactions: Reactions } => {
+    const seen: string[] = []
+    return {
+      seen,
+      reactions: (request) => {
+        seen.push(request.abilityId)
+        return request.abilityId === abilityId ? answer(request) : { use: false }
+      },
+    }
+  }
+
+  describe('pausing', () => {
+    it('stops the action at the question and carries on from it once answered', () => {
+      const b = battleOf(
+        [player('p', { bag: ALWAYS_PASS, abilityIds: ['cleave'] })],
+        [weak('a'), weak('b')],
+        { p: 'g1', a: 'g1', b: 'g1' },
+      )
+      const first = takeAction(b, attack('a'), rng())
+      expect(first.battle.pending?.request).toMatchObject({ abilityId: 'cleave', reactorKey: 'p' })
+      expect(first.steps.map((s) => s.title)).toEqual(['Attack'])
+      expect(currentPlayer(first.battle)).toBeNull()
+      expect(takeAction(first.battle, attack('b'), rng()).steps).toEqual([])
+
+      const second = respondToReaction(first.battle, { use: true, targetId: 'b' }, rng())
+      expect(second.battle.pending).toBeNull()
+      expect(second.steps.map((s) => s.title)).toEqual(['Cleave', 'Victory!'])
+      expect(second.battle.result).toBe('victory')
+    })
+
+    it('does not ask when nobody could use a Triggered ability', () => {
+      const b = battleOf([player('p', { bag: ALWAYS_PASS })], [weak('a'), weak('b')], { p: 'g1', a: 'g1', b: 'g1' })
+      expect(takeAction(b, attack('a'), rng()).battle.pending).toBeFalsy()
+    })
+
+    it('does not ask when the reactor cannot pay', () => {
+      const b = battleOf(
+        [player('p', { abilityIds: ['cleave'], resources: { resolve: 0 } })],
+        [weak('a'), weak('b')],
+        { p: 'g1', a: 'g1', b: 'g1' },
+      )
+      expect(takeAction(b, attack('a'), rng()).battle.pending).toBeFalsy()
+    })
+  })
+
+  describe('Cleave', () => {
+    const cleaver = () =>
+      battleOf(
+        [player('p', { bag: ALWAYS_PASS, abilityIds: ['cleave'] })],
+        [weak('a'), weak('b'), enemy('goblin', 'far', { hp: 5 })],
+        { p: 'g1', a: 'g1', b: 'g1', far: 'g2' },
+      )
+
+    it('spends 1 Resolve to attack another enemy the cleaver can reach', () => {
+      const { battle, steps } = playRound(cleaver(), { p: turn(attack('a')) }, rng(), acceptAll)
+      expect(battle.enemies.find((e) => e.id === 'b')!.hp).toBe(0)
+      expect(steps.map((s) => s.title)).toContain('Cleave')
+      expect(battle.players[0].resources.resolve).toBe(2)
+      expect(bagCount(battle.players[0], 'resolve')).toBe(1)
+    })
+
+    it('offers only enemies in the cleaver’s own group', () => {
+      let targets: string[] = []
+      playRound(cleaver(), { p: turn(attack('a')) }, rng(), (r) => {
+        targets = r.targets!.map((t) => t.id)
+        return { use: false }
+      })
+      expect(targets).toEqual(['b'])
+    })
+
+    it('does nothing when declined', () => {
+      const { battle } = playRound(cleaver(), { p: turn(attack('a')) }, rng(), declineAll)
+      expect(battle.enemies.find((e) => e.id === 'b')!.hp).toBe(1)
+      expect(battle.players[0].resources.resolve).toBe(3)
+    })
+
+    it('can chain when the follow-up attack defeats another enemy', () => {
+      const b = battleOf(
+        [player('p', { bag: ALWAYS_PASS, abilityIds: ['cleave'] })],
+        [weak('a'), weak('b'), weak('c'), enemy('goblin', 'd', { hp: 9 })],
+        { p: 'g1', a: 'g1', b: 'g1', c: 'g1', d: 'g1' },
+      )
+      const { battle } = playRound(b, { p: turn(attack('a')) }, rng(), acceptAll)
+      expect(battle.enemies.filter((e) => e.hp === 0).map((e) => e.id)).toEqual(['a', 'b', 'c'])
+      expect(battle.enemies.find((e) => e.id === 'd')!.hp).toBe(8)
+      expect(battle.players[0].resources.resolve).toBe(0)
+    })
+
+    it('is not offered for a kill that was not an attack', () => {
+      const b = battleOf(
+        [player('p', { abilityIds: ['magicMissile', 'cleave'] }), player('q')],
+        [weak('a'), weak('b')],
+        { p: 'g1', q: 'g2', a: 'g2', b: 'g1' },
+      )
+      const { seen, reactions } = asks('cleave')
+      playRound(b, { p: turn({ actionId: 'ability:magicMissile', targetId: 'a' }) }, rng(), reactions)
+      expect(seen).not.toContain('cleave')
+    })
+  })
+
+  describe('Opportunist', () => {
+    const duo = () =>
+      battleOf(
+        [player('p', { bag: ALWAYS_PASS }), player('r', { abilityIds: ['opportunist'], bag: ALWAYS_PASS })],
+        [weak('a'), weak('b')],
+        { p: 'g1', r: 'g1', a: 'g1', b: 'g1' },
+      )
+
+    it('lets an ally in the same group attack another enemy when someone else defeats one', () => {
+      const { battle, steps } = playRound(duo(), { p: turn(attack('a')) }, rng(), acceptAll)
+      expect(steps.map((s) => s.title)).toContain('Opportunist')
+      expect(battle.enemies.find((e) => e.id === 'b')!.hp).toBe(0)
+      expect(bagCount(battle.players[1], 'cunning')).toBe(1)
+    })
+
+    it('does not react to a defeat in another group, or to their own', () => {
+      const b = duo()
+      b.groups.r = 'g9'
+      expect(takeAction(b, attack('a'), rng()).battle.pending).toBeFalsy()
+      const own = battleOf(
+        [player('r', { abilityIds: ['opportunist'], bag: ALWAYS_PASS })],
+        [weak('a'), weak('b')],
+        { r: 'g1', a: 'g1', b: 'g1' },
+      )
+      expect(takeAction(own, attack('a'), rng()).battle.pending).toBeFalsy()
+    })
+  })
+
+  describe('Intercept', () => {
+    const guarded = (over: Partial<BattlePlayer> = {}) =>
+      battleOf(
+        [
+          player('w', { abilityIds: ['intercept'], ...over }),
+          player('q', { hp: 10 }),
+        ],
+        [enemy('goblin', 'e', { hp: 9 })],
+        { w: 'g1', q: 'g2', e: 'g2' },
+      )
+    const endAll: BattlePlan = { w: turn(), q: turn() }
+
+    it('lets a warrior take an attack meant for an ally, with +2 Defense against it', () => {
+      const { battle, steps } = playRound(guarded(), endAll, rng(), acceptAll)
+      const strike = steps.find((s) => s.clash)!
+      expect(strike.clash!.target.key).toBe('w')
+      expect(strike.resultLine).toMatch(/Attack 4 - 2 Intercept/)
+      expect(battle.players.find((p) => p.key === 'q')!.hp).toBe(10)
+      expect(battle.players.find((p) => p.key === 'w')!.resources.resolve).toBe(2)
+    })
+
+    it('leaves the ally to take the attack when declined', () => {
+      const { battle } = playRound(guarded(), endAll, rng(), declineAll)
+      expect(battle.players.find((p) => p.key === 'q')!.hp).toBe(9)
+      expect(battle.players.find((p) => p.key === 'w')!.hp).toBe(10)
+    })
+
+    it('is not offered to the one being attacked', () => {
+      const b = battleOf([player('w', { abilityIds: ['intercept'] })], [enemy('goblin', 'e', { hp: 9 })], {
+        w: 'g1',
+        e: 'g1',
+      })
+      const { seen, reactions } = asks('intercept')
+      playRound(b, { w: turn() }, rng(), reactions)
+      expect(seen).toEqual([])
+    })
+
+    it('is not offered during a surprise round', () => {
+      const party = [testMember('w', 0), testMember('q', 0)]
+      const warrior = { ...party[0], abilityIds: ['intercept'] }
+      const b = startBattle([warrior, party[1]], [], ['goblin'], rng(), 'A patrol appears.', {
+        perception: 99,
+        modifiers: [],
+      })
+      expect(b.pending).toBeFalsy()
+    })
+  })
+
+  describe('Prayer', () => {
+    const praying = (over: Partial<BattlePlayer> = {}) =>
+      battleOf(
+        [player('p', { bag: bagOf('plus1') }), player('r', { professionId: 'priest', abilityIds: ['prayer'], ...over })],
+        [enemy('goblin', 'e', { hp: 9 })],
+        { p: 'g1', r: 'g1', e: 'g1' },
+      )
+
+    it('adds +2 to an ally’s failed test and spends 2 Faith', () => {
+      const { battle, steps } = playRound(praying(), { p: turn(attack('e')) }, rng(), acceptAll)
+      const test = steps[0].test!
+      expect(test.bonuses).toEqual([{ label: 'Prayer (r)', value: 2 }])
+      expect(test.total).toBe(4)
+      expect(test.passed).toBe(true)
+      expect(steps[0].outcome).toMatch(/hits/)
+      expect(battle.players[1].resources.faith).toBe(1)
+      expect(bagCount(battle.players[1], 'faith')).toBe(2)
+    })
+
+    it('asks only when the failure could be saved', () => {
+      const { seen, reactions } = asks('prayer')
+      const tooFar = praying()
+      tooFar.players[0].bag = bagOf('plus0')
+      playRound(tooFar, { p: turn(attack('e')) }, rng(), reactions)
+      expect(seen).toEqual(['prayer'])
+
+      const crit = praying()
+      crit.players[0].bag = ALWAYS_FAIL
+      expect(takeAction(crit, attack('e'), rng()).battle.pending).toBeFalsy()
+    })
+
+    it('is not offered for the priest’s own test, or without 2 Faith', () => {
+      const self = battleOf(
+        [player('r', { professionId: 'priest', abilityIds: ['prayer'], bag: bagOf('plus1') })],
+        [enemy('goblin', 'e', { hp: 9 })],
+        { r: 'g1', e: 'g1' },
+      )
+      expect(takeAction(self, attack('e'), rng()).battle.pending).toBeFalsy()
+      expect(takeAction(praying({ resources: { faith: 1 } }), attack('e'), rng()).battle.pending).toBeFalsy()
+    })
+  })
+
+  describe('Flanking', () => {
+    const flank = (over: Partial<BattlePlayer> = {}) =>
+      battleOf(
+        [
+          player('r', { abilityIds: ['flanking'], bag: [...ALWAYS_PASS, { tokenId: 'cunning', count: 2 }], resources: { cunning: 1 }, ...over }),
+          player('q'),
+        ],
+        [enemy('goblin', 'e', { hp: 99 })],
+        { r: 'g1', q: 'g1', e: 'g1' },
+      )
+
+    it('recovers a Cunning on a hit beside an ally, once a round', () => {
+      const { battle, steps } = playRound(flank(), { r: turn(attack('e'), attack('e')) }, rng())
+      expect(steps[0].outcome).toMatch(/Flanking: recovers 1 Cunning/)
+      expect(steps[1].outcome).not.toMatch(/Flanking/)
+      expect(battle.players[0].resources.cunning).toBe(2)
+    })
+
+    it('needs an ally in the enemy’s group', () => {
+      const alone = flank()
+      alone.groups.q = 'g2'
+      const { battle } = playRound(alone, { r: turn(attack('e')) }, rng())
+      expect(battle.players[0].resources.cunning).toBe(1)
+    })
+
+    it('works again the next round', () => {
+      const { battle } = playRound(flank(), { r: turn(attack('e')) }, rng())
+      expect(battle.players[0].usedThisRound).toEqual([])
+    })
   })
 })
 

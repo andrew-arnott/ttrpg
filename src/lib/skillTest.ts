@@ -1,6 +1,11 @@
 import type { SpecialKey, TokenStack } from '../data/types'
 import { drawTest, type Rng, type TestResult } from './drawTest'
 
+export interface TestBonus {
+  label: string
+  value: number
+}
+
 export interface SkillTestOutcome {
   attribute: SpecialKey
   attributeValue: number
@@ -8,8 +13,8 @@ export interface SkillTestOutcome {
   /** Extra Difficulty from circumstances such as working in the dark. */
   penalty: number
   result: TestResult
-  /** Armor, Power or the like committed before the draw. Already included in `total`. */
-  bonus?: { label: string; value: number }
+  /** Armor, Power, Prayer and the like. Already included in `total`. */
+  bonuses: TestBonus[]
   /** Token total plus the attribute and any bonus. */
   total: number
   passed: boolean
@@ -26,12 +31,21 @@ export function performSkillTest(
   difficulty: number,
   rng: Rng,
   penalty = 0,
-  bonus?: { label: string; value: number },
+  bonuses: TestBonus[] = [],
 ): SkillTestOutcome {
   const result = drawTest(bag, rng)
-  const total = result.total + attributeValue + (bonus?.value ?? 0)
+  const total = result.total + attributeValue + bonuses.reduce((sum, b) => sum + b.value, 0)
   const passed =
     result.outcome === 'critical-success' ||
     (result.outcome !== 'critical-failure' && total >= difficulty + penalty)
-  return { attribute, attributeValue, difficulty, penalty, bonus, result, total, passed }
+  return { attribute, attributeValue, difficulty, penalty, bonuses, result, total, passed }
+}
+
+/** The same test with a bonus added after the draw. A Critical Failure still fails. */
+export function withBonus(test: SkillTestOutcome, bonus: TestBonus): SkillTestOutcome {
+  const total = test.total + bonus.value
+  const passed =
+    test.result.outcome === 'critical-success' ||
+    (test.result.outcome !== 'critical-failure' && total >= test.difficulty + test.penalty)
+  return { ...test, bonuses: [...test.bonuses, bonus], total, passed }
 }

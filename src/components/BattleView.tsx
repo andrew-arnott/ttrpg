@@ -1,10 +1,20 @@
 import { useState } from 'react'
-import { currentPlayer, endTurn, runEnemyPhase, takeAction, type BattleState, type PlannedCombat } from '../lib/battle'
+import {
+  currentPlayer,
+  endTurn,
+  respondToReaction,
+  runEnemyPhase,
+  takeAction,
+  type BattleState,
+  type PlannedCombat,
+  type ReactionAnswer,
+} from '../lib/battle'
 import { TUTORIAL_OUTRO } from '../data/tutorial'
 import { endBattle, type DungeonAction, type DungeonState } from '../lib/dungeonState'
 import type { ResolutionStep } from '../lib/resolution'
 import { ActionPrompt } from './ActionPrompt'
 import { BattleBoard } from './BattleBoard'
+import { ReactionPrompt } from './ReactionPrompt'
 import { ResolutionOverlay } from './ResolutionOverlay'
 
 interface Props {
@@ -40,7 +50,7 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
   /** Once every player has acted the enemies go straight away; otherwise just move on. */
   const settle = (next: DungeonState) => {
     const b = next.battle
-    if (b && b.result === 'ongoing' && b.phase === 'enemies') {
+    if (b && b.result === 'ongoing' && b.phase === 'enemies' && !b.pending) {
       const result = runEnemyPhase(b, Math.random)
       play(`Round ${b.round} \u00b7 enemy phase`, result.steps, { ...next, battle: result.battle })
     } else {
@@ -51,6 +61,13 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
 
   const act = (planned: PlannedCombat | null) => {
     const result = takeAction(battle, planned, Math.random)
+    const next = withBattle(result.battle)
+    if (result.steps.length === 0) settle(next)
+    else play(`Round ${battle.round}`, result.steps, next)
+  }
+
+  const answerReaction = (answer: ReactionAnswer) => {
+    const result = respondToReaction(battle, answer, Math.random)
     const next = withBattle(result.battle)
     if (result.steps.length === 0) settle(next)
     else play(`Round ${battle.round}`, result.steps, next)
@@ -77,6 +94,8 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
             onEngageHelpSeen={() => setEngageHelpSeen(true)}
           />
         )}
+
+        {battle.pending && !playback && !opening && <ReactionPrompt battle={battle} onAnswer={answerReaction} />}
 
         {battle.result === 'victory' && state.battleKind === 'boss' && (
           <section className="card completion">
