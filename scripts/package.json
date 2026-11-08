@@ -6,6 +6,7 @@
   "scripts": {
     "convert-art": "node convert-art.mjs",
     "e2e:smoke": "node e2e/smoke.mjs",
+    "e2e:torch": "node e2e/torch.mjs",
     "e2e:tutorial": "node e2e/tutorial.mjs",
     "e2e:battle": "node e2e/battle.mjs"
   },
