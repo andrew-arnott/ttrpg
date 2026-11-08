@@ -71,20 +71,45 @@ as "token total + attribute against a Difficulty". `drewComplication()` treats a
 
 ## Combat
 
-`lib/battle.ts` is a state machine with a cursor:
+`lib/battle/` is a state machine with a cursor. `index.ts` is the public surface; the rest is split by job:
 
-- `BattleState.phase` is `players` (someone is choosing) or `enemies` (everyone has acted). `turnIndex` and
-  `actionsUsed` say whose prompt it is.
-- `availableCombatActions(battle, player)` lists what the current player can do, with targets and disabled reasons.
+- `types.ts`: `BattleState`, `BattlePlayer`, `BattleEnemy`, `CombatOption`, `PlannedCombat`, reaction types, constants.
+- `state.ts`: lookups (living combatants, engagement groups), the `Engine` (state, rng, steps, defeats, `ask`) and `addStep`.
+- `tokens.ts`: resource tokens. `commitResource` takes tokens out of play to pay a cost (Expertise and Critical Success
+  can stand in), `releaseCommitment` returns the unsealed ones to the bag, `putDrawnResourcesInPlay` runs after tests.
+  `lib/tokenFlow.ts` has the bag helpers shared with the dungeon (Rest).
+- `effects.ts`: what happens: enemy strikes, triggers, tests, attacks, Defend, engagement changes, heals, Fireball.
+- `engagement.ts`: the Difficulty of changing engagement.
+- `abilities.ts`: a table of ability handlers (`options` builds the menu entries, `perform` does it). Add an ability by
+  adding a handler; `actions.ts` builds the menu (`availableCombatActions`) and runs a choice (`performAction`).
+- `reactions.ts` and `followUps.ts`: Triggered abilities (Prayer, Intercept, Cleave, Opportunist).
+- `enemies.ts`: the enemy phase. `start.ts`: `startBattle` and the surprise check. `flow.ts`: turn order and the
+  public engine calls.
+
+Public calls:
+
+- `availableCombatActions(battle, player)` lists what the current player can do, with targets, disabled reasons and the
+  Armor or Power that can be added.
 - `takeAction` resolves one choice (a Fast ability is free), `endTurn` skips the rest of a turn, `runEnemyPhase` plays
   all enemy attacks in random order, resets Defense and starts the next round.
 - `startBattle` sets up engagement groups, applies preparations (Fortify, Ambush), runs the surprise check and, if the
-  enemies win it, their surprise round. Those steps are stored in `battle.opening`.
+  enemies win it, their surprise round. Those steps are stored in `battle.opening`. Nobody reacts during it.
 - Enemies are data (`data/enemies.ts`): Defense, HP, attacks (attack value, damage, area) and triggers that fire on
   a Complication.
 
-UI: `BattleView.tsx` (orchestrates prompts, overlays and results), `ActionPrompt.tsx` (one question at a time),
-`BattleBoard.tsx` (engagement groups), `EnemyStatCard.tsx` (hover card), `ResolutionOverlay.tsx`.
+### Asking the player in the middle of an action
+
+An engine call is synchronous, but a Triggered ability needs an answer from a person. `takeAction` and `runEnemyPhase`
+run through `runFlow`, which gives the engine an `ask` function. When `ask` finds no answer yet it throws, the call
+stops, and the battle comes back with `pending` set (the question, a snapshot from before the call, the dice rolled so
+far on a `tape`, and the answers so far). Only the steps played before the question are returned. `respondToReaction`
+runs the same flow again from the snapshot with one more answer, replaying the tape so the dice repeat, and returns
+only the new steps. Keep everything in battle state plain data so the snapshot can be cloned.
+
+UI: `BattleView.tsx` (orchestrates prompts, overlays and results), `ActionPrompt.tsx` (one question at a time, with the
+Armor or Power picker and the Engage helper), `ReactionPrompt.tsx` (the Triggered ability question),
+`RuleHelpDialog.tsx`, `BattleBoard.tsx` (engagement groups), `EnemyStatCard.tsx` (hover card),
+`ResolutionOverlay.tsx`.
 
 ## Presentation
 
