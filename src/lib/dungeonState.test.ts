@@ -3,12 +3,20 @@ import { linkKey, SUNKEN_CRYPT } from '../data/dungeon'
 import { ORDINARY_TORCH } from '../data/items'
 import {
   adjacentRoomIds,
+  breakReadySeals,
   createDungeonState,
   dungeonReducer,
   endBattle,
   KEEP_WATCH,
+  lockedExits,
+  NO_PASSAGES,
+  passagesOf,
+  patrolCountdown,
+  patrolIsDue,
+  sealStatuses,
   STAND_WATCH,
   surpriseCheckFor,
+  unlockLock,
   visibleRoomIds,
 } from './dungeonState'
 import { mulberry32 } from './drawTest'
@@ -16,7 +24,12 @@ import { testMember } from './testFixtures'
 import { torchLevel, totalIntervals } from './torch'
 
 const rng = mulberry32(5)
-const fresh = () => createDungeonState(SUNKEN_CRYPT, [testMember('a', 2), testMember('b', 0)])
+const freshLocked = () => createDungeonState(SUNKEN_CRYPT, [testMember('a', 2), testMember('b', 0)])
+
+/** The entrance door is open, so the patrol clock is running from Interval 0. */
+const fresh = () => unlockLock(freshLocked(), 'entranceDoor')
+
+const lockIds = SUNKEN_CRYPT.links.flatMap((l) => (l.lock ? [l.lock.id] : []))
 
 describe('dungeon layout', () => {
   const visibleLinks = SUNKEN_CRYPT.links.filter((l) => !l.hidden)
@@ -30,7 +43,7 @@ describe('dungeon layout', () => {
     const reached = new Set([SUNKEN_CRYPT.startRoomId])
     const queue = [SUNKEN_CRYPT.startRoomId]
     while (queue.length) {
-      for (const n of adjacentRoomIds(SUNKEN_CRYPT, queue.pop()!)) {
+      for (const n of adjacentRoomIds(SUNKEN_CRYPT, queue.pop()!, { discovered: [], unlocked: lockIds })) {
         if (!reached.has(n)) {
           reached.add(n)
           queue.push(n)
@@ -55,16 +68,17 @@ describe('dungeon layout', () => {
   it('gives every room something to find and something to try', () => {
     for (const room of SUNKEN_CRYPT.rooms) {
       expect(room.secret.text, room.id).toBeTruthy()
-      expect(room.interaction.label, room.id).toBeTruthy()
+      expect(room.interactions.length, room.id).toBeGreaterThan(0)
       expect(room.intel, room.id).toBeTruthy()
     }
   })
 
   it('keeps hidden links out of the way until they are discovered', () => {
     const hidden = SUNKEN_CRYPT.links.find((l) => l.hidden)!
+    const found = { discovered: [linkKey(hidden)], unlocked: [] }
     expect(adjacentRoomIds(SUNKEN_CRYPT, hidden.from)).not.toContain(hidden.to)
-    expect(adjacentRoomIds(SUNKEN_CRYPT, hidden.from, [linkKey(hidden)])).toContain(hidden.to)
-    expect(adjacentRoomIds(SUNKEN_CRYPT, hidden.to, [linkKey(hidden)])).toContain(hidden.from)
+    expect(adjacentRoomIds(SUNKEN_CRYPT, hidden.from, found)).toContain(hidden.to)
+    expect(adjacentRoomIds(SUNKEN_CRYPT, hidden.to, found)).toContain(hidden.from)
   })
 })
 
@@ -121,7 +135,7 @@ describe('dungeonReducer', () => {
 
   it('can travel a discovered hidden passage', () => {
     const hidden = SUNKEN_CRYPT.links.find((l) => l.hidden)!
-    const s = { ...fresh(), discovered: [linkKey(hidden)] }
+    const s = { ...fresh(), roomId: hidden.from, discovered: [linkKey(hidden)] }
     expect(dungeonReducer(s, { type: 'moveTo', roomId: hidden.to, rng }).roomId).toBe(hidden.to)
   })
 
@@ -247,5 +261,138 @@ describe('the surprise check', () => {
   it('forgets watching as soon as the party moves', () => {
     const s = dungeonReducer({ ...fresh(), watch: KEEP_WATCH }, { type: 'moveTo', roomId: 'greatHall', rng })
     expect(s.watch).toBeNull()
+  })
+})
+
+describe('locks', () => {
+  it('start with the entrance door locked, hiding everything beyond it', () => {
+    const s = freshLocked()
+    expect(s.explored).toEqual(['entrance'])
+    expect(adjacentRoomIds(s.dungeon, 'entrance', passagesOf(s))).toEqual([])
+    expect(lockedExits(s.dungeon, 'entrance', passagesOf(s)).map((e) => e.lock.id)).toEqual(['entranceDoor'])
+  })
+
+  it('refuse to be walked through until they are opened', () => {
+    const s = freshLocked()
+    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'greatHall', rng })).toBe(s)
+    const open = unlockLock(s, 'entranceDoor')
+    expect(dungeonReducer(open, { type: 'moveTo', roomId: 'greatHall', rng }).roomId).toBe('greatHall')
+  })
+
+  it('show what is beyond a door as soon as it opens', () => {
+    expect(unlockLock(freshLocked(), 'entranceDoor').explored).toContain('greatHall')
+  })
+
+  it('keep the seal on the crypt shut regardless of the first door', () => {
+    const s = { ...fresh(), roomId: 'shrine' }
+    expect(lockedExits(s.dungeon, 'shrine', passagesOf(s)).map((e) => e.lock.id)).toEqual(['foundersSeal'])
+    expect(adjacentRoomIds(s.dungeon, 'shrine', passagesOf(s))).not.toContain('crypt')
+  })
+
+  it('stop the light reaching through a locked door', () => {
+    const open = new Set(visibleRoomIds(SUNKEN_CRYPT, 'greatHall', 'bright', { discovered: [], unlocked: lockIds }))
+    const shut = new Set(visibleRoomIds(SUNKEN_CRYPT, 'greatHall', 'bright', NO_PASSAGES))
+    expect(open.has('entrance')).toBe(true)
+    expect(shut.has('entrance')).toBe(false)
+    expect(shut.has('crypt')).toBe(false)
+  })
+
+  it('make every lock identifiable and every seal requirement a real interaction', () => {
+    expect(new Set(lockIds).size).toBe(lockIds.length)
+    for (const status of sealStatuses(freshLocked())) {
+      for (const r of status.lock.requires) {
+        const [kind, roomId, interactionId] = r.flag.split(':')
+        expect(kind).toBe('interaction')
+        const room = SUNKEN_CRYPT.rooms.find((x) => x.id === roomId)
+        expect(room?.interactions.some((i) => i.id === interactionId), r.flag).toBe(true)
+      }
+    }
+  })
+})
+
+describe('the patrol clock', () => {
+  it('does not run until the first lock is opened', () => {
+    const s = { ...freshLocked(), intervals: 20 }
+    expect(patrolIsDue(s)).toBe(false)
+    expect(patrolCountdown(s)).toBeNull()
+  })
+
+  it('starts the moment the first lock opens', () => {
+    const s = { ...freshLocked(), intervals: 3 }
+    const open = unlockLock(s, 'entranceDoor')
+    expect(open.patrolStartedAt).toBe(3)
+    expect(patrolCountdown(open)).toBe(SUNKEN_CRYPT.patrol.delayAfterUnlock)
+  })
+
+  it('is not restarted by opening a second lock', () => {
+    const first = unlockLock({ ...freshLocked(), intervals: 1 }, 'entranceDoor')
+    const second = unlockLock({ ...first, intervals: 6 }, 'foundersSeal')
+    expect(second.patrolStartedAt).toBe(1)
+  })
+
+  it('makes the patrol due after the delay', () => {
+    const s = fresh()
+    expect(patrolIsDue({ ...s, intervals: SUNKEN_CRYPT.patrol.delayAfterUnlock - 1 })).toBe(false)
+    expect(patrolIsDue({ ...s, intervals: SUNKEN_CRYPT.patrol.delayAfterUnlock })).toBe(true)
+  })
+})
+
+describe('the Founders’ Seal', () => {
+  const flags = SUNKEN_CRYPT.links.flatMap((l) => (l.lock?.kind === 'seal' ? l.lock.requires.map((r) => r.flag) : []))
+
+  it('stays shut until everything it asks for has been done', () => {
+    const partial = { ...fresh(), done: flags.slice(0, flags.length - 1) }
+    const result = breakReadySeals(partial)
+    expect(result.messages).toEqual([])
+    expect(result.state.unlocked).not.toContain('foundersSeal')
+  })
+
+  it('breaks once every requirement is met, and says so', () => {
+    const result = breakReadySeals({ ...fresh(), done: flags })
+    expect(result.state.unlocked).toContain('foundersSeal')
+    expect(result.messages[0]).toMatch(/shatters/)
+  })
+
+  it('does not break twice', () => {
+    const once = breakReadySeals({ ...fresh(), done: flags })
+    expect(breakReadySeals(once.state).messages).toEqual([])
+  })
+})
+
+describe('the boss', () => {
+  const atShrine = () => ({ ...fresh(), roomId: 'shrine', unlocked: [...fresh().unlocked, 'foundersSeal'] })
+
+  it('rises when the party enters its room, with no chance to surprise anyone', () => {
+    const s = dungeonReducer(atShrine(), { type: 'moveTo', roomId: 'crypt', rng })
+    expect(s.battle).not.toBeNull()
+    expect(s.battleKind).toBe('boss')
+    expect(s.battle!.enemies.map((e) => e.defId)).toEqual(SUNKEN_CRYPT.boss.enemyIds)
+    expect(s.battle!.opening.some((o) => o.title === 'Surprise?')).toBe(false)
+  })
+
+  it('takes the place of the patrol', () => {
+    const s = dungeonReducer(atShrine(), { type: 'moveTo', roomId: 'crypt', rng })
+    expect(s.patrolTriggered).toBe(true)
+    expect(s.bossTriggered).toBe(true)
+  })
+
+  it('only appears once', () => {
+    let s = dungeonReducer(atShrine(), { type: 'moveTo', roomId: 'crypt', rng })
+    s = endBattle({ ...s, battle: { ...s.battle!, result: 'defeat' } })
+    s = { ...s, roomId: 'shrine' }
+    expect(dungeonReducer(s, { type: 'moveTo', roomId: 'crypt', rng }).battle).toBeNull()
+  })
+
+  it('completes the tutorial when the party wins', () => {
+    const s = dungeonReducer(atShrine(), { type: 'moveTo', roomId: 'crypt', rng })
+    const won = endBattle({ ...s, battle: { ...s.battle!, result: 'victory' } })
+    expect(won.completed).toBe(true)
+    expect(won.log[0]).toMatch(/Warden/)
+  })
+
+  it('does not complete the tutorial after the patrol', () => {
+    const s = dungeonReducer(fresh(), { type: 'startBattle', rng })
+    const won = endBattle({ ...s, battle: { ...s.battle!, result: 'victory' } })
+    expect(won.completed).toBe(false)
   })
 })

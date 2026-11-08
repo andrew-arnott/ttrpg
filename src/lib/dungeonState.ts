@@ -1,5 +1,5 @@
 import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
-import { linkKey, type Dungeon, type DungeonRoom } from '../data/dungeon'
+import { linkKey, type Dungeon, type DungeonLink, type DungeonRoom, type Lock } from '../data/dungeon'
 import type { SpecialSpread, TokenStack } from '../data/types'
 import { startBattle, type BattleState, type SurpriseCheck } from './battle'
 import type { Rng } from './drawTest'
@@ -55,6 +55,8 @@ export interface DungeonState {
   explored: string[]
   /** Keys of hidden links the party has found. */
   discovered: string[]
+  /** Ids of locks that have been opened. */
+  unlocked: string[]
   /** One-off room features already dealt with, e.g. `secret:entrance`. */
   done: string[]
   /** Preparations made in each room, e.g. "Fortified". */
@@ -63,7 +65,14 @@ export interface DungeonState {
   intervals: number
   log: string[]
   battle: BattleState | null
+  /** Which encounter the current battle belongs to. */
+  battleKind: 'patrol' | 'boss' | null
   patrolTriggered: boolean
+  /** The Interval count when the first lock was opened. The patrol clock only runs from then. */
+  patrolStartedAt: number | null
+  bossTriggered: boolean
+  /** The boss has been beaten and the tutorial is complete. */
+  completed: boolean
   /** Set when someone kept watch in the Interval that just ended; cleared by moving. */
   watch: Watchfulness | null
 }
@@ -97,30 +106,61 @@ export function roomById(dungeon: Dungeon, id: string): DungeonRoom {
   return room
 }
 
-/** Links the party can currently use: every ordinary link plus any hidden ones they have found. */
-export function openLinks(dungeon: Dungeon, discovered: string[]) {
-  return dungeon.links.filter((l) => !l.hidden || discovered.includes(linkKey(l)))
+/** Which hidden links have been found and which locks have been opened. */
+export interface Passages {
+  discovered: string[]
+  unlocked: string[]
 }
 
-export function adjacentRoomIds(dungeon: Dungeon, roomId: string, discovered: string[] = []): string[] {
-  return openLinks(dungeon, discovered).flatMap((l) =>
+export const NO_PASSAGES: Passages = { discovered: [], unlocked: [] }
+
+export const passagesOf = (state: Pick<DungeonState, 'discovered' | 'unlocked'>): Passages => ({
+  discovered: state.discovered,
+  unlocked: state.unlocked,
+})
+
+const isFound = (link: DungeonLink, passages: Passages) => !link.hidden || passages.discovered.includes(linkKey(link))
+const isOpen = (link: DungeonLink, passages: Passages) => !link.lock || passages.unlocked.includes(link.lock.id)
+
+/** Links the party can use now: hidden ones must have been found and locked ones opened. */
+export function openLinks(dungeon: Dungeon, passages: Passages = NO_PASSAGES) {
+  return dungeon.links.filter((l) => isFound(l, passages) && isOpen(l, passages))
+}
+
+export function adjacentRoomIds(dungeon: Dungeon, roomId: string, passages: Passages = NO_PASSAGES): string[] {
+  return openLinks(dungeon, passages).flatMap((l) =>
     l.from === roomId ? [l.to] : l.to === roomId ? [l.from] : [],
   )
 }
 
-/** The party's own room is always visible; others need to be within the torch's reach. */
+export interface LockedExit {
+  link: DungeonLink
+  lock: Lock
+  room: DungeonRoom
+}
+
+/** Locked exits from a room that the party knows about and has not opened yet. */
+export function lockedExits(dungeon: Dungeon, roomId: string, passages: Passages): LockedExit[] {
+  return dungeon.links.flatMap((link) => {
+    if (!link.lock || !isFound(link, passages) || isOpen(link, passages)) return []
+    if (link.from !== roomId && link.to !== roomId) return []
+    return [{ link, lock: link.lock, room: roomById(dungeon, link.from === roomId ? link.to : link.from) }]
+  })
+}
+
+/** The party's own room is always visible; others need to be within the torch's reach and not behind a lock. */
 export function visibleRoomIds(
   dungeon: Dungeon,
   roomId: string,
   level: TorchLevel,
-  discovered: string[] = [],
+  passages: Passages = NO_PASSAGES,
 ): string[] {
   const reach = LIGHT_REACH[level]
   const seen = new Set([roomId])
   let frontier = [roomId]
   for (let hop = 0; hop < reach; hop++) {
     frontier = frontier
-      .flatMap((id) => adjacentRoomIds(dungeon, id, discovered))
+      .flatMap((id) => adjacentRoomIds(dungeon, id, passages))
       .filter((id) => !seen.has(id))
     frontier.forEach((id) => seen.add(id))
   }
@@ -135,13 +175,18 @@ export function createDungeonState(dungeon: Dungeon, party: PartyMember[]): Dung
     roomId: dungeon.startRoomId,
     explored: visibleRoomIds(dungeon, dungeon.startRoomId, torchLevel(torch)),
     discovered: [],
+    unlocked: [],
     done: [],
     prepared: {},
     torch,
     intervals: 0,
     log: [`The party enters ${dungeon.name} with a lit torch.`],
     battle: null,
+    battleKind: null,
     patrolTriggered: false,
+    patrolStartedAt: null,
+    bossTriggered: false,
+    completed: false,
     watch: null,
   }
 }
@@ -151,7 +196,7 @@ export function withLog(state: DungeonState, ...messages: string[]): DungeonStat
 }
 
 export function revealVisible(state: DungeonState): DungeonState {
-  const visible = visibleRoomIds(state.dungeon, state.roomId, torchLevel(state.torch), state.discovered)
+  const visible = visibleRoomIds(state.dungeon, state.roomId, torchLevel(state.torch), passagesOf(state))
   const explored = [...new Set([...state.explored, ...visible])]
   return explored.length === state.explored.length ? state : { ...state, explored }
 }
@@ -194,15 +239,78 @@ export function springPatrol(state: DungeonState, rng: Rng): DungeonState {
     patrol.arrival,
     surpriseCheckFor(state),
   )
-  return withLog({ ...state, battle, patrolTriggered: true }, patrol.arrival)
+  return withLog({ ...state, battle, battleKind: 'patrol', patrolTriggered: true }, patrol.arrival)
 }
 
+/** The guardian rises when the party enters its room. There is no chance to surprise anyone here. */
+export function springBoss(state: DungeonState, rng: Rng): DungeonState {
+  const { boss } = state.dungeon
+  const battle = startBattle(state.party, state.prepared[boss.roomId] ?? [], boss.enemyIds, rng, boss.arrival, null)
+  return withLog(
+    { ...state, battle, battleKind: 'boss', bossTriggered: true, patrolTriggered: true },
+    boss.arrival,
+  )
+}
+
+/** The patrol only starts looking once the first lock has been opened. */
 export function patrolIsDue(state: DungeonState): boolean {
-  return !state.battle && !state.patrolTriggered && state.intervals >= state.dungeon.patrol.arrivesAtInterval
+  if (state.battle || state.patrolTriggered || state.patrolStartedAt === null) return false
+  return state.intervals - state.patrolStartedAt >= state.dungeon.patrol.delayAfterUnlock
+}
+
+/** Intervals until the patrol arrives, once its clock is running. */
+export function patrolCountdown(state: DungeonState): number | null {
+  if (state.patrolStartedAt === null || state.patrolTriggered) return null
+  return state.dungeon.patrol.delayAfterUnlock - (state.intervals - state.patrolStartedAt)
 }
 
 export function springPatrolIfDue(state: DungeonState, rng: Rng): DungeonState {
   return patrolIsDue(state) ? springPatrol(state, rng) : state
+}
+
+/** Opens a lock, starts the patrol clock if this is the first one, and shows whatever is now in the light. */
+export function unlockLock(state: DungeonState, lockId: string): DungeonState {
+  if (state.unlocked.includes(lockId)) return state
+  return revealVisible({
+    ...state,
+    unlocked: [...state.unlocked, lockId],
+    patrolStartedAt: state.patrolStartedAt ?? state.intervals,
+  })
+}
+
+export interface SealStatus {
+  link: DungeonLink
+  lock: Extract<Lock, { kind: 'seal' }>
+  requirements: { hint: string; done: string; met: boolean }[]
+}
+
+export const sealStatuses = (state: DungeonState): SealStatus[] =>
+  state.dungeon.links.flatMap((link) =>
+    link.lock?.kind === 'seal'
+      ? [
+          {
+            link,
+            lock: link.lock,
+            requirements: link.lock.requires.map((r) => ({
+              hint: r.hint,
+              done: r.done,
+              met: state.done.includes(r.flag),
+            })),
+          },
+        ]
+      : [],
+  )
+
+/** Breaks any seal whose requirements have all been met. Returns what to tell the player. */
+export function breakReadySeals(state: DungeonState): { state: DungeonState; messages: string[] } {
+  let next = state
+  const messages: string[] = []
+  for (const { lock, requirements } of sealStatuses(state)) {
+    if (next.unlocked.includes(lock.id) || !requirements.every((r) => r.met)) continue
+    next = unlockLock(next, lock.id)
+    messages.push(lock.broken)
+  }
+  return { state: next, messages }
 }
 
 /** Carries HP, resources and bags out of the fight. Anyone who was knocked out comes round with 1 HP. */
@@ -219,7 +327,11 @@ export function endBattle(state: DungeonState): DungeonState {
       bag: fought.bag,
     }
   })
-  return withLog({ ...state, party, battle: null }, 'The fight is over. Everyone catches their breath.')
+  const wonBoss = state.battleKind === 'boss' && battle.result === 'victory'
+  return withLog(
+    { ...state, party, battle: null, battleKind: null, completed: state.completed || wonBoss },
+    wonBoss ? 'The Barrow Warden crumbles to dust.' : 'The fight is over. Everyone catches their breath.',
+  )
 }
 
 export function dungeonReducer(state: DungeonState, action: DungeonAction): DungeonState {
@@ -228,11 +340,11 @@ export function dungeonReducer(state: DungeonState, action: DungeonAction): Dung
       return action.state
 
     case 'startBattle':
-      return state.battle ? state : springPatrol(state, action.rng)
+      return state.battle || state.patrolTriggered ? state : springPatrol(state, action.rng)
 
     case 'moveTo': {
       if (state.battle) return state
-      if (!adjacentRoomIds(state.dungeon, state.roomId, state.discovered).includes(action.roomId)) return state
+      if (!adjacentRoomIds(state.dungeon, state.roomId, passagesOf(state)).includes(action.roomId)) return state
       const room = roomById(state.dungeon, action.roomId)
       const burned = burnTorchInterval(state)
       const moved = revealVisible(
@@ -242,6 +354,8 @@ export function dungeonReducer(state: DungeonState, action: DungeonAction): Dung
           burned.message,
         ),
       )
+      const { boss } = state.dungeon
+      if (room.id === boss.roomId && !moved.bossTriggered) return springBoss(moved, action.rng)
       return springPatrolIfDue(moved, action.rng)
     }
 

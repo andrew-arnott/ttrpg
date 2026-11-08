@@ -2,7 +2,7 @@ import { ENEMIES_BY_ID, type EnemyAttack, type EnemyDef, type EnemyTrigger } fro
 import { PROFESSIONS } from '../data/professions'
 import { STANDARD_BAG, TOKENS } from '../data/tokens'
 import type { Ability, SpecialKey, SpecialSpread, TokenStack } from '../data/types'
-import { drawTest, type Rng, type TestResult } from './drawTest'
+import { drawTest, drewComplication, type Rng, type TestResult } from './drawTest'
 import type { PartyMember, Preparation } from './dungeonState'
 import { playerActor, type ResolutionStep, type StepActor } from './resolution'
 import { performSkillTest, type SkillTestOutcome } from './skillTest'
@@ -381,8 +381,6 @@ function surpriseCheck(engine: Engine, check: SurpriseCheck) {
 
 // --- resolving tests and effects --------------------------------------
 
-const complicationDrawn = (r: TestResult) => r.complication || r.outcome === 'critical-failure'
-
 /** Shields wait in play for the next damage; Bless tokens are used up once drawn. */
 function afterTest(p: BattlePlayer, result: TestResult) {
   const shields = result.drawn.filter((d) => d.tokenId === 'shield').length
@@ -494,6 +492,21 @@ function applyTrigger(engine: Engine, e: BattleEnemy, trigger: EnemyTrigger, dra
     })
     return
   }
+  if (effect.kind === 'heal') {
+    const before = e.hp
+    e.hp = Math.min(e.maxHp, e.hp + effect.amount)
+    addStep(engine, {
+      actor: enemyActorOf(e),
+      title: trigger.name,
+      intro: `${e.name} reacts to the Complication.`,
+      outcome:
+        e.hp > before
+          ? `${e.name} regains ${e.hp - before} HP (${e.hp}/${e.maxHp}).`
+          : `${e.name} is already at full strength.`,
+      tone: e.hp > before ? 'failure' : 'neutral',
+    })
+    return
+  }
   if (drawer.hp <= 0) return
   strikePlayer(
     engine,
@@ -506,7 +519,7 @@ function applyTrigger(engine: Engine, e: BattleEnemy, trigger: EnemyTrigger, dra
 
 /** A Complication, including the one a Critical Failure generates, sets off enemy triggers. */
 function runTriggers(engine: Engine, drawer: BattlePlayer, result: TestResult) {
-  if (!complicationDrawn(result)) return
+  if (!drewComplication(result)) return
   for (const e of livingEnemies(engine.b)) {
     for (const trigger of ENEMIES_BY_ID[e.defId]?.triggers ?? []) {
       if (engine.b.result !== 'ongoing') return

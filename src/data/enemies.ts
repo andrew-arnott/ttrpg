@@ -16,6 +16,7 @@ export interface EnemyAttack {
 export type TriggerEffect =
   | { kind: 'strike'; attackValue: number; damage: number }
   | { kind: 'empower'; attackBonus: number }
+  | { kind: 'heal'; amount: number }
 
 export interface EnemyTrigger {
   name: string
@@ -65,6 +66,39 @@ export const ENEMIES: EnemyDef[] = [
         name: 'Bellow',
         text: 'When a Complication is drawn, flies into a rage: +2 attack value until the end of the round.',
         effect: { kind: 'empower', attackBonus: 2 },
+      },
+    ],
+  },
+  {
+    id: 'skeleton',
+    name: 'Skeleton Guard',
+    blurb: 'A rattling sentinel that has stood watch for centuries.',
+    hp: 2,
+    defense: 3,
+    attacks: [{ name: 'Bone Claws', attackValue: 4, damage: 1 }],
+    triggers: [
+      {
+        name: 'Clatter',
+        text: 'When a Complication is drawn, its bones rattle in fury: +1 attack value until the end of the round.',
+        effect: { kind: 'empower', attackBonus: 1 },
+      },
+    ],
+  },
+  {
+    id: 'warden',
+    name: 'Barrow Warden',
+    blurb: 'The undead guardian of the Founders\u2019 Crypt, bound to its post by the seal you broke.',
+    hp: 7,
+    defense: 5,
+    attacks: [
+      { name: 'Rusted Greatsword', attackValue: 6, damage: 2 },
+      { name: 'Grave Chill', attackValue: 3, damage: 1, area: true },
+    ],
+    triggers: [
+      {
+        name: 'Undying',
+        text: 'When a Complication is drawn, the Warden knits itself back together and regains 1 HP.',
+        effect: { kind: 'heal', amount: 1 },
       },
     ],
   },

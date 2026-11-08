@@ -13,6 +13,8 @@ export interface Item {
   name: string
   cost: number
   description: string
+  /** HP restored when used outside of combat. */
+  healing?: number
 }
 
 /** How long a torch burns, in Intervals spent at each brightness. */
@@ -55,6 +57,7 @@ export const ITEMS: Item[] = [
     id: 'bandage',
     name: 'Bandage',
     cost: 2,
+    healing: 2,
     description: 'Restore 2 HP when applied outside of combat.',
   },
   {
@@ -73,6 +76,7 @@ export const ITEMS: Item[] = [
     id: 'healingPotion',
     name: 'Healing Potion',
     cost: 5,
+    healing: 4,
     description: 'Restore 4 HP when drunk. Can be used as a Fast action.',
   },
 ]

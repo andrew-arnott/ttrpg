@@ -302,6 +302,28 @@ describe('complications', () => {
   })
 })
 
+describe('boss abilities', () => {
+  it('lets the Barrow Warden heal itself when a Complication is drawn', () => {
+    const b = duel({ bag: bagOf('complication') }, { hp: 5 }, 'warden')
+    const { steps, battle } = playRound(b, { p: turn(attack('e')) }, rng())
+    const heal = steps.find((s) => s.title === 'Undying')!
+    expect(heal.outcome).toMatch(/regains 1 HP/)
+    expect(battle.enemies[0].hp).toBeLessThanOrEqual(6)
+  })
+
+  it('does not heal past full strength', () => {
+    const b = duel({ bag: bagOf('complication') }, {}, 'warden')
+    const { steps } = playRound(b, { p: turn(attack('e')) }, rng())
+    expect(steps.find((s) => s.title === 'Undying')!.tone).toBe('neutral')
+  })
+
+  it('rattles a skeleton up by one attack value on a Complication', () => {
+    const b = duel({ bag: ALWAYS_FAIL }, {}, 'skeleton')
+    const { steps } = playRound(b, { p: turn(attack('e')) }, rng())
+    expect(steps.find((s) => s.title === 'Bone Claws')!.resultLine).toMatch(/Attack 5/)
+  })
+})
+
 describe('shields and bless', () => {
   it('put drawn Shield tokens in play, then use them up to absorb damage', () => {
     const b = duel({ bag: bagOf('shield') })

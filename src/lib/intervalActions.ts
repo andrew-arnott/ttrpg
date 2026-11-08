@@ -1,14 +1,24 @@
-import { linkKey, type DungeonRoom, type RoomReward } from '../data/dungeon'
-import { HOLY_TORCH, ITEMS_BY_ID } from '../data/items'
+import {
+  interactionFlag,
+  linkKey,
+  type DungeonRoom,
+  type RoomComplication,
+  type RoomReward,
+} from '../data/dungeon'
+import { HOLY_TORCH, ITEMS, ITEMS_BY_ID } from '../data/items'
 import { PROFESSIONS } from '../data/professions'
 import { TOKENS } from '../data/tokens'
 import { SPECIAL_LABELS, type Ability, type SpecialKey } from '../data/types'
-import type { Rng } from './drawTest'
+import { drewComplication, type Rng } from './drawTest'
 import {
   adjacentRoomIds,
+  breakReadySeals,
   burnTorchInterval,
   lightFreshTorch,
   KEEP_WATCH,
+  lockedExits,
+  passagesOf,
+  patrolCountdown,
   patrolIsDue,
   REST_BONUS_LIMIT,
   revealVisible,
@@ -18,13 +28,21 @@ import {
   withLog,
   type DungeonState,
   type PartyMember,
+  unlockLock,
   type Watchfulness,
 } from './dungeonState'
 import { playerActor, type ResolutionStep, type StepTone } from './resolution'
 import { performSkillTest, type SkillTestOutcome } from './skillTest'
-import { totalIntervals, torchLevel } from './torch'
+import { burnInterval, TORCH_LEVEL_LABEL, totalIntervals, torchLevel } from './torch'
 
-export type ActionId = 'search' | 'rest' | 'watch' | 'interact' | `ability:${string}`
+export type ActionId =
+  | 'search'
+  | 'rest'
+  | 'watch'
+  | `use:${string}`
+  | `interact:${string}`
+  | `unlock:${string}`
+  | `ability:${string}`
 
 export type ActionGroup = 'Basic' | 'Room' | 'Class'
 
@@ -72,9 +90,8 @@ function restCap(member: PartyMember): number {
 
 export function availableActions(state: DungeonState, member: PartyMember): ActionOption[] {
   const room = roomById(state.dungeon, state.roomId)
-  const exits = adjacentRoomIds(state.dungeon, state.roomId, state.discovered).map((id) =>
-    roomById(state.dungeon, id),
-  )
+  const passages = passagesOf(state)
+  const exits = adjacentRoomIds(state.dungeon, state.roomId, passages).map((id) => roomById(state.dungeon, id))
 
   const options: ActionOption[] = [
     {
@@ -98,13 +115,36 @@ export function availableActions(state: DungeonState, member: PartyMember): Acti
       label: 'Keep watch',
       description: 'Stay alert for approaching threats.',
     },
-    {
-      id: 'interact',
-      group: 'Room',
-      label: `Room interaction: ${lowerFirst(room.interaction.label)}`,
-      description: `Make ${withArticle(SPECIAL_LABELS[room.interaction.attribute])} test.`,
-      disabledReason: state.done.includes(`interaction:${room.id}`) ? 'Already done' : undefined,
-    },
+    ...ITEMS.filter((item) => item.healing && (member.inventory[item.id] ?? 0) > 0).map(
+      (item): ActionOption => ({
+        id: `use:${item.id}`,
+        group: 'Basic',
+        label: `Use a ${item.name}`,
+        description: `Restore ${item.healing} HP to the most wounded party member. The ${item.name.toLowerCase()} is used up.`,
+        disabledReason: state.party.some((m) => m.hp < m.maxHp) ? undefined : 'Nobody is hurt',
+      }),
+    ),
+    ...room.interactions.map(
+      (i): ActionOption => ({
+        id: `interact:${i.id}`,
+        group: 'Room',
+        label: `Room interaction: ${lowerFirst(i.label)}`,
+        description: `Make ${withArticle(SPECIAL_LABELS[i.attribute])} test.`,
+        disabledReason: state.done.includes(interactionFlag(room.id, i.id)) ? 'Already done' : undefined,
+      }),
+    ),
+    ...lockedExits(state.dungeon, room.id, passages).flatMap(({ lock, room: beyond }) =>
+      lock.kind === 'door'
+        ? lock.options.map(
+            (o): ActionOption => ({
+              id: `unlock:${lock.id}:${o.id}`,
+              group: 'Room',
+              label: `${o.label} (${lock.name})`,
+              description: `Make ${withArticle(SPECIAL_LABELS[o.attribute])} test to get through to ${beyond.name}. If it fails you can try again, but every try takes an Interval.`,
+            }),
+          )
+        : [],
+    ),
   ]
 
   for (const ability of memberAbilities(member)) {
@@ -172,9 +212,10 @@ function narrate(
   state: DungeonState = ctx.state,
   test?: SkillTestOutcome,
 ): Resolution {
-  const complication = test?.result.complication
-    ? ' A Complication was drawn, so the GM may add a consequence.'
-    : ''
+  const complication =
+    test && drewComplication(test.result) && !ctx.room.complication
+      ? ' A Complication was drawn, so the GM may add a consequence.'
+      : ''
   const colorIndex = ctx.state.party.findIndex((m) => m.key === ctx.member.key)
   return {
     state,
@@ -241,20 +282,67 @@ function keepWatch(ctx: Context, title = 'Keep watch'): Resolution {
   )
 }
 
-function interact(ctx: Context): Resolution {
+function useHealingItem(ctx: Context, itemId: string): Resolution {
+  const { member, state } = ctx
+  const item = ITEMS_BY_ID[itemId]
+  const hurt = [...state.party].sort((a, b) => b.maxHp - b.hp - (a.maxHp - a.hp))[0]
+  if (!item?.healing || !hurt || hurt.hp >= hurt.maxHp || (member.inventory[itemId] ?? 0) <= 0) return keepWatch(ctx)
+
+  const healed = Math.min(item.healing, hurt.maxHp - hurt.hp)
+  const spent = updateMember(state, member.key, (m) => ({
+    ...m,
+    inventory: { ...m.inventory, [itemId]: (m.inventory[itemId] ?? 0) - 1 },
+  }))
+  const next = updateMember(spent, hurt.key, (m) => ({ ...m, hp: m.hp + healed }))
+  const who = hurt.key === member.key ? 'themselves' : hurt.name
+  return narrate(
+    ctx,
+    `Use a ${item.name}`,
+    `${member.name} treats ${who} with a ${item.name.toLowerCase()}.`,
+    `${hurt.name} recovers ${healed} HP (${hurt.hp + healed}/${hurt.maxHp}).`,
+    'success',
+    next,
+  )
+}
+
+function interact(ctx: Context, interactionId: string): Resolution {
   const { member, room, state } = ctx
-  const { interaction } = room
+  const interaction = room.interactions.find((i) => i.id === interactionId)
+  if (!interaction) return keepWatch(ctx)
   const intro = withDarkness(ctx, `${member.name} tries to ${lowerFirst(interaction.label)}.`)
   const test = runTest(ctx, interaction.attribute, interaction.difficulty)
   if (!test.passed) {
     return narrate(ctx, 'Room interaction', intro, interaction.failure, 'failure', state, test)
   }
-  const reward = giveReward(markDone(state, `interaction:${room.id}`), member.key, interaction.reward)
-  return narrate(ctx, 'Room interaction', intro, interaction.success + reward.text, 'success', reward.state, test)
+  const reward = giveReward(
+    markDone(state, interactionFlag(room.id, interaction.id)),
+    member.key,
+    interaction.reward,
+  )
+  const seals = breakReadySeals(reward.state)
+  const outcome = [interaction.success + reward.text, ...seals.messages].join(' ')
+  return narrate(ctx, 'Room interaction', intro, outcome, 'success', seals.state, test)
+}
+
+function unlockDoor(ctx: Context, lockId: string, optionId: string): Resolution {
+  const { member, state } = ctx
+  const exit = lockedExits(state.dungeon, state.roomId, passagesOf(state)).find((e) => e.lock.id === lockId)
+  const option = exit?.lock.kind === 'door' ? exit.lock.options.find((o) => o.id === optionId) : undefined
+  if (!exit || exit.lock.kind !== 'door' || !option) return keepWatch(ctx)
+
+  const title = `${option.label}`
+  const intro = withDarkness(ctx, `${member.name} tries to ${lowerFirst(option.label)} on the ${exit.lock.name.toLowerCase()}.`)
+  const test = runTest(ctx, option.attribute, option.difficulty)
+  if (!test.passed) return narrate(ctx, title, intro, option.failure, 'failure', state, test)
+
+  const first = state.patrolStartedAt === null
+  const opened = unlockLock(state, exit.lock.id)
+  const stir = first ? ' Somewhere deeper in the complex, something starts to stir.' : ''
+  return narrate(ctx, title, intro, option.success + stir, 'success', opened, test)
 }
 
 function targetRoom(ctx: Context): DungeonRoom | undefined {
-  const exits = adjacentRoomIds(ctx.state.dungeon, ctx.state.roomId, ctx.state.discovered)
+  const exits = adjacentRoomIds(ctx.state.dungeon, ctx.state.roomId, passagesOf(ctx.state))
   const id = ctx.planned.targetRoomId && exits.includes(ctx.planned.targetRoomId) ? ctx.planned.targetRoomId : exits[0]
   return id ? roomById(ctx.state.dungeon, id) : undefined
 }
@@ -408,20 +496,78 @@ function performAbility(ctx: Context, ability: Ability): Resolution {
 }
 
 function resolveAction(ctx: Context): Resolution {
-  switch (ctx.planned.actionId) {
-    case 'search':
-      return search(ctx)
-    case 'rest':
-      return rest(ctx)
-    case 'interact':
-      return interact(ctx)
-    case 'watch':
-      return keepWatch(ctx)
-    default: {
-      const abilityId = ctx.planned.actionId.slice('ability:'.length)
-      const ability = memberAbilities(ctx.member).find((a) => a.id === abilityId)
-      return ability ? performAbility(ctx, ability) : keepWatch(ctx)
+  const id = ctx.planned.actionId
+  if (id === 'search') return search(ctx)
+  if (id === 'rest') return rest(ctx)
+  if (id === 'watch') return keepWatch(ctx)
+  if (id.startsWith('use:')) return useHealingItem(ctx, id.slice('use:'.length))
+  if (id.startsWith('interact:')) return interact(ctx, id.slice('interact:'.length))
+  if (id.startsWith('unlock:')) {
+    const [, lockId, optionId] = id.split(':')
+    return unlockDoor(ctx, lockId, optionId)
+  }
+  const ability = memberAbilities(ctx.member).find((a) => `ability:${a.id}` === id)
+  return ability ? performAbility(ctx, ability) : keepWatch(ctx)
+}
+
+/** What a Complication does in a room, applied to the character who drew it. */
+function applyComplication(
+  state: DungeonState,
+  member: PartyMember,
+  trigger: RoomComplication,
+  colorIndex: number,
+): Resolution {
+  const { effect } = trigger
+  let next = state
+  let outcome = ''
+  let tone: StepTone = 'failure'
+
+  switch (effect.kind) {
+    case 'damage': {
+      next = updateMember(state, member.key, (m) => ({ ...m, hp: Math.max(1, m.hp - effect.amount) }))
+      const hurt = next.party.find((m) => m.key === member.key)!
+      outcome = `${member.name} takes ${effect.amount} damage (${hurt.hp}/${hurt.maxHp} HP).`
+      break
     }
+    case 'torch': {
+      const torch = burnInterval(state.torch)
+      next = revealVisible({ ...state, torch })
+      const level = torchLevel(torch)
+      outcome =
+        level === 'out'
+          ? 'The torch burns down an extra step and goes out.'
+          : `The torch burns down an extra step and is now ${TORCH_LEVEL_LABEL[level]}.`
+      break
+    }
+    case 'noise': {
+      if (state.patrolStartedAt !== null && !state.patrolTriggered) {
+        next = { ...state, patrolStartedAt: state.patrolStartedAt - 1 }
+        outcome = 'The noise carries through the halls. The patrol will arrive an Interval sooner.'
+      } else {
+        outcome = 'The noise echoes through the empty halls. For now, nothing answers.'
+        tone = 'neutral'
+      }
+      break
+    }
+    case 'drop': {
+      const item = ITEMS_BY_ID[effect.itemId]
+      if ((member.inventory[effect.itemId] ?? 0) > 0) {
+        next = updateMember(state, member.key, (m) => ({
+          ...m,
+          inventory: { ...m.inventory, [effect.itemId]: (m.inventory[effect.itemId] ?? 0) - 1 },
+        }))
+        outcome = `${member.name} loses a ${item?.name.toLowerCase() ?? effect.itemId}.`
+      } else {
+        outcome = `Something nearly slips away, but ${member.name} has nothing of that kind to lose.`
+        tone = 'neutral'
+      }
+      break
+    }
+  }
+
+  return {
+    state: next,
+    step: { actor: playerActor(member, colorIndex), title: 'Complication!', intro: trigger.text, outcome, tone },
   }
 }
 
@@ -457,11 +603,19 @@ export function resolveInterval(
     })
     steps.push(step)
     working = withLog(next, `${step.intro} ${step.outcome}`)
+
+    const trigger = roomById(working.dungeon, working.roomId).complication
+    if (trigger && step.test && drewComplication(step.test.result)) {
+      const colorIndex = working.party.findIndex((m) => m.key === member.key)
+      const consequence = applyComplication(working, member, trigger, colorIndex)
+      steps.push(consequence.step)
+      working = withLog(consequence.state, `${consequence.step.intro} ${consequence.step.outcome}`)
+    }
   }
 
   const burned = burnTorchInterval(working)
   const { patrol } = burned.state.dungeon
-  const warned = Boolean(watch) && !burned.state.patrolTriggered && burned.state.intervals === patrol.arrivesAtInterval - 1
+  const warned = Boolean(watch) && patrolCountdown(burned.state) === 1
   steps.push({
     actor: null,
     title: 'The Interval ends',
