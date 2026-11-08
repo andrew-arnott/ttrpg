@@ -27,9 +27,10 @@ in the URL hash, so each is linkable):
 - **Sheet** — a printable character sheet. *Print sheet* hides everything but the sheet.
 - **Token Bag** — draws tokens from a character's bag with an animated pouch and coin reveal, using
   the real draw rule, plus a "run 5,000 tests" check against the exact odds.
-- **Dungeon** — a pre-made dungeon (The Sunken Crypt) to learn the game in. Pick up to four characters
+- **Dungeon** — a guided tutorial dungeon (The Sunken Crypt) to learn the game in. Pick up to four characters
   (yours, saved, or ready-made samples), then explore with the torch ticking down. Right-click a torch
-  in a character's pack to light a new one.
+  in a character's pack to light a new one. It starts with a short note explaining that this is a guided
+  demonstration of the rules rather than the full, more flexible game, and ends with the same reminder.
 
 ### Saved characters
 
@@ -62,22 +63,42 @@ Actions on offer:
 - **Rest** — regain 1 of your profession's resource (Resolve, Cunning, Faith or Mana), up to 2 above
   what you started with.
 - **Keep watch.**
-- **Room interaction** — a one-off thing to try in the current room, such as studying the runes on the
-  floor.
-- **Class abilities** — any Interval ability the character chose: Fortify, Stand Watch, Barricade,
-  Secure Area, Scout Ahead, Case the Joint, Set an Ambush, Find a Shortcut, Tend the Afflicted, Holy
-  Light, Group Heal, Detect Magic, Identify, Dispel Magic and Scry.
+- **Use a Bandage or Healing Potion** — restore HP to the most wounded party member.
+- **Room interactions** — one-off things to try in the current room, such as studying the runes on the
+  floor. Several rooms have more than one.
+- **Pick the lock / Break down the door** — see below.
+- **Class abilities** — any Interval ability the character chose: Fortify, Stand Watch, Barricade, Secure Area,
+  Scout Ahead, Case the Joint, Set an Ambush, Find a Shortcut, Tend the Afflicted, Holy Light, Group Heal,
+  Detect Magic, Identify, Dispel Magic and Scry.
 
 Tests draw from the character's token bag with the same rule as the simulator. The total is the token
 sum plus the relevant SPECIAL value against a Difficulty set per room (see `src/data/dungeon.ts`).
 Critical Success always passes and Critical Failure always fails. Working with the torch out adds 3 to
 the Difficulty. Resolution plays back as an animation with a text summary of what happened.
 
+**Locked doors.** The entrance door can be picked (an Agility test) or broken down (a Strength test). A
+failed attempt can be repeated, but every attempt takes an Interval, so retrying is paid for in torch.
+Light does not pass a locked door, and the party cannot move through it.
+
+**The Founders' Seal.** The crypt door cannot be picked or broken. It opens only after three room
+interactions elsewhere have been done: reciting the founders' rite (Library), kindling the Shrine's braziers,
+and raising the carved stone from the Cistern. The goal card and the shrine's room card track progress.
+
+**Complications outside combat.** When a test draws a Complication (or a Critical Failure, which generates
+one) in a room that has a trigger, something goes wrong for the character who drew it: falling debris
+(1 damage, never taking anyone to 0 HP), a draught that burns the torch down an extra step, noise that
+brings the patrol an Interval sooner, or a spare torch lost in the water.
+
 ### Battles
 
-A goblin patrol (two Goblin Scouts and a Cave Troll) finds the party at Interval 4, wherever they are. The HUD's
-*Start sample battle* button springs it at any time. Preparations made in that room carry over: Fortify gives the
-character +2 Defense in round 1, and Set an Ambush gives a free opening attack.
+A goblin patrol (two Goblin Scouts and a Cave Troll) finds the party 4 Intervals after the first lock is opened,
+wherever they are. Until a door has been unlocked the patrol never starts, so dithering at the entrance only
+costs torch. The HUD's *Start sample battle* button springs it at any time. Preparations made in that room carry
+over: Fortify gives the character +2 Defense in round 1, and Set an Ambush gives a free opening attack.
+
+**The boss.** Entering the Founders' Crypt wakes the Barrow Warden and two Skeleton Guards, with no chance
+to surprise anyone. The Warden heals itself when a Complication is drawn. Beating it completes the tutorial
+with a short note on how the real game gives players more freedom than this guided dungeon does.
 
 **Surprise.** When the patrol arrives its group makes a Perception test (Perception 2 plus a draw from a standard
 bag) against a Difficulty of 4 plus:

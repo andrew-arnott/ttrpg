@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { currentPlayer, endTurn, runEnemyPhase, takeAction, type BattleState, type PlannedCombat } from '../lib/battle'
+import { TUTORIAL_OUTRO } from '../data/tutorial'
 import { endBattle, type DungeonAction, type DungeonState } from '../lib/dungeonState'
 import type { ResolutionStep } from '../lib/resolution'
 import { ActionPrompt } from './ActionPrompt'
@@ -74,7 +75,26 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
           />
         )}
 
-        {battle.result === 'victory' && (
+        {battle.result === 'victory' && state.battleKind === 'boss' && (
+          <section className="card completion">
+            <div className="card-head">
+              <span className="step-index">Tutorial complete</span>
+              <h2>Congratulations!</h2>
+            </div>
+            {TUTORIAL_OUTRO.map((p) => (
+              <p className="trait" key={p} style={{ marginBottom: 8 }}>
+                {p}
+              </p>
+            ))}
+            <div className="review-actions">
+              <button className="btn primary" onClick={() => dispatch({ type: 'replace', state: endBattle(state) })}>
+                Finish tutorial
+              </button>
+            </div>
+          </section>
+        )}
+
+        {battle.result === 'victory' && state.battleKind !== 'boss' && (
           <section className="card">
             <div className="card-head">
               <span className="step-index">Battle</span>

@@ -1,8 +1,8 @@
 import { artUrl } from '../lib/art'
-import type { DungeonRoom } from '../data/dungeon'
+import { linkKey, type DungeonLink, type DungeonRoom } from '../data/dungeon'
 import {
   adjacentRoomIds,
-  openLinks,
+  passagesOf,
   roomById,
   roomCenter,
   visibleRoomIds,
@@ -41,13 +41,30 @@ const UNSEEN_STUB = 60
 function corridorEnds(a: DungeonRoom, b: DungeonRoom, aKnown: boolean, bKnown: boolean) {
   const ca = roomCenter(a)
   const cb = roomCenter(b)
-  if (aKnown && bKnown) return { from: ca, to: cb }
+  if (aKnown && bKnown) return { from: ca, to: cb, free: null }
   const [known, ck, co] = aKnown ? [a, ca, cb] : [b, cb, ca]
   const distance = Math.hypot(co.x - ck.x, co.y - ck.y)
   const horizontal = Math.abs(co.x - ck.x) >= Math.abs(co.y - ck.y)
   const reach = Math.min(distance, (horizontal ? known.w : known.h) / 2 + UNSEEN_STUB)
   const end = { x: ck.x + ((co.x - ck.x) / distance) * reach, y: ck.y + ((co.y - ck.y) / distance) * reach }
-  return aKnown ? { from: ck, to: end } : { from: end, to: ck }
+  return aKnown ? { from: ck, to: end, free: end } : { from: end, to: ck, free: end }
+}
+
+/** A locked door sits where the visible corridor ends. A seal is drawn in violet so it reads as different. */
+function LockMarker({ link, at }: { link: DungeonLink; at: { x: number; y: number } }) {
+  if (!link.lock) return null
+  const seal = link.lock.kind === 'seal'
+  const fill = seal ? '#b58cff' : '#ffd84d'
+  return (
+    <g className="lock-marker" transform={`translate(${at.x} ${at.y})`}>
+      <title>{link.lock.name}</title>
+      <rect x={-17} y={-17} width={34} height={34} fill="#000" />
+      <rect x={-13} y={-13} width={26} height={26} fill={fill} />
+      <circle cy={-3} r={4} fill="#000" />
+      <rect x={-2} y={-3} width={4} height={10} fill="#000" />
+      {seal && <path d="M-13 -13L13 13M13 -13L-13 13" stroke="#fff" strokeWidth={2} opacity={0.6} />}
+    </g>
+  )
 }
 
 function avatarPositions(room: DungeonRoom, count: number, labelLines: number) {
@@ -106,11 +123,12 @@ interface Props {
 }
 
 export function DungeonMap({ state, onMove }: Props) {
-  const { dungeon, party, roomId, explored, torch, discovered } = state
+  const { dungeon, party, roomId, explored, torch, discovered, unlocked } = state
+  const passages = passagesOf(state)
   const level = torchLevel(torch)
-  const lit = new Set(visibleRoomIds(dungeon, roomId, level, discovered))
+  const lit = new Set(visibleRoomIds(dungeon, roomId, level, passages))
   const known = new Set([...explored, ...lit])
-  const exits = new Set(adjacentRoomIds(dungeon, roomId, discovered))
+  const exits = new Set(adjacentRoomIds(dungeon, roomId, passages))
   const origin = roomCenter(roomById(dungeon, roomId))
   const glowRadius = GLOW_RADIUS[level]
 
@@ -137,11 +155,13 @@ export function DungeonMap({ state, onMove }: Props) {
 
       <rect width={dungeon.width} height={dungeon.height} fill="#02030f" />
 
-      {openLinks(dungeon, discovered).map((link) => {
+      {dungeon.links.map((link) => {
+        if (link.hidden && !discovered.includes(linkKey(link))) return null
         const fromKnown = known.has(link.from)
         const toKnown = known.has(link.to)
         if (!fromKnown && !toKnown) return null
-        const { from, to } = corridorEnds(
+        const closed = Boolean(link.lock && !unlocked.includes(link.lock.id))
+        const { from, to, free } = corridorEnds(
           roomById(dungeon, link.from),
           roomById(dungeon, link.to),
           fromKnown,
@@ -153,6 +173,7 @@ export function DungeonMap({ state, onMove }: Props) {
             <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#000" strokeWidth={CORRIDOR_WIDTH + 8} />
             <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#9fb0f5" strokeWidth={CORRIDOR_WIDTH + 2} />
             <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#1b2468" strokeWidth={CORRIDOR_WIDTH - 4} />
+            {closed && <LockMarker link={link} at={free ?? { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }} />}
           </g>
         )
       })}

@@ -1084,3 +1084,49 @@ table.tokens-table td.num { text-align: right; }
 .statcard-title { font-size: 8px; text-transform: uppercase; color: var(--accent); margin: 10px 0 4px; }
 .statcard-list { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
 .statcard-list b { color: var(--accent); font-weight: 400; }
+
+/* --- tutorial framing, locks and goals --- */
+
+.tutorial-intro {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  margin-bottom: 4px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface-inset);
+}
+.tutorial-intro h3 { font-size: 11px; color: var(--accent); }
+.tutorial-intro .goal b { color: var(--accent); font-weight: 400; }
+
+.lock-note {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface-inset);
+}
+.lock-note .notes { margin: 0; }
+.lock-note li.met { color: var(--good); }
+
+.btn.locked { border-style: dashed; color: var(--text-muted); }
+
+.checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.checklist li { display: flex; gap: 10px; align-items: flex-start; color: var(--text-secondary); }
+.checklist li.done { color: var(--good); }
+.check {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 2px solid currentColor;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.card.completion { border-color: var(--accent); }
+.card.completion .card-head h2 { color: var(--accent); }

@@ -1,13 +1,17 @@
 import { useMemo, useReducer, useState } from 'react'
 import { SUNKEN_CRYPT } from '../data/dungeon'
 import { ITEMS, ITEMS_BY_ID } from '../data/items'
+import { TUTORIAL_GOAL, TUTORIAL_INTRO, TUTORIAL_OUTRO } from '../data/tutorial'
 import { TOKENS } from '../data/tokens'
 import { buildCharacter } from '../lib/buildCharacter'
 import {
   adjacentRoomIds,
   createDungeonState,
   dungeonReducer,
+  lockedExits,
+  passagesOf,
   roomById,
+  sealStatuses,
   type DungeonState,
 } from '../lib/dungeonState'
 import { resolveInterval, type InteractionPlan } from '../lib/intervalActions'
@@ -56,7 +60,17 @@ function PartySetup({ roster, onStart }: { roster: RosterEntry[]; onStart: (chos
         <p className="hint">{SUNKEN_CRYPT.blurb}</p>
       </div>
 
-      <h3 className="section-title" style={{ marginTop: 0 }}>
+      <div className="tutorial-intro">
+        <h3>How this tutorial works</h3>
+        {TUTORIAL_INTRO.map((p) => (
+          <p key={p}>{p}</p>
+        ))}
+        <p className="goal">
+          <b>Your goal.</b> {TUTORIAL_GOAL}
+        </p>
+      </div>
+
+      <h3 className="section-title" style={{ marginTop: 18 }}>
         Choose your party ({chosenKeys.length} of {MAX_PARTY})
       </h3>
       <div className="options two">
@@ -191,6 +205,62 @@ function PartyPanel({
   )
 }
 
+export function CompletionCard() {
+  return (
+    <section className="card completion">
+      <div className="card-head">
+        <span className="step-index">Tutorial complete</span>
+        <h2>Congratulations!</h2>
+      </div>
+      {TUTORIAL_OUTRO.map((p) => (
+        <p className="trait" key={p} style={{ marginBottom: 8 }}>
+          {p}
+        </p>
+      ))}
+    </section>
+  )
+}
+
+/** The tutorial's objectives, ticked off as they happen. */
+function GoalCard({ state }: { state: DungeonState }) {
+  const { dungeon } = state
+  const items = [
+    ...dungeon.links.flatMap((l) => {
+      const lock = l.lock
+      if (!lock) return []
+      if (lock.kind === 'door') {
+        return [{ label: `Open the ${lock.name.toLowerCase()}`, done: state.unlocked.includes(lock.id) }]
+      }
+      const met = lock.requires.filter((r) => state.done.includes(r.flag)).length
+      return [
+        {
+          label: `Break the ${lock.name} (${met} of ${lock.requires.length})`,
+          done: state.unlocked.includes(lock.id),
+        },
+      ]
+    }),
+    { label: `Defeat the guardian in ${roomById(dungeon, dungeon.boss.roomId).name}`, done: state.completed },
+  ]
+  return (
+    <section className="card">
+      <div className="card-head">
+        <h2>Goal</h2>
+        <p className="hint">{TUTORIAL_GOAL}</p>
+      </div>
+      <ul className="checklist">
+        {items.map((item) => (
+          <li key={item.label} className={item.done ? 'done' : undefined}>
+            <span className="check" aria-hidden="true">
+              {item.done ? '\u2713' : ''}
+            </span>
+            {item.label}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 interface PendingResolution {
   next: DungeonState
   steps: ResolutionStep[]
@@ -203,9 +273,9 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
 
   const level = torchLevel(state.torch)
   const room = roomById(state.dungeon, state.roomId)
-  const exits = adjacentRoomIds(state.dungeon, state.roomId, state.discovered).map((id) =>
-    roomById(state.dungeon, id),
-  )
+  const passages = passagesOf(state)
+  const exits = adjacentRoomIds(state.dungeon, state.roomId, passages).map((id) => roomById(state.dungeon, id))
+  const locked = lockedExits(state.dungeon, state.roomId, passages)
   const spareTorches = state.party.reduce((n, m) => n + (m.inventory.torch ?? 0), 0)
   const preparations = state.prepared[state.roomId] ?? []
   const move = (roomId: string) => dispatch({ type: 'moveTo', roomId, rng: Math.random })
@@ -264,6 +334,8 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
 
       <div className="layout" style={{ marginTop: 20 }}>
         <main>
+          {state.completed && <CompletionCard />}
+
           <section className="card map-card">
             <DungeonMap state={state} onMove={move} />
           </section>
@@ -288,6 +360,25 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
                 ))}
               </div>
             )}
+            {locked.map(({ lock, room: beyond }) => (
+              <div className="lock-note" key={lock.id}>
+                <p className="trait">
+                  <b>{lock.name}.</b> {lock.description}
+                </p>
+                {lock.kind === 'seal' && (
+                  <ul className="notes">
+                    {sealStatuses(state)
+                      .find((st) => st.lock.id === lock.id)
+                      ?.requirements.map((r) => (
+                        <li key={r.hint} className={r.met ? 'met' : undefined}>
+                          {r.met ? r.done : r.hint}
+                        </li>
+                      ))}
+                  </ul>
+                )}
+                <span className="hint">Leads to {beyond.name}.</span>
+              </div>
+            ))}
             <h3 className="section-title">Exits (moving takes an Interval)</h3>
             <div className="exit-buttons">
               {exits.map((exit) => (
@@ -295,11 +386,17 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
                   {exit.name}
                 </button>
               ))}
+              {locked.map(({ lock, room: beyond }) => (
+                <button key={lock.id} className="btn locked" disabled title={lock.description}>
+                  {beyond.name}: {lock.kind === 'seal' ? 'sealed' : 'locked'}
+                </button>
+              ))}
             </div>
           </section>
         </main>
 
         <aside className="sidebar">
+          <GoalCard state={state} />
           <PartyPanel
             state={state}
             onLightTorch={(memberKey) => dispatch({ type: 'lightTorch', memberKey })}
