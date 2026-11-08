@@ -3,6 +3,7 @@ import type { SpecialKey } from '../../data/types'
 import { drawTest, drewComplication, type TestResult } from '../drawTest'
 import type { SkillTestOutcome } from '../skillTest'
 import { performSkillTest } from '../skillTest'
+import { engageBreakdown, engageDifficulty } from './engagement'
 import {
   adjustBag,
   addStep,
@@ -22,7 +23,7 @@ import {
   updateResult,
   type Engine,
 } from './state'
-import { ATTACK_ATTRIBUTE, DEFEND_ATTRIBUTE, ENGAGE_ATTRIBUTE, ENGAGE_DIFFICULTY, HEAL_AMOUNT, NEW_GROUP } from './types'
+import { ATTACK_ATTRIBUTE, DEFEND_ATTRIBUTE, ENGAGE_ATTRIBUTE, HEAL_AMOUNT, NEW_GROUP } from './types'
 import type { BattleEnemy, BattlePlayer, BattleState } from './types'
 
 /** Shields wait in play for the next damage; Bless tokens are used up once drawn. */
@@ -283,7 +284,8 @@ export function changeEngagement(engine: Engine, p: BattlePlayer, targetGroup: s
     })
     return
   }
-  const test = playerTest(engine, p, ENGAGE_ATTRIBUTE, ENGAGE_DIFFICULTY)
+  const difficulty = engageDifficulty(b, p, targetGroup)
+  const test = playerTest(engine, p, ENGAGE_ATTRIBUTE, difficulty.total)
   const passed = test.passed
   if (passed) move()
   addStep(engine, {
@@ -292,6 +294,7 @@ export function changeEngagement(engine: Engine, p: BattlePlayer, targetGroup: s
     intro: `${p.name} tries to move to ${destination}.`,
     test,
     testMode: 'check',
+    testHeading: `Agility test \u00b7 Difficulty ${difficulty.total} (${engageBreakdown(difficulty).join(', ')})`,
     outcome: passed ? `${p.name} gets there.` : `${p.name} cannot break away and stays put.`,
     tone: passed ? 'success' : 'failure',
   })

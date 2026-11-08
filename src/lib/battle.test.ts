@@ -5,6 +5,8 @@ import {
   currentPlayer,
   endTurn,
   enemyDefense,
+  engageBreakdown,
+  engageDifficulty,
   runEnemyPhase,
   startBattle,
   suggestedAction,
@@ -382,6 +384,49 @@ describe('engagement', () => {
     expect(options.find((o) => o.id === 'engage')!.targets!.some((t) => t.id === 'new')).toBe(true)
     const { battle } = playRound(b, { p1: turn({ actionId: 'engage', targetId: 'new' }) }, rng())
     expect(battle.groups.p1).not.toBe('g1')
+  })
+})
+
+describe('engage Difficulty', () => {
+  const crowd = () =>
+    battleOf(
+      [player('p1'), player('p2'), player('p3')],
+      [enemy('goblin', 'a'), enemy('goblin', 'b'), enemy('goblin', 'c')],
+      { p1: 'g1', p2: 'g1', p3: 'g2', a: 'g1', b: 'g1', c: 'g2' },
+    )
+
+  it('starts at 4 for a lone character with nobody around', () => {
+    const b = battleOf([player('p'), player('q')], [enemy('goblin', 'e')], { p: 'g1', q: 'g2', e: 'g2' })
+    expect(engageDifficulty(b, b.players[0], 'new').total).toBe(4)
+  })
+
+  it('rises with the enemies in the group being left and the group being joined', () => {
+    const b = crowd()
+    const d = engageDifficulty(b, b.players[0], 'g2')
+    expect(d).toMatchObject({ enemiesLeaving: 2, enemiesJoining: 1, alliesLeaving: 1 })
+    expect(d.total).toBe(4 + 2 + 1 - 1)
+  })
+
+  it('falls with the allies who stay behind, but never below 2', () => {
+    const b = battleOf(
+      [player('p1'), player('p2'), player('p3'), player('p4'), player('p5'), player('p6')],
+      [enemy('goblin', 'e')],
+      { p1: 'g1', p2: 'g1', p3: 'g1', p4: 'g1', p5: 'g1', p6: 'g1', e: 'g2' },
+    )
+    const d = engageDifficulty(b, b.players[0], 'g2')
+    expect(d.total).toBe(2)
+    expect(d.floored).toBe(true)
+    expect(engageBreakdown(d)).toContain('minimum Difficulty 2')
+  })
+
+  it('is shown on each destination and used by the test', () => {
+    const b = crowd()
+    b.players[0].bag = ALWAYS_PASS
+    const option = availableCombatActions(b, b.players[0]).find((o) => o.id === 'engage')!
+    expect(option.targets!.find((t) => t.id === 'g2')!.label).toMatch(/Difficulty 6/)
+    const { steps } = playRound(b, { p1: turn({ actionId: 'engage', targetId: 'g2' }) }, rng())
+    expect(steps[0].test?.difficulty).toBe(6)
+    expect(steps[0].testHeading).toMatch(/Difficulty 6/)
   })
 })
 

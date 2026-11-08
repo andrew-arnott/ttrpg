@@ -64,7 +64,7 @@ Two other sources feed the code:
 | Boss | Barrow Warden (HP 7, Defense 5, Greatsword 6 attack for 2, Grave Chill 3 area) with two Skeleton Guards; arrives with no surprise check | `src/data/enemies.ts`, `dungeon.boss` |
 | Enemy stats | Goblin HP 3 Defense 3 attack 4; Troll HP 4 Defense 5, Club 6 for 2, Slam 3 area | `src/data/enemies.ts` |
 | Attack damage | 1 damage per hit; Backstab +2 | `battle.ts` |
-| Engaging | Changing engagement is an Agility test, Difficulty 4. The guide says 6, and the owner wants it to scale with enemies and allies in the group; still being workshopped | `ENGAGE_DIFFICULTY` |
+| Engaging | Changing engagement is an Agility test. Difficulty = 4 + enemies in the group you leave + enemies in the group you join - allies who stay behind, never below 2. Agreed with the owner as a starting point to workshop; the guide's flat 6 is the fallback | `engageDifficulty` in `src/lib/battle/engagement.ts` |
 | Starting engagement | Each player starts in their own group; each enemy joins a random player | `startBattle` |
 | Sealed tokens | Resolve and Cunning sealed on an enemy return to their owner when it is defeated | `releaseSealedTokens` |
 | Fireball | X Mana (1 to 3 offered as separate options); the caster is hurt too if they stand in the target group; 3 Mana adds a Fatigue token | `fireball` in `battle.ts` |
@@ -80,7 +80,7 @@ them settled yet. Rows marked "owner ruling" were decided in conversation and wi
 | --- | --- | --- |
 | Surprise check | Each enemy has a concealment (Obvious, Concealed, Hidden). The current light level decides whether the party notices, must make a test, or is surprised, using a table. Keep Watch counts the light as one level brighter | Enemies make a Perception test against a base Difficulty adjusted by light and watchfulness. Keep watch is +2 (owner ruling, for now) |
 | Surprise round | Each combatant on the surprising side takes 1 action; the surprised side does not act | Enemies get a full round of attacks |
-| Engage and disengage | Agility test, Difficulty 6. Engage pulls an enemy into your group. Disengage leaves your group and may join another or form a new one | Agility, Difficulty 4. Owner: needs workshopping; Difficulty should rise with enemies engaged and fall with allies engaged |
+| Engage and disengage | Agility test, Difficulty 6. Engage pulls an enemy into your group. Disengage leaves your group and may join another or form a new one | Agility, Difficulty from the formula in the assumptions table (4 base, up with enemies, down with allies). Owner is still workshopping it. A popup explains it the first time a player picks Change engagement |
 | Resting | Recover 1 additional Resource token from the bag into play; sealed tokens cannot be recovered | Regain 1 of the main resource, capped at 2 above the starting amount |
 | Armor, Power, Expertise | Spent before the draw: Armor +1 to a Defend result, Power +1 to an Attack result, several can be stacked, Expertise can stand in for Resolve, Armor or Power, and a Critical Success in play counts as 2 Expertise. Resources committed to a Fight ability return if the attack fails | Not implemented |
 | Conditions | Wound, Poison, Insanity, Curse, Fatigue and Fear tokens (-1, Chain) go in the bag, are sealed when they contribute to a failed test, have their own effects, and are released one per combat round and all at the end of an Interval | Not implemented, apart from Fireball's Fatigue note |

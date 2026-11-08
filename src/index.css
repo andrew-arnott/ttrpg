@@ -1027,6 +1027,16 @@ table.tokens-table td.num { text-align: right; }
 
 .prompt-target { display: grid; gap: 4px; margin-top: 14px; max-width: 460px; }
 .prompt-target select { width: 100%; }
+.prompt-rule { margin-top: 10px; font-size: 20px; color: var(--text-secondary); }
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .prompt-actions { gap: 10px; flex-wrap: wrap; }
 
 .party-avatar.lunge { animation: lunge 0.5s ease-in-out 2; }

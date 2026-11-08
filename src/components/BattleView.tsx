@@ -25,6 +25,7 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
   const battle = state.battle!
   const [playback, setPlayback] = useState<Playback | null>(null)
   const [playbackCount, setPlaybackCount] = useState(0)
+  const [engageHelpSeen, setEngageHelpSeen] = useState(false)
 
   const opening = battle.opening.length > 0 ? battle.opening : null
   const player = currentPlayer(battle)
@@ -72,6 +73,8 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
             player={player}
             onAct={act}
             onEndTurn={() => settle(withBattle(endTurn(battle)))}
+            engageHelpSeen={engageHelpSeen}
+            onEngageHelpSeen={() => setEngageHelpSeen(true)}
           />
         )}
 

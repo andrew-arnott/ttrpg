@@ -12,8 +12,8 @@ import {
   spend,
   type Engine,
 } from './state'
+import { engageTargetLabel } from './engagement'
 import { enemyTargets, groupTargets, resourceGate } from './targets'
-import { ENGAGE_DIFFICULTY } from './types'
 import type { BattlePlayer, BattleState, CombatOption, PlannedCombat } from './types'
 
 function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
@@ -59,8 +59,9 @@ export function availableCombatActions(b: BattleState, p: BattlePlayer): CombatO
       id: 'engage',
       slot: 'action',
       label: 'Change engagement',
-      description: `Make an Agility test (Difficulty ${ENGAGE_DIFFICULTY}) to move to another engagement group.`,
-      targets: groups,
+      description:
+        'Make an Agility test to move to another engagement group. The Difficulty depends on who is in the groups.',
+      targets: groups.map((g) => ({ ...g, label: engageTargetLabel(b, p, g.id, g.label) })),
       disabledReason: groups.length === 0 ? 'Nowhere to go' : undefined,
     },
     ...abilityOptions(b, p),

@@ -3,6 +3,8 @@ import {
   ACTIONS_PER_TURN,
   availableCombatActions,
   describeGroup,
+  engageBreakdown,
+  engageDifficulty,
   suggestedAction,
   type BattlePlayer,
   type BattleState,
@@ -10,7 +12,9 @@ import {
   type PlannedCombat,
 } from '../lib/battle'
 import { AVATAR_COLORS } from '../lib/partyColors'
+import { ENGAGE_HELP } from '../data/tutorial'
 import { Portrait } from './Portrait'
+import { RuleHelpDialog } from './RuleHelpDialog'
 
 const BASIC = ['attack', 'defend', 'engage']
 
@@ -19,19 +23,32 @@ interface Props {
   player: BattlePlayer
   onAct: (planned: PlannedCombat | null) => void
   onEndTurn: () => void
+  /** Whether the Engage explanation has already been shown in this battle. */
+  engageHelpSeen: boolean
+  onEngageHelpSeen: () => void
 }
 
 /** Asks one question at a time: what should this character do with their next action? */
-export function ActionPrompt({ battle, player, onAct, onEndTurn }: Props) {
+export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen, onEngageHelpSeen }: Props) {
   const options = availableCombatActions(battle, player)
   const [choice, setChoice] = useState<PlannedCombat>(() => suggestedAction(battle, player))
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const selected = options.find((o) => o.id === choice.actionId)
   const targetId = selected?.targets?.find((t) => t.id === choice.targetId)?.id ?? selected?.targets?.[0]?.id
   const canConfirm = Boolean(selected) && !selected?.disabledReason
 
-  const pick = (option: CombatOption) =>
+  const pick = (option: CombatOption) => {
     setChoice({ actionId: option.id, targetId: option.targets?.[0]?.id })
+    if (option.id === 'engage' && !engageHelpSeen) setHelpOpen(true)
+  }
+
+  const closeHelp = () => {
+    setHelpOpen(false)
+    onEngageHelpSeen()
+  }
+  const engagePreview =
+    selected?.id === 'engage' && targetId ? engageBreakdown(engageDifficulty(battle, player, targetId)) : null
 
   const groups: { title: string; options: CombatOption[] }[] = [
     { title: 'Actions', options: options.filter((o) => o.slot === 'action' && BASIC.includes(o.id)) },
@@ -106,6 +123,15 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn }: Props) {
         </label>
       )}
 
+      {engagePreview && (
+        <p className="hint prompt-rule">
+          Difficulty: {engagePreview.join(', ')}.{' '}
+          <button className="link-button" onClick={() => setHelpOpen(true)}>
+            How does this work?
+          </button>
+        </p>
+      )}
+
       <div className="review-actions prompt-actions">
         <button className="btn" onClick={onEndTurn}>
           End turn
@@ -121,6 +147,7 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn }: Props) {
           {selected?.slot === 'fast' ? 'Use it (free)' : 'Do it'}
         </button>
       </div>
+      {helpOpen && <RuleHelpDialog title={ENGAGE_HELP.title} paragraphs={ENGAGE_HELP.paragraphs} onClose={closeHelp} />}
     </section>
   )
 }
