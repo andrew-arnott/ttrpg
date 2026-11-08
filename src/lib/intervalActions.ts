@@ -282,7 +282,7 @@ function keepWatch(ctx: Context, title = 'Keep watch'): Resolution {
   )
 }
 
-function useHealingItem(ctx: Context, itemId: string): Resolution {
+function healWithItem(ctx: Context, itemId: string): Resolution {
   const { member, state } = ctx
   const item = ITEMS_BY_ID[itemId]
   const hurt = [...state.party].sort((a, b) => b.maxHp - b.hp - (a.maxHp - a.hp))[0]
@@ -500,7 +500,7 @@ function resolveAction(ctx: Context): Resolution {
   if (id === 'search') return search(ctx)
   if (id === 'rest') return rest(ctx)
   if (id === 'watch') return keepWatch(ctx)
-  if (id.startsWith('use:')) return useHealingItem(ctx, id.slice('use:'.length))
+  if (id.startsWith('use:')) return healWithItem(ctx, id.slice('use:'.length))
   if (id.startsWith('interact:')) return interact(ctx, id.slice('interact:'.length))
   if (id.startsWith('unlock:')) {
     const [, lockId, optionId] = id.split(':')
