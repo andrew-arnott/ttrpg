@@ -170,6 +170,37 @@ describe('resolveInterval', () => {
     })
   })
 
+  describe('treating conditions', () => {
+    const afflicted = (bag: PartyMember['bag']) =>
+      stateWith(
+        testMember('a', 0, { inventory: { antivenom: 1 }, bag: [{ tokenId: 'poison', count: 1 }, ...bag] }),
+        testMember('b', 0),
+      )
+
+    it('offers treatment only for a condition someone has in their bag, with the matching item', () => {
+      const s = afflicted(bagOf('plus1'))
+      const ids = availableActions(s, s.party[0]).map((o) => o.id)
+      expect(ids).toContain('treat:antivenom:a')
+      expect(ids).not.toContain('treat:antivenom:b')
+      expect(availableActions(s, s.party[1]).map((o) => o.id).some((id) => id.startsWith('treat:'))).toBe(false)
+    })
+
+    it('removes the token for good on a success, and uses the item up', () => {
+      const s = afflicted(ALWAYS_PASS)
+      const { state, steps } = resolveInterval(s, { a: { actionId: 'treat:antivenom:a' } }, rng())
+      expect(state.party[0].bag.find((t) => t.tokenId === 'poison')).toBeUndefined()
+      expect(state.party[0].inventory.antivenom).toBe(0)
+      expect(steps[0].outcome).toMatch(/removed from a/)
+    })
+
+    it('keeps the token on a failure but still uses the item up', () => {
+      const s = afflicted(ALWAYS_FAIL)
+      const { state } = resolveInterval(s, { a: { actionId: 'treat:antivenom:a' } }, rng())
+      expect(state.party[0].bag.find((t) => t.tokenId === 'poison')?.count).toBe(1)
+      expect(state.party[0].inventory.antivenom).toBe(0)
+    })
+  })
+
   describe('room interactions', () => {
     it('resolves with the room-specific text and marks it done', () => {
       const s = stateWith(testMember('a', 0, { bag: ALWAYS_PASS }))

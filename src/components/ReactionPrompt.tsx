@@ -17,7 +17,7 @@ export function ReactionPrompt({ battle, onAnswer }: Props) {
   return (
     <section className="card" aria-live="polite">
       <div className="card-head">
-        <span className="step-index">Triggered ability</span>
+        <span className="step-index">{request.required ? 'Condition' : 'Triggered ability'}</span>
         <div className="resolution-actor">
           {reactor && (
             <span
@@ -29,9 +29,11 @@ export function ReactionPrompt({ battle, onAnswer }: Props) {
           )}
           <div>
             <h2>
-              {reactor?.name}: use {request.title}?
+              {request.required ? `${reactor?.name}: ${request.title.toLowerCase()}` : `${reactor?.name}: use ${request.title}?`}
             </h2>
-            <p className="hint">Costs {request.cost}. It does not use an action.</p>
+            <p className="hint">
+              {request.required ? 'Required: choose one.' : `Costs ${request.cost}. It does not use an action.`}
+            </p>
           </div>
         </div>
       </div>
@@ -42,7 +44,7 @@ export function ReactionPrompt({ battle, onAnswer }: Props) {
 
       {request.targets && request.targets.length > 0 && (
         <label className="prompt-target">
-          <span className="step-index">Attack which enemy?</span>
+          <span className="step-index">{request.required ? 'Which one?' : 'Attack which enemy?'}</span>
           <select value={targetId} onChange={(e) => setTargetId(e.target.value)}>
             {request.targets.map((t) => (
               <option key={t.id} value={t.id}>
@@ -54,11 +56,13 @@ export function ReactionPrompt({ battle, onAnswer }: Props) {
       )}
 
       <div className="review-actions prompt-actions">
-        <button className="btn" onClick={() => onAnswer({ use: false })}>
-          No thanks
-        </button>
+        {!request.required && (
+          <button className="btn" onClick={() => onAnswer({ use: false })}>
+            No thanks
+          </button>
+        )}
         <button className="btn primary" onClick={() => onAnswer({ use: true, targetId })}>
-          Use {request.title}
+          {request.required ? 'Release it' : `Use ${request.title}`}
         </button>
       </div>
     </section>

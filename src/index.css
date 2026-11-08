@@ -1140,3 +1140,5 @@ table.tokens-table td.num { text-align: right; }
 
 .card.completion { border-color: var(--accent); }
 .card.completion .card-head h2 { color: var(--accent); }
+
+.chip.condition { border-color: var(--danger); color: var(--danger); }

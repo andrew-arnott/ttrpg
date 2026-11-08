@@ -40,6 +40,11 @@ function PlayerCard({ p, active }: { p: BattlePlayer; active: boolean }) {
               Shield <span className="count">{p.shieldsInPlay}</span>
             </span>
           )}
+          {(p.sealedConditions ?? []).map((c, i) => (
+            <span className="chip condition" key={`${c.tokenId}-${i}`} title={TOKENS[c.tokenId]?.effect}>
+              {TOKENS[c.tokenId]?.name ?? c.tokenId} <span className="count">sealed</span>
+            </span>
+          ))}
           {Object.entries(p.resources)
             .filter(([, n]) => n > 0)
             .map(([id, n]) => (

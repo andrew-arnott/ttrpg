@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  ACTIONS_PER_TURN,
+  actionsThisTurn,
   availableCombatActions,
   describeGroup,
   engageBreakdown,
@@ -32,6 +32,7 @@ interface Props {
 /** Asks one question at a time: what should this character do with their next action? */
 export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen, onEngageHelpSeen }: Props) {
   const options = availableCombatActions(battle, player)
+  const actionLimit = actionsThisTurn(player, battle.round)
   const [choice, setChoice] = useState<PlannedCombat>(() => suggestedAction(battle, player))
   const [helpOpen, setHelpOpen] = useState(false)
 
@@ -74,7 +75,7 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
           </span>
           <div>
             <h2>
-              {player.name}&rsquo;s action {Math.min(battle.actionsUsed + 1, ACTIONS_PER_TURN)} of {ACTIONS_PER_TURN}:
+              {player.name}&rsquo;s action {Math.min(battle.actionsUsed + 1, actionLimit)} of {actionLimit}:
               what should they do?
             </h2>
             <p className="hint">

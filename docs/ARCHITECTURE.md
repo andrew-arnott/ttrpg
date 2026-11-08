@@ -83,6 +83,9 @@ as "token total + attribute against a Difficulty". `drewComplication()` treats a
 - `abilities.ts`: a table of ability handlers (`options` builds the menu entries, `perform` does it). Add an ability by
   adding a handler; `actions.ts` builds the menu (`availableCombatActions`) and runs a choice (`performAction`).
 - `reactions.ts` and `followUps.ts`: Triggered abilities (Prayer, Intercept, Cleave, Opportunist).
+- `conditionRules.ts` and `conditions.ts`: conditions. The rules file has the pure checks (can this player attack, how many
+  actions, how the draw changes); `conditions.ts` seals tokens after failed tests, hands them out on enemy hits (offering
+  Divine Intervention) and releases them at the end of a round.
 - `enemies.ts`: the enemy phase. `start.ts`: `startBattle` and the surprise check. `flow.ts`: turn order and the
   public engine calls.
 

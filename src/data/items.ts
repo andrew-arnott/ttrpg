@@ -6,7 +6,15 @@
  * kit of cheap supplies or one healing potion plus a few essentials.
  */
 
+import type { SpecialKey } from './types'
+
 export const STARTING_COINS = 10
+
+/** The condition an item treats, and the attributes the patient may test with. */
+export interface Treatment {
+  condition: string
+  attributes: [SpecialKey, SpecialKey?]
+}
 
 export interface Item {
   id: string
@@ -15,6 +23,7 @@ export interface Item {
   description: string
   /** HP restored when used outside of combat. */
   healing?: number
+  treats?: Treatment
 }
 
 /** How long a torch burns, in Intervals spent at each brightness. */
@@ -58,13 +67,43 @@ export const ITEMS: Item[] = [
     name: 'Bandage',
     cost: 2,
     healing: 2,
-    description: 'Restore 2 HP when applied outside of combat.',
+    treats: { condition: 'wound', attributes: ['intelligence', 'endurance'] },
+    description: 'Treats a Wound. Also restores 2 HP when applied outside of combat.',
   },
   {
-    id: 'antidote',
-    name: 'Antidote',
+    id: 'antivenom',
+    name: 'Antivenom',
     cost: 3,
-    description: 'Remove one sealed Poison token from yourself or an ally.',
+    treats: { condition: 'poison', attributes: ['strength', 'endurance'] },
+    description: 'Treats Poison.',
+  },
+  {
+    id: 'laudanum',
+    name: 'Laudanum',
+    cost: 3,
+    treats: { condition: 'insanity', attributes: ['perception', 'charisma'] },
+    description: 'Treats Insanity.',
+  },
+  {
+    id: 'holyWater',
+    name: 'Holy Water',
+    cost: 3,
+    treats: { condition: 'curse', attributes: ['luck'] },
+    description: 'Treats a Curse.',
+  },
+  {
+    id: 'stimulant',
+    name: 'Stimulant',
+    cost: 2,
+    treats: { condition: 'fatigue', attributes: ['strength', 'endurance'] },
+    description: 'Treats Fatigue.',
+  },
+  {
+    id: 'liquidCourage',
+    name: 'Liquid Courage',
+    cost: 2,
+    treats: { condition: 'fear', attributes: ['charisma', 'luck'] },
+    description: 'Treats Fear.',
   },
   {
     id: 'smokeBomb',
@@ -88,7 +127,11 @@ export const ITEM_ART_ID: Record<string, string> = {
   torch: 'torch',
   ration: 'ration',
   bandage: 'bandage',
-  antidote: 'antidote',
+  antivenom: 'antidote',
+  laudanum: 'potion',
+  holyWater: 'potion',
+  stimulant: 'potion',
+  liquidCourage: 'potion',
   smokeBomb: 'smokebomb',
   healingPotion: 'potion',
 }

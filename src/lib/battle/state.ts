@@ -90,6 +90,8 @@ export interface Engine {
   rng: Rng
   steps: ResolutionStep[]
   defeats: Defeat[]
+  /** Condition effects waiting to be added to the outcome of the next step. */
+  notes: string[]
   /** Asks a player whether to use a Triggered ability. Without reactions it always declines. */
   ask(request: ReactionRequest): ReactionAnswer
 }
@@ -101,6 +103,7 @@ export const createEngine = (b: BattleState, rng: Rng): Engine => ({
   rng,
   steps: [],
   defeats: [],
+  notes: [],
   ask: declineReactions,
 })
 
@@ -114,9 +117,23 @@ export const enemyActorOf = (e: BattleEnemy): StepActor => ({
   colorIndex: -1,
 })
 
-export function addStep(engine: Engine, step: ResolutionStep) {
+export function addStep(engine: Engine, original: ResolutionStep) {
+  const step = engine.notes.length > 0 ? { ...original, outcome: `${original.outcome} ${engine.notes.join(' ')}` } : original
+  engine.notes = []
   engine.steps.push(step)
   engine.b.log = [`${step.intro} ${step.outcome}`, ...engine.b.log].slice(0, LOG_LIMIT)
+}
+
+export function dealDamageToPlayer(p: BattlePlayer, amount: number): { dealt: number; absorbed: number } {
+  if (amount <= 0) return { dealt: 0, absorbed: 0 }
+  const absorbed = Math.min(p.shieldsInPlay, amount)
+  if (p.shieldsInPlay > 0) {
+    p.bag = adjustBag(p.bag, 'shield', p.shieldsInPlay)
+    p.shieldsInPlay = 0
+  }
+  const dealt = amount - absorbed
+  p.hp = Math.max(0, p.hp - dealt)
+  return { dealt, absorbed }
 }
 
 export function updateResult(b: BattleState) {

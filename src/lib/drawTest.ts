@@ -37,34 +37,46 @@ function shuffle<T>(items: T[], rng: Rng): T[] {
   return out
 }
 
+/** Things about a character that change how their draw works. */
+export interface DrawRules {
+  /** Tokens that begin the draw without coming out of the bag, such as a sealed Curse. */
+  startWith?: string[]
+  /** With a Wound sealed, drawing another Wound is a Critical Failure. */
+  woundSealed?: boolean
+}
+
+function drawnToken(tokenId: string): DrawnToken {
+  const def = TOKENS[tokenId]
+  return { tokenId, name: def?.name ?? tokenId, modifier: def?.modifier ?? 0, chain: def?.keywords.includes('chain') ?? false }
+}
+
 /**
  * Resolves one test: draws without replacement until a token that ends the
  * draw comes out. Chain tokens keep the draw going; anything else stops it.
  */
-export function drawTest(bag: TokenStack[], rng: Rng = Math.random): TestResult {
-  const drawn: DrawnToken[] = []
+export function drawTest(bag: TokenStack[], rng: Rng = Math.random, rules: DrawRules = {}): TestResult {
+  const drawn: DrawnToken[] = (rules.startWith ?? []).map(drawnToken)
+  let woundCrash = false
   for (const tokenId of shuffle(expand(bag), rng)) {
-    const def = TOKENS[tokenId]
-    const chain = def?.keywords.includes('chain') ?? false
-    drawn.push({
-      tokenId,
-      name: def?.name ?? tokenId,
-      modifier: def?.modifier ?? 0,
-      chain,
-    })
-    if (!chain) break
+    const token = drawnToken(tokenId)
+    drawn.push(token)
+    if (tokenId === 'wound' && rules.woundSealed) {
+      woundCrash = true
+      break
+    }
+    if (!token.chain) break
   }
 
   const ids = drawn.map((d) => d.tokenId)
   return {
     drawn,
     total: drawn.reduce((sum, d) => sum + (d.modifier ?? 0), 0),
-    outcome: ids.includes('critFailure')
+    outcome: woundCrash || ids.includes('critFailure')
       ? 'critical-failure'
       : ids.includes('critSuccess')
         ? 'critical-success'
         : 'normal',
-    complication: ids.includes('complication'),
+    complication: ids.includes('complication') || woundCrash,
   }
 }
 

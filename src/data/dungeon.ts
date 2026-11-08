@@ -200,7 +200,7 @@ export const SUNKEN_CRYPT: Dungeon = {
       secret: {
         text: 'a vial tucked beneath a loose mosaic tile',
         difficulty: 5,
-        reward: { itemId: 'antidote', count: 1 },
+        reward: { itemId: 'antivenom', count: 1 },
       },
       interactions: [
         {
@@ -407,7 +407,7 @@ export const SUNKEN_CRYPT: Dungeon = {
       secret: {
         text: 'a glass vial glinting in the shallows',
         difficulty: 5,
-        reward: { itemId: 'antidote', count: 1 },
+        reward: { itemId: 'antivenom', count: 1 },
       },
       interactions: [
         {

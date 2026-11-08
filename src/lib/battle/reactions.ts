@@ -1,3 +1,4 @@
+import { canUseFastOrTriggered } from './conditionRules'
 import { withBonus, type SkillTestOutcome } from '../skillTest'
 import { commitResource, releaseCommitment, resourceAvailable, type Commitment } from './tokens'
 import type { Engine } from './state'
@@ -16,7 +17,7 @@ const INTERCEPT_COST: Cost = { tokenId: 'resolve', amount: 1 }
 
 /** Whether a player is standing, knows the ability, and can pay for it. */
 export function canReact(p: BattlePlayer, abilityId: string, cost: Cost | null): boolean {
-  if (p.hp <= 0 || !p.abilityIds.includes(abilityId)) return false
+  if (p.hp <= 0 || !p.abilityIds.includes(abilityId) || !canUseFastOrTriggered(p)) return false
   return !cost || resourceAvailable(p, cost.tokenId) >= cost.amount
 }
 

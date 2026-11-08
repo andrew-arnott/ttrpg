@@ -26,12 +26,25 @@ assert.match(
 await shot('prompt', true)
 
 for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'End turn' }).click()
-await page.waitForSelector('.resolution')
-await page.waitForSelector('.clash', { timeout: 60000 })
-await shot('clash')
-console.log('clash:', (await page.locator('.clash').innerText()).replace(/\n+/g, ' | '))
-
-await skipOverlay(page)
+let sawClash = false
+for (let i = 0; i < 80; i++) {
+  if ((await page.locator('.clash').count()) > 0 && !sawClash) {
+    sawClash = true
+    await shot('clash')
+    console.log('clash:', (await page.locator('.clash').innerText()).replace(/\n+/g, ' | '))
+  }
+  if ((await page.locator('.resolution').count()) > 0) {
+    if (sawClash) await skipOverlay(page)
+    else await page.waitForTimeout(500)
+  } else if ((await page.getByRole('button', { name: 'No thanks' }).count()) > 0) {
+    await page.getByRole('button', { name: 'No thanks' }).click()
+  } else if ((await page.locator('.card-head .step-index', { hasText: 'Round 2' }).count()) > 0) {
+    break
+  } else {
+    await page.waitForTimeout(300)
+  }
+}
+assert.ok(sawClash, 'the enemy attack clash should be shown')
 assert.match(await page.locator('.card-head .step-index', { hasText: 'Round' }).first().innerText(), /Round 2/i)
 
 console.log('battle check passed')

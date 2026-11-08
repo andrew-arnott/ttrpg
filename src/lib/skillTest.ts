@@ -1,5 +1,5 @@
 import type { SpecialKey, TokenStack } from '../data/types'
-import { drawTest, type Rng, type TestResult } from './drawTest'
+import { drawTest, type DrawRules, type Rng, type TestResult } from './drawTest'
 
 export interface TestBonus {
   label: string
@@ -32,8 +32,9 @@ export function performSkillTest(
   rng: Rng,
   penalty = 0,
   bonuses: TestBonus[] = [],
+  rules: DrawRules = {},
 ): SkillTestOutcome {
-  const result = drawTest(bag, rng)
+  const result = drawTest(bag, rng, rules)
   const total = result.total + attributeValue + bonuses.reduce((sum, b) => sum + b.value, 0)
   const passed =
     result.outcome === 'critical-success' ||

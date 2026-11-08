@@ -1,6 +1,8 @@
 import type { Rng } from '../drawTest'
 import type { ResolutionStep } from '../resolution'
 import { availableCombatActions, performAction } from './actions'
+import { actionsThisTurn } from './conditionRules'
+import { releaseAtRoundEnd } from './conditions'
 import { enemyActions, resetRoundState } from './enemies'
 import { offerFollowUps } from './followUps'
 import { addStep, createEngine, finalStep, type Engine } from './state'
@@ -16,7 +18,7 @@ export function currentPlayer(b: BattleState): BattlePlayer | null {
 
 function advanceTurn(b: BattleState) {
   const current = b.players[b.turnIndex]
-  if (b.actionsUsed < ACTIONS_PER_TURN && current && current.hp > 0) return
+  if (current && current.hp > 0 && b.actionsUsed < actionsThisTurn(current, b.round)) return
   const next = b.players.findIndex((p, i) => i > b.turnIndex && p.hp > 0)
   b.actionsUsed = 0
   if (next === -1) {
@@ -70,6 +72,7 @@ function enemyPhaseFlow(engine: Engine) {
   })
   enemyActions(engine)
   resetRoundState(b)
+  if (b.result === 'ongoing') releaseAtRoundEnd(engine)
 
   if (b.result === 'ongoing') {
     b.round += 1

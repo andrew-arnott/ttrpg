@@ -1,7 +1,7 @@
 import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
 import { linkKey, type Dungeon, type DungeonLink, type DungeonRoom, type Lock } from '../data/dungeon'
 import type { SpecialSpread, TokenStack } from '../data/types'
-import { startBattle, type BattleState, type SurpriseCheck } from './battle'
+import { releaseAllConditions, startBattle, type BattleState, type SurpriseCheck } from './battle'
 import type { Rng } from './drawTest'
 import { burnInterval, lightTorch, torchLevel, TORCH_LEVEL_LABEL, type TorchLevel, type TorchState } from './torch'
 
@@ -315,8 +315,10 @@ export function endBattle(state: DungeonState): DungeonState {
   const { battle } = state
   if (!battle) return state
   const party = state.party.map((m) => {
-    const fought = battle.players.find((p) => p.key === m.key)
-    if (!fought) return m
+    const found = battle.players.find((p) => p.key === m.key)
+    if (!found) return m
+    const fought = { ...found }
+    releaseAllConditions(fought)
     return {
       ...m,
       hp: Math.max(1, fought.hp),

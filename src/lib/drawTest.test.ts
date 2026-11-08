@@ -50,6 +50,22 @@ describe('drawTest', () => {
   })
 })
 
+describe('drawTest with condition rules', () => {
+  it('starts with a sealed Curse that is not in the bag', () => {
+    const r = drawTest([{ tokenId: 'plus3', count: 1 }], mulberry32(1), { startWith: ['curse'] })
+    expect(r.drawn.map((d) => d.tokenId)).toEqual(['curse', 'plus3'])
+    expect(r.total).toBe(2)
+  })
+
+  it('turns a second Wound into a Critical Failure', () => {
+    const bag = [{ tokenId: 'wound', count: 1 }]
+    const r = drawTest(bag, mulberry32(1), { woundSealed: true })
+    expect(r.outcome).toBe('critical-failure')
+    expect(r.complication).toBe(true)
+    expect(drawTest(bag, mulberry32(1)).outcome).toBe('normal')
+  })
+})
+
 describe('simulate', () => {
   it('converges on the exact statistics for the standard bag', () => {
     const exact = bagStats(STANDARD_BAG)

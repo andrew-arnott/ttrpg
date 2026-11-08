@@ -1,4 +1,5 @@
 import { ABILITY_HANDLERS, unsupportedAbility } from './abilities'
+import { canAttack, canUseFastOrTriggered } from './conditionRules'
 import { attackEnemy, changeEngagement, defend } from './effects'
 import {
   abilityById,
@@ -15,6 +16,9 @@ import { engageTargetLabel } from './engagement'
 import { boostOption, commitResource, resourceAvailable, commitmentValue, noCommitment, releaseCommitment, type Commitment } from './tokens'
 import { enemyTargets, groupTargets, resourceGate } from './targets'
 import type { BattlePlayer, BattleState, CombatOption, PlannedCombat } from './types'
+
+const FEAR_REASON = 'Fear: you cannot attack'
+const INSANITY_REASON = 'Insanity: no Fast abilities'
 
 function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
   return p.abilityIds
@@ -33,8 +37,14 @@ function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
           description: `${ability.cost !== '—' ? `${ability.cost}. ` : ''}${ability.text}`,
         },
       })
-      const boost = ability.types.includes('Fight') ? boostOption(p, 'power') : undefined
-      return boost ? options.map((o) => ({ ...o, boost })) : options
+      const fights = ability.types.includes('Fight')
+      const boost = fights ? boostOption(p, 'power') : undefined
+      const blocked = fights && !canAttack(p) ? FEAR_REASON : ability.types.includes('Fast') && !canUseFastOrTriggered(p) ? INSANITY_REASON : undefined
+      return options.map((o) => ({
+        ...o,
+        ...(boost ? { boost } : {}),
+        disabledReason: o.disabledReason ?? blocked,
+      }))
     })
 }
 
@@ -50,7 +60,7 @@ export function availableCombatActions(b: BattleState, p: BattlePlayer): CombatO
       targets: enemyTargets(livingEnemies(b), engaged),
       requiresEngaged: true,
       boost: boostOption(p, 'power'),
-      disabledReason: livingEnemies(b).length === 0 ? 'No enemy to target' : undefined,
+      disabledReason: !canAttack(p) ? FEAR_REASON : livingEnemies(b).length === 0 ? 'No enemy to target' : undefined,
     },
     {
       id: 'defend',
@@ -129,8 +139,8 @@ export function performAction(engine: Engine, p: BattlePlayer, planned: PlannedC
   releaseCommitment(p, boostCommit)
 }
 
-/** What to pre-select for a player: attack an engaged enemy if there is one, otherwise defend. */
+/** What to pre-select for a player: attack an engaged enemy if they can, otherwise defend. */
 export function suggestedAction(b: BattleState, p: BattlePlayer): PlannedCombat {
   const target = engagedEnemies(b, p)[0]
-  return target ? { actionId: 'attack', targetId: target.id } : { actionId: 'defend' }
+  return target && canAttack(p) ? { actionId: 'attack', targetId: target.id } : { actionId: 'defend' }
 }

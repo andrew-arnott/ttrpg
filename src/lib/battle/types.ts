@@ -33,6 +33,14 @@ export interface BattlePlayer {
   colorIndex: number
   /** Triggered abilities already used this round that only work once per round. */
   usedThisRound?: string[]
+  /** Condition tokens sealed on this character. They return to the bag when released. */
+  sealedConditions?: SealedCondition[]
+}
+
+export interface SealedCondition {
+  tokenId: string
+  /** The round it was sealed in. A condition cannot be released in the round it was sealed. */
+  round: number
 }
 
 export interface SealedToken {
@@ -90,8 +98,10 @@ export interface ReactionRequest {
   prompt: string
   /** What using it costs, for display. */
   cost: string
-  /** Enemies the player may choose between, for abilities that make another attack. */
+  /** Choices to pick between, such as the enemy for another attack or the condition to release. */
   targets?: TargetChoice[]
+  /** The question must be answered with a choice; there is no declining. */
+  required?: boolean
 }
 
 export interface ReactionAnswer {

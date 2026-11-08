@@ -4,8 +4,10 @@ import {
   availableCombatActions,
   currentPlayer,
   endTurn,
+  actionsThisTurn,
   enemyDefense,
   engageBreakdown,
+  releaseAllConditions,
   respondToReaction,
   engageDifficulty,
   runEnemyPhase,
@@ -778,6 +780,157 @@ describe('Triggered abilities', () => {
     it('works again the next round', () => {
       const { battle } = playRound(flank(), { r: turn(attack('e')) }, rng())
       expect(battle.players[0].usedThisRound).toEqual([])
+    })
+  })
+})
+
+describe('conditions', () => {
+  const sealedTypes = (p: BattlePlayer) => (p.sealedConditions ?? []).map((c) => c.tokenId)
+
+  it('seals a condition drawn in a failed test, and poison hurts for each Poison sealed', () => {
+    const b = duel({ bag: [{ tokenId: 'poison', count: 1 }], hp: 10 }, { hp: 9 })
+    const { battle, steps } = playRound(b, { p: turn(attack('e')) }, rng())
+    const me = battle.players[0]
+    expect(sealedTypes(me)).toEqual(['poison'])
+    expect(countInBag(me.bag, 'poison')).toBe(0)
+    expect(steps[0].outcome).toMatch(/\(9\/10 HP\)/)
+    expect(steps[0].outcome).toMatch(/Poison is sealed on p\./)
+    expect(steps[0].outcome).toMatch(/takes 1 poison damage/)
+  })
+
+  it('leaves a condition in the bag when the test succeeds', () => {
+    const b = duel({ bag: [{ tokenId: 'poison', count: 1 }, ...ALWAYS_PASS], hp: 10 }, { hp: 9 })
+    b.players[0].special = { ...flat, strength: 9 }
+    const { battle } = playRound(b, { p: turn(attack('e')) }, rng())
+    expect(sealedTypes(battle.players[0])).toEqual([])
+  })
+
+  it('makes a second Wound a Critical Failure and seals it', () => {
+    const b = duel({ bag: [{ tokenId: 'wound', count: 1 }], sealedConditions: [{ tokenId: 'wound', round: 1 }] }, { hp: 9 })
+    const { battle, steps } = playRound(b, { p: turn(attack('e')) }, rng())
+    expect(steps[0].test?.result.outcome).toBe('critical-failure')
+    expect(sealedTypes(battle.players[0])).toEqual(['wound', 'wound'])
+  })
+
+  it('starts a test with a sealed Curse, which is released if the test succeeds and stays sealed if it fails', () => {
+    const cursed = { sealedConditions: [{ tokenId: 'curse', round: 1 }] }
+    const won = duel({ bag: ALWAYS_PASS, ...cursed }, { hp: 9 })
+    const passed = playRound(won, { p: turn(attack('e')) }, rng())
+    expect(passed.steps[0].test?.result.drawn[0].tokenId).toBe('curse')
+    expect(sealedTypes(passed.battle.players[0])).toEqual([])
+    expect(countInBag(passed.battle.players[0].bag, 'curse')).toBe(1)
+
+    const lost = duel({ bag: ALWAYS_FAIL, ...cursed }, { hp: 9 })
+    expect(sealedTypes(playRound(lost, { p: turn(attack('e')) }, rng()).battle.players[0])).toEqual(['curse'])
+  })
+
+  it('Fear stops attacks, Insanity stops Fast abilities and Reactions', () => {
+    const afraid = duel({ abilityIds: ['provoke', 'slipAway'], sealedConditions: [{ tokenId: 'fear', round: 1 }] })
+    const options = availableCombatActions(afraid, afraid.players[0])
+    expect(options.find((o) => o.id === 'attack')!.disabledReason).toMatch(/Fear/)
+    expect(options.find((o) => o.id === 'ability:provoke')!.disabledReason).toMatch(/Fear/)
+    expect(options.find((o) => o.id === 'ability:slipAway')!.disabledReason).toBeUndefined()
+    expect(suggestedAction(afraid, afraid.players[0])).toEqual({ actionId: 'defend' })
+
+    const mad = duel({ abilityIds: ['slipAway'], sealedConditions: [{ tokenId: 'insanity', round: 1 }] })
+    expect(availableCombatActions(mad, mad.players[0]).find((o) => o.id === 'ability:slipAway')!.disabledReason).toMatch(/Insanity/)
+
+    const unsound = battleOf(
+      [player('p', { bag: ALWAYS_PASS }), player('r', { professionId: 'priest', abilityIds: ['prayer'], sealedConditions: [{ tokenId: 'insanity', round: 1 }] })],
+      [enemy('goblin', 'e', { hp: 9 })],
+      { p: 'g1', r: 'g1', e: 'g1' },
+    )
+    unsound.players[0].bag = bagOf('plus0')
+    expect(takeAction(unsound, attack('e'), rng()).battle.pending).toBeFalsy()
+  })
+
+  it('Fatigue costs an action from the round after it was sealed', () => {
+    const tired = player('p', { sealedConditions: [{ tokenId: 'fatigue', round: 1 }] })
+    expect(actionsThisTurn(tired, 1)).toBe(2)
+    expect(actionsThisTurn(tired, 2)).toBe(1)
+    expect(actionsThisTurn({ ...tired, sealedConditions: [{ tokenId: 'fatigue', round: 1 }, { tokenId: 'fatigue', round: 1 }] }, 2)).toBe(1)
+  })
+
+  describe('from enemy attacks', () => {
+    const smashed = (others: Partial<BattlePlayer> = {}) =>
+      battleOf(
+        [player('p', { hp: 20 }), player('r', { professionId: 'priest', abilityIds: ['divineIntervention'], ...others })],
+        [enemy('troll', 't')],
+        { p: 'g1', r: 'g2', t: 'g1' },
+      )
+    const endAll: BattlePlan = { p: turn(), r: turn() }
+
+    it('adds the condition token to the bag of whoever is hit', () => {
+      const { battle, steps } = playRound(smashed(), endAll, rng())
+      expect(countInBag(battle.players[0].bag, 'wound')).toBe(1)
+      expect(steps.find((s) => s.title === 'Club Smash')!.outcome).toMatch(/gains a Wound token/)
+    })
+
+    it('can be prevented by Divine Intervention, which costs 1 Faith', () => {
+      const { battle } = playRound(smashed(), endAll, rng(), acceptAll)
+      expect(countInBag(battle.players[0].bag, 'wound')).toBe(0)
+      expect(battle.players[1].resources.faith).toBe(2)
+      expect(countInBag(battle.players[1].bag, 'faith')).toBe(1)
+    })
+
+    it('is not offered to the one who would gain it', () => {
+      const b = battleOf([player('r', { hp: 20, professionId: 'priest', abilityIds: ['divineIntervention'] })], [enemy('troll', 't')], { r: 'g1', t: 'g1' })
+      const { seen, reactions } = (() => {
+        const seen: string[] = []
+        return { seen, reactions: ((r) => (seen.push(r.abilityId), { use: false })) as Reactions }
+      })()
+      playRound(b, { r: turn() }, rng(), reactions)
+      expect(seen).not.toContain('divineIntervention')
+    })
+  })
+
+  describe('releasing', () => {
+    const afflicted = (...conditions: { tokenId: string; round: number }[]) =>
+      battleOf([player('p', { sealedConditions: conditions }), player('q')], [enemy('goblin', 'e', { hp: 99 })], {
+        p: 'g1',
+        q: 'g2',
+        e: 'g2',
+      })
+    const endAll: BattlePlan = { p: turn(), q: turn() }
+
+    it('releases the only eligible condition at the end of the round', () => {
+      const { battle, steps } = playRound(afflicted({ tokenId: 'wound', round: 0 }), endAll, rng())
+      expect(sealedTypes(battle.players[0])).toEqual([])
+      expect(countInBag(battle.players[0].bag, 'wound')).toBe(1)
+      expect(steps.map((s) => s.title)).toContain('Condition released')
+    })
+
+    it('keeps a condition sealed during the round that is ending', () => {
+      const { battle } = playRound(afflicted({ tokenId: 'wound', round: 1 }), endAll, rng())
+      expect(sealedTypes(battle.players[0])).toEqual(['wound'])
+    })
+
+    it('asks which to release when there is a choice', () => {
+      let asked: string[] = []
+      const { battle } = playRound(afflicted({ tokenId: 'wound', round: 0 }, { tokenId: 'fear', round: 0 }), endAll, rng(), (r) => {
+        asked = r.targets!.map((t) => t.label)
+        return { use: true, targetId: '1' }
+      })
+      expect(asked).toEqual(['Wound', 'Fear'])
+      expect(sealedTypes(battle.players[0])).toEqual(['wound'])
+    })
+
+    it('returns everything to the bag when the fight is over', () => {
+      const p = player('p', { sealedConditions: [{ tokenId: 'wound', round: 1 }, { tokenId: 'poison', round: 1 }] })
+      releaseAllConditions(p)
+      expect(p.sealedConditions).toEqual([])
+      expect(countInBag(p.bag, 'poison')).toBe(1)
+    })
+
+    it('Cleanse releases all conditions on an ally', () => {
+      const b = battleOf(
+        [player('p', { sealedConditions: [{ tokenId: 'wound', round: 1 }, { tokenId: 'fear', round: 1 }] }), player('r', { professionId: 'priest', abilityIds: ['cleanse'] })],
+        [enemy('goblin', 'e', { hp: 99 })],
+        { p: 'g1', r: 'g1', e: 'g1' },
+      )
+      const { battle } = playRound(b, { p: turn(), r: turn({ actionId: 'ability:cleanse', targetId: 'p' }) }, rng())
+      expect(sealedTypes(battle.players[0])).toEqual([])
+      expect(countInBag(battle.players[0].bag, 'wound')).toBe(1)
     })
   })
 })

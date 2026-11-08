@@ -73,6 +73,8 @@ Two other sources feed the code:
 | Resting | Recovers one token from the bag into play: the profession's resource if the bag has one, otherwise Expertise, otherwise a Critical Success | `recoverForRest` in `tokenFlow.ts` |
 | Reactions | A Triggered ability is offered as a question when it comes up. Prayer is for allies only, for failed tests that are not Critical Failures (not Defend). Intercept is for single-target attacks, not area attacks; the +2 Defend is taken off that attack's Attack value. Cleave follows an attack that defeats an enemy, Opportunist any defeat in the reactor's group by an ally, and both are offered when the action ends. Nobody reacts during a surprise round. Flanking is automatic and needs a Cunning in the bag | `src/lib/battle/reactions.ts`, `followUps.ts` |
 | Sample party | Brann takes Provoke and Intercept, Wren Backstab and Flanking, Sister Maren Heal and Prayer, Ilvara Magic Missile and Fireball | `src/lib/roster.ts` |
+| Conditions | Enemy attacks can give a condition token (Cave Troll's Club Smash a Wound, the Barrow Warden's Grave Chill Fear). It goes in the bag; drawn in a failed test it is sealed and takes effect as the guide describes. A Fatigue takes effect from the round after it was sealed. At the end of each combat round everyone releases one condition sealed in an earlier round, choosing if there are several, and all are released when the fight ends. Divine Intervention is for allies only. Outside combat condition tokens are never sealed, they only drag the draw down | `src/lib/battle/conditions.ts`, `conditionRules.ts`, `data/enemies.ts` |
+| Treat Conditions | An Interval action. The patient tests at Difficulty 6 with the better of the two listed attributes; success removes the token from their bag for good, and the item is used up either way. Tend the Afflicted is not implemented | `treatCondition` in `intervalActions.ts` |
 | Fireball | X Mana (1 to 3 offered as separate options); the caster is hurt too if they stand in the target group; 3 Mana adds a Fatigue token | `fireball` in `battle.ts` |
 | Fortify | +2 Defense in round 1 for the character who prepared it | `FORTIFY_DEFENSE` |
 | Set an Ambush | A free attack on a random enemy at the start of the fight | `startBattle` |
@@ -87,20 +89,18 @@ them settled yet. Rows marked "owner ruling" were decided in conversation and wi
 | Surprise check | Each enemy has a concealment (Obvious, Concealed, Hidden). The current light level decides whether the party notices, must make a test, or is surprised, using a table. Keep Watch counts the light as one level brighter | Enemies make a Perception test against a base Difficulty adjusted by light and watchfulness. Keep watch is +2 (owner ruling, for now) |
 | Surprise round | Each combatant on the surprising side takes 1 action; the surprised side does not act | Enemies get a full round of attacks |
 | Engage and disengage | Agility test, Difficulty 6. Engage pulls an enemy into your group. Disengage leaves your group and may join another or form a new one | Agility, Difficulty from the formula in the assumptions table (4 base, up with enemies, down with allies). Owner is still workshopping it. A popup explains it the first time a player picks Change engagement |
-| Conditions | Wound, Poison, Insanity, Curse, Fatigue and Fear tokens (-1, Chain) go in the bag, are sealed when they contribute to a failed test, have their own effects, and are released one per combat round and all at the end of an Interval | Not implemented, apart from Fireball's Fatigue note |
-| Treat Conditions | Interval action, Difficulty 6, needs the matching consumable | Not implemented |
-| Consumables | Torch, Bandage (treats Wounds), Antivenom, Laudanum, Holy Water, Stimulant, Liquid Courage, Health Potion (restores 1 HP), Rations; stack sizes 2 or 3; using one in combat costs 1 action | Torch, Ration, Bandage (heals 2 HP), Antidote, Smoke Bomb, Healing Potion (heals 4 HP). Prices are invented. Items cannot be used in combat |
+| Consumables | Torch, Bandage (treats Wounds), Antivenom, Laudanum, Holy Water, Stimulant, Liquid Courage, Health Potion (restores 1 HP), Rations; stack sizes 2 or 3; using one in combat costs 1 action | The treatments are in, but Bandage also heals 2 HP, Healing Potion heals 4 HP, Smoke Bomb is not in the guide, and prices are invented. Items cannot be used in combat. The new treatments reuse existing icons |
 | Inventory | 6 inventory slots, stacking, and four equipment slots (Main Hand, Off Hand, Body, Accessory), plus tools such as Rope and Thieves' Tools | No slot limit, no equipment slots, no tools |
 | Healing | Heal restores 2 HP, Group Heal 1 HP, Health Potion 1 HP | Items heal more than the guide, which makes the tutorial easier than the guide's numbers imply |
 | Mana | Mana drawn in a test goes into play only if the test succeeds | Done in battle |
 
 ## Not implemented yet
 
-- Divine Intervention (needs conditions).
+- Tend the Afflicted.
 - Prayer for exploration tests; resource tokens drawn in exploration tests.
 - Combat abilities shown greyed out as "Not in the sample battle yet": Shield Wall, Cleanse, Chain Lightning, Transpose,
   Arcane Focus.
-- Acquiring condition tokens (Wound, Poison, Fear and so on) from enemy attacks, and the abilities that remove them.
+- Conditions from complications (a trigger that adds a token), and Insanity or Curse effects outside combat.
 - Species traits that are not bag changes (Catfolk Foresight, Jann Exchange, Verdant Accumulated Knowledge) and
   background abilities: flavour only.
 - Room preparations other than Fortify and Ambush (Secure Area, Barricade) are recorded but have no effect in a fight.

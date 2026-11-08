@@ -4,11 +4,14 @@ import { drawTest, drewComplication, type TestResult } from '../drawTest'
 import { performSkillTest, type SkillTestOutcome, type TestBonus } from '../skillTest'
 import { recoverToken } from '../tokenFlow'
 import { engageBreakdown, engageDifficulty } from './engagement'
+import { drawRulesFor } from './conditionRules'
+import { gainCondition, resolveConditions } from './conditions'
 import { INTERCEPT_DEFENSE, offerIntercept, offerPrayer } from './reactions'
 import { putDrawnResourcesInPlay, releaseCommitment, type Commitment } from './tokens'
 import {
   adjustBag,
   addStep,
+  dealDamageToPlayer,
   describeGroup,
   enemiesInGroup,
   enemyActorOf,
@@ -31,9 +34,9 @@ import type { BattleEnemy, BattlePlayer, BattleState } from './types'
 
 /**
  * Shields wait in play for the next damage, Bless tokens are used up once drawn, and drawn
- * resource tokens go into play.
+ * resource tokens go into play. Conditions drawn in a failed test are sealed.
  */
-export function afterTest(p: BattlePlayer, result: TestResult, succeeded: boolean) {
+export function afterTest(engine: Engine, p: BattlePlayer, result: TestResult, succeeded: boolean) {
   const shields = result.drawn.filter((d) => d.tokenId === 'shield').length
   if (shields > 0) {
     p.shieldsInPlay += shields
@@ -42,18 +45,7 @@ export function afterTest(p: BattlePlayer, result: TestResult, succeeded: boolea
   const blessed = result.drawn.filter((d) => d.tokenId === 'bless').length
   if (blessed > 0) p.bag = adjustBag(p.bag, 'bless', -blessed)
   putDrawnResourcesInPlay(p, result, succeeded)
-}
-
-export function dealDamageToPlayer(p: BattlePlayer, amount: number): { dealt: number; absorbed: number } {
-  if (amount <= 0) return { dealt: 0, absorbed: 0 }
-  const absorbed = Math.min(p.shieldsInPlay, amount)
-  if (p.shieldsInPlay > 0) {
-    p.bag = adjustBag(p.bag, 'shield', p.shieldsInPlay)
-    p.shieldsInPlay = 0
-  }
-  const dealt = amount - absorbed
-  p.hp = Math.max(0, p.hp - dealt)
-  return { dealt, absorbed }
+  resolveConditions(engine, p, result, succeeded)
 }
 
 export function releaseSealedTokens(b: BattleState, e: BattleEnemy) {
@@ -84,7 +76,7 @@ export interface StrikeOptions {
 export function strikePlayer(
   engine: Engine,
   e: BattleEnemy,
-  attack: Pick<EnemyAttack, 'name' | 'attackValue' | 'damage'>,
+  attack: Pick<EnemyAttack, 'name' | 'attackValue' | 'damage' | 'condition'>,
   target: BattlePlayer,
   intro: string,
   options: StrikeOptions = {},
@@ -136,6 +128,7 @@ export function strikePlayer(
     absorbed > 0 ? `${absorbed} absorbed by Shield.` : '',
   ].filter(Boolean)
   const falls = target.hp === 0 ? ` ${target.name} falls!` : ''
+  const gained = attack.condition ? ` ${gainCondition(engine, target, attack.condition)}` : ''
   addStep(engine, {
     actor: enemyActorOf(e),
     title: attack.name,
@@ -144,8 +137,8 @@ export function strikePlayer(
     clash,
     outcome:
       dealt > 0
-        ? `${target.name} takes ${dealt} damage (${target.hp}/${target.maxHp} HP).${notes.length ? ` ${notes.join(' ')}` : ''}${falls}`
-        : `The blow lands but does no damage. ${notes.join(' ')}`.trim(),
+        ? `${target.name} takes ${dealt} damage (${target.hp}/${target.maxHp} HP).${notes.length ? ` ${notes.join(' ')}` : ''}${falls}${gained}`
+        : `The blow lands but does no damage. ${notes.join(' ')}${gained}`.trim(),
     tone: dealt > 0 ? 'failure' : 'neutral',
   })
   updateResult(engine.b)
@@ -208,9 +201,9 @@ export function playerTest(
   difficulty: number,
   bonuses: TestBonus[] = [],
 ): SkillTestOutcome {
-  const rolled = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng, 0, bonuses)
+  const rolled = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng, 0, bonuses, drawRulesFor(p))
   const test = offerPrayer(engine, p, rolled)
-  afterTest(p, test.result, test.passed)
+  afterTest(engine, p, test.result, test.passed)
   return test
 }
 
@@ -297,11 +290,11 @@ export function sealOn(p: BattlePlayer, e: BattleEnemy, commit: Commitment): str
 
 export function defend(engine: Engine, p: BattlePlayer, armor = 0) {
   const attribute = DEFEND_ATTRIBUTE
-  const result = drawTest(p.bag, engine.rng)
+  const result = drawTest(p.bag, engine.rng, drawRulesFor(p))
   const attributeValue = p.special[attribute]
   const total = result.total + attributeValue + armor
   const failed = result.outcome === 'critical-failure'
-  afterTest(p, result, !failed)
+  afterTest(engine, p, result, !failed)
   const gain = failed ? 0 : Math.max(0, total)
   const before = p.defense
   p.defense += gain

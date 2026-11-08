@@ -47,6 +47,7 @@ export function EnemyStatCard({ enemy }: { enemy: BattleEnemy }) {
           <li key={a.name}>
             <b>{a.name}</b>: attack {a.attackValue}, {a.damage} damage
             {a.area && ', hits everyone in the room'}
+            {a.condition && `, adds ${TOKENS[a.condition]?.name ?? a.condition} to the bag of whoever it hits`}
           </li>
         ))}
       </ul>

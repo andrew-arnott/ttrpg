@@ -32,7 +32,7 @@ import {
 } from './dungeonState'
 import { playerActor, type ResolutionStep, type StepTone } from './resolution'
 import { performSkillTest, type SkillTestOutcome } from './skillTest'
-import { canRest, recoverForRest, type TokenHolder } from './tokenFlow'
+import { adjustBag, canRest, countInBag, recoverForRest, type TokenHolder } from './tokenFlow'
 import { burnInterval, TORCH_LEVEL_LABEL, totalIntervals, torchLevel } from './torch'
 
 export type ActionId =
@@ -40,6 +40,7 @@ export type ActionId =
   | 'rest'
   | 'watch'
   | `use:${string}`
+  | `treat:${string}`
   | `interact:${string}`
   | `unlock:${string}`
   | `ability:${string}`
@@ -84,6 +85,26 @@ function resourceName(member: PartyMember): string {
   return TOKENS[member.restResourceId]?.name ?? 'resource'
 }
 
+export const TREAT_DIFFICULTY = 6
+
+function treatmentOptions(state: DungeonState, member: PartyMember): ActionOption[] {
+  return ITEMS.flatMap((item) => {
+    const treats = item.treats
+    if (!treats || (member.inventory[item.id] ?? 0) <= 0) return []
+    const condition = TOKENS[treats.condition]?.name ?? treats.condition
+    return state.party
+      .filter((patient) => countInBag(patient.bag, treats.condition) > 0)
+      .map(
+        (patient): ActionOption => ({
+          id: `treat:${item.id}:${patient.key}`,
+          group: 'Basic',
+          label: `Treat ${patient.key === member.key ? 'your' : `${patient.name}'s`} ${condition} with ${withArticle(item.name.toLowerCase())}`,
+          description: `The patient makes a test (Difficulty ${TREAT_DIFFICULTY}). On success the ${condition} token is removed from their bag for good. The ${item.name.toLowerCase()} is used up either way.`,
+        }),
+      )
+  })
+}
+
 export function availableActions(state: DungeonState, member: PartyMember): ActionOption[] {
   const room = roomById(state.dungeon, state.roomId)
   const passages = passagesOf(state)
@@ -120,6 +141,7 @@ export function availableActions(state: DungeonState, member: PartyMember): Acti
         disabledReason: state.party.some((m) => m.hp < m.maxHp) ? undefined : 'Nobody is hurt',
       }),
     ),
+    ...treatmentOptions(state, member),
     ...room.interactions.map(
       (i): ActionOption => ({
         id: `interact:${i.id}`,
@@ -301,6 +323,47 @@ function healWithItem(ctx: Context, itemId: string): Resolution {
     `${hurt.name} recovers ${healed} HP (${hurt.hp + healed}/${hurt.maxHp}).`,
     'success',
     next,
+  )
+}
+
+function treatCondition(ctx: Context, itemId: string, patientKey: string): Resolution {
+  const { member, state } = ctx
+  const item = ITEMS_BY_ID[itemId]
+  const patient = state.party.find((m) => m.key === patientKey)
+  const treats = item?.treats
+  if (!treats || !patient || (member.inventory[itemId] ?? 0) <= 0 || countInBag(patient.bag, treats.condition) <= 0) {
+    return keepWatch(ctx)
+  }
+  const [first, second] = treats.attributes
+  const attribute =
+    second && patient.special[second] > patient.special[first] ? second : first
+  const test = performSkillTest(
+    patient.bag,
+    attribute,
+    patient.special[attribute],
+    TREAT_DIFFICULTY,
+    ctx.rng,
+    ctx.penalty,
+  )
+  const condition = TOKENS[treats.condition]?.name ?? treats.condition
+  const spent = updateMember(state, member.key, (m) => ({
+    ...m,
+    inventory: { ...m.inventory, [itemId]: (m.inventory[itemId] ?? 0) - 1 },
+  }))
+  const next = test.passed
+    ? updateMember(spent, patient.key, (m) => ({ ...m, bag: adjustBag(m.bag, treats.condition, -1) }))
+    : spent
+  const who = patient.key === member.key ? 'themselves' : patient.name
+  return narrate(
+    ctx,
+    'Treat a condition',
+    `${member.name} treats ${who} with ${withArticle(item.name.toLowerCase())}.`,
+    test.passed
+      ? `The ${condition} token is removed from ${patient.name}'s bag.`
+      : `The treatment does not take. The ${condition} token stays, and the ${item.name.toLowerCase()} is used up.`,
+    test.passed ? 'success' : 'failure',
+    next,
+    test,
   )
 }
 
@@ -500,6 +563,10 @@ function resolveAction(ctx: Context): Resolution {
   if (id === 'rest') return rest(ctx)
   if (id === 'watch') return keepWatch(ctx)
   if (id.startsWith('use:')) return healWithItem(ctx, id.slice('use:'.length))
+  if (id.startsWith('treat:')) {
+    const [, itemId, patientKey] = id.split(':')
+    return treatCondition(ctx, itemId, patientKey)
+  }
   if (id.startsWith('interact:')) return interact(ctx, id.slice('interact:'.length))
   if (id.startsWith('unlock:')) {
     const [, lockId, optionId] = id.split(':')

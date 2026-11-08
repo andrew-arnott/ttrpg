@@ -11,6 +11,8 @@ export interface EnemyAttack {
   damage: number
   /** Hits every player in the room, unless the enemy is Provoked. */
   area?: boolean
+  /** A condition token the target gains in their bag when the attack hits. */
+  condition?: string
 }
 
 export type TriggerEffect =
@@ -58,7 +60,7 @@ export const ENEMIES: EnemyDef[] = [
     hp: 4,
     defense: 5,
     attacks: [
-      { name: 'Club Smash', attackValue: 6, damage: 2 },
+      { name: 'Club Smash', attackValue: 6, damage: 2, condition: 'wound' },
       { name: 'Ground Slam', attackValue: 3, damage: 1, area: true },
     ],
     triggers: [
@@ -92,7 +94,7 @@ export const ENEMIES: EnemyDef[] = [
     defense: 5,
     attacks: [
       { name: 'Rusted Greatsword', attackValue: 6, damage: 2 },
-      { name: 'Grave Chill', attackValue: 3, damage: 1, area: true },
+      { name: 'Grave Chill', attackValue: 3, damage: 1, area: true, condition: 'fear' },
     ],
     triggers: [
       {

@@ -129,6 +129,10 @@ for (let step = 0; step < MAX_STEPS; step++) {
       await shot('party-fell', true)
       outcome = 'party fell'
       break
+    } else if ((await page.getByRole('button', { name: 'No thanks' }).count()) > 0) {
+      await page.getByRole('button', { name: 'No thanks' }).click()
+    } else if ((await page.getByRole('button', { name: 'Release it' }).count()) > 0) {
+      await page.getByRole('button', { name: 'Release it' }).click()
     } else {
       await page.getByRole('button', { name: /^(Do it|Use it)/ }).click()
     }

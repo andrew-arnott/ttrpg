@@ -9,10 +9,13 @@ import {
   engagedEnemies,
   groupOf,
   livingEnemies,
+  addStep,
   moveToGroup,
+  playerActorOf,
   type Engine,
 } from './state'
 import { resourceAvailable, type Commitment } from './tokens'
+import { cleanse } from './conditions'
 import { allyTargets, enemyTargets, groupTargets } from './targets'
 
 const UNSUPPORTED = 'Not in the sample battle yet'
@@ -147,6 +150,20 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     options: allyOptions,
     perform: ({ engine, p, ally }) => {
       if (ally) healAlly(engine, p, ally)
+    },
+  },
+  cleanse: {
+    options: allyOptions,
+    perform: ({ engine, p, ally }) => {
+      if (!ally) return
+      const released = cleanse(ally)
+      addStep(engine, {
+        actor: playerActorOf(p),
+        title: 'Cleanse',
+        intro: `${p.name} washes the taint from ${ally.name}.`,
+        outcome: released > 0 ? `${released} sealed condition${released === 1 ? '' : 's'} returned to ${ally.name}'s bag.` : `${ally.name} has nothing sealed.`,
+        tone: released > 0 ? 'success' : 'neutral',
+      })
     },
   },
   blessAbility: {
