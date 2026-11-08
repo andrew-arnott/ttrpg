@@ -8,7 +8,9 @@ export interface SkillTestOutcome {
   /** Extra Difficulty from circumstances such as working in the dark. */
   penalty: number
   result: TestResult
-  /** Token total plus the attribute. */
+  /** Armor, Power or the like committed before the draw. Already included in `total`. */
+  bonus?: { label: string; value: number }
+  /** Token total plus the attribute and any bonus. */
   total: number
   passed: boolean
 }
@@ -24,11 +26,12 @@ export function performSkillTest(
   difficulty: number,
   rng: Rng,
   penalty = 0,
+  bonus?: { label: string; value: number },
 ): SkillTestOutcome {
   const result = drawTest(bag, rng)
-  const total = result.total + attributeValue
+  const total = result.total + attributeValue + (bonus?.value ?? 0)
   const passed =
     result.outcome === 'critical-success' ||
     (result.outcome !== 'critical-failure' && total >= difficulty + penalty)
-  return { attribute, attributeValue, difficulty, penalty, result, total, passed }
+  return { attribute, attributeValue, difficulty, penalty, bonus, result, total, passed }
 }

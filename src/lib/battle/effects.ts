@@ -4,6 +4,7 @@ import { drawTest, drewComplication, type TestResult } from '../drawTest'
 import type { SkillTestOutcome } from '../skillTest'
 import { performSkillTest } from '../skillTest'
 import { engageBreakdown, engageDifficulty } from './engagement'
+import { putDrawnResourcesInPlay, type Commitment } from './tokens'
 import {
   adjustBag,
   addStep,
@@ -26,8 +27,11 @@ import {
 import { ATTACK_ATTRIBUTE, DEFEND_ATTRIBUTE, ENGAGE_ATTRIBUTE, HEAL_AMOUNT, NEW_GROUP } from './types'
 import type { BattleEnemy, BattlePlayer, BattleState } from './types'
 
-/** Shields wait in play for the next damage; Bless tokens are used up once drawn. */
-export function afterTest(p: BattlePlayer, result: TestResult) {
+/**
+ * Shields wait in play for the next damage, Bless tokens are used up once drawn, and drawn
+ * resource tokens go into play.
+ */
+export function afterTest(p: BattlePlayer, result: TestResult, succeeded: boolean) {
   const shields = result.drawn.filter((d) => d.tokenId === 'shield').length
   if (shields > 0) {
     p.shieldsInPlay += shields
@@ -35,6 +39,7 @@ export function afterTest(p: BattlePlayer, result: TestResult) {
   }
   const blessed = result.drawn.filter((d) => d.tokenId === 'bless').length
   if (blessed > 0) p.bag = adjustBag(p.bag, 'bless', -blessed)
+  putDrawnResourcesInPlay(p, result, succeeded)
 }
 
 export function dealDamageToPlayer(p: BattlePlayer, amount: number): { dealt: number; absorbed: number } {
@@ -52,7 +57,7 @@ export function dealDamageToPlayer(p: BattlePlayer, amount: number): { dealt: nu
 export function releaseSealedTokens(b: BattleState, e: BattleEnemy) {
   for (const sealed of e.sealed) {
     const owner = playerByKey(b, sealed.byKey)
-    if (owner) owner.resources[sealed.tokenId] = (owner.resources[sealed.tokenId] ?? 0) + 1
+    if (owner) owner.bag = adjustBag(owner.bag, sealed.tokenId, 1)
   }
   e.sealed = []
 }
@@ -170,9 +175,15 @@ export function runTriggers(engine: Engine, drawer: BattlePlayer, result: TestRe
   }
 }
 
-export function playerTest(engine: Engine, p: BattlePlayer, attribute: SpecialKey, difficulty: number): SkillTestOutcome {
-  const test = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng)
-  afterTest(p, test.result)
+export function playerTest(
+  engine: Engine,
+  p: BattlePlayer,
+  attribute: SpecialKey,
+  difficulty: number,
+  bonus?: { label: string; value: number },
+): SkillTestOutcome {
+  const test = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng, 0, bonus)
+  afterTest(p, test.result, test.passed)
   return test
 }
 
@@ -181,6 +192,8 @@ export interface AttackOptions {
   intro?: string
   attribute?: SpecialKey
   bonusDamage?: number
+  /** Power committed before the draw, added to the attack result. */
+  power?: number
   /** Called when the attack hits, for effects such as sealing a token. */
   onHit?: (e: BattleEnemy) => string
 }
@@ -189,7 +202,7 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
   const { b } = engine
   const attribute = options.attribute ?? ATTACK_ATTRIBUTE
   const defense = enemyDefense(e)
-  const test = playerTest(engine, p, attribute, defense)
+  const test = playerTest(engine, p, attribute, defense, options.power ? { label: 'Power', value: options.power } : undefined)
   const title = options.title ?? 'Attack'
   const intro = options.intro ?? `${p.name} attacks ${e.name}.`
   const might = test.result.drawn.filter((d) => d.tokenId === 'might').length
@@ -227,18 +240,28 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
   return true
 }
 
-export function sealOn(p: BattlePlayer, e: BattleEnemy, tokenId: string): string {
-  e.sealed.push({ tokenId, byKey: p.key })
-  return `${tokenName(tokenId)} is sealed on ${e.name}.`
+/** Seals the committed tokens on an enemy. They stay there until it is defeated. */
+export function sealOn(p: BattlePlayer, e: BattleEnemy, commit: Commitment): string {
+  for (const token of commit.tokens) {
+    token.sealed = true
+    const stoodIn = token.tokenId !== commit.resourceId
+    e.sealed.push({
+      tokenId: token.tokenId,
+      byKey: p.key,
+      ...(stoodIn ? { as: commit.resourceId, value: token.value } : {}),
+    })
+  }
+  const names = commit.tokens.map((t) => tokenName(t.tokenId)).join(' and ')
+  return `${names} ${commit.tokens.length > 1 ? 'are' : 'is'} sealed on ${e.name}.`
 }
 
-export function defend(engine: Engine, p: BattlePlayer) {
+export function defend(engine: Engine, p: BattlePlayer, armor = 0) {
   const attribute = DEFEND_ATTRIBUTE
   const result = drawTest(p.bag, engine.rng)
-  afterTest(p, result)
   const attributeValue = p.special[attribute]
-  const total = result.total + attributeValue
+  const total = result.total + attributeValue + armor
   const failed = result.outcome === 'critical-failure'
+  afterTest(p, result, !failed)
   const gain = failed ? 0 : Math.max(0, total)
   const before = p.defense
   p.defense += gain
@@ -247,6 +270,7 @@ export function defend(engine: Engine, p: BattlePlayer) {
     attributeValue,
     difficulty: 0,
     penalty: 0,
+    bonus: armor > 0 ? { label: 'Armor', value: armor } : undefined,
     result,
     total,
     passed: gain > 0,
@@ -259,7 +283,7 @@ export function defend(engine: Engine, p: BattlePlayer) {
     testMode: 'score',
     resultLine: failed
       ? `Critical Failure: nothing is added. Defense stays at ${p.defense}`
-      : `Tokens ${fmtSigned(result.total)} + Agility ${attributeValue} = ${total}: Defense ${before} \u2192 ${p.defense}`,
+      : `Tokens ${fmtSigned(result.total)} + Agility ${attributeValue}${armor > 0 ? ` + Armor ${armor}` : ''} = ${total}: Defense ${before} \u2192 ${p.defense}`,
     outcome:
       gain > 0
         ? `${p.name} has ${p.defense} Defense this round.`

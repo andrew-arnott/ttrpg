@@ -1,7 +1,8 @@
 import { PROFESSIONS } from '../../data/professions'
 import { TOKENS } from '../../data/tokens'
-import type { Ability, TokenStack } from '../../data/types'
+import type { Ability } from '../../data/types'
 import type { Rng } from '../drawTest'
+import { adjustBag } from '../tokenFlow'
 import { playerActor, type ResolutionStep, type StepActor } from '../resolution'
 import type { BattleEnemy, BattlePlayer, BattleState } from './types'
 import { LOG_LIMIT } from './types'
@@ -12,7 +13,11 @@ export const abilityById = (id: string): Ability | undefined => allAbilities.fin
 export const livingPlayers = (b: BattleState) => b.players.filter((p) => p.hp > 0)
 export const livingEnemies = (b: BattleState) => b.enemies.filter((e) => e.hp > 0)
 
-export const sealedCount = (e: BattleEnemy, tokenId: string) => e.sealed.filter((s) => s.tokenId === tokenId).length
+/** How much of a resource a player has sealed on an enemy, counting Expertise and Critical Success stand-ins. */
+export { adjustBag }
+
+export const sealedCount = (e: BattleEnemy, resourceId: string) =>
+  e.sealed.filter((s) => (s.as ?? s.tokenId) === resourceId).reduce((sum, s) => sum + (s.value ?? 1), 0)
 
 /** Exposed (Cunning sealed on the enemy) lowers its Defense. */
 export const enemyDefense = (e: BattleEnemy) => Math.max(0, e.defense - sealedCount(e, 'cunning'))
@@ -63,14 +68,6 @@ export function shuffled<T>(items: T[], rng: Rng): T[] {
 
 export const pick = <T>(items: T[], rng: Rng): T => items[Math.floor(rng() * items.length)]
 
-export function adjustBag(bag: TokenStack[], tokenId: string, delta: number): TokenStack[] {
-  const existing = bag.find((s) => s.tokenId === tokenId)
-  if (!existing) return delta > 0 ? [...bag, { tokenId, count: delta }] : bag
-  return bag
-    .map((s) => (s.tokenId === tokenId ? { ...s, count: s.count + delta } : s))
-    .filter((s) => s.count > 0)
-}
-
 export function parseCost(cost: string): { tokenId: string; amount: number } | null {
   const match = /^(\d+)\s+([A-Za-z]+)$/.exec(cost.trim())
   if (!match) return null
@@ -112,10 +109,6 @@ export function moveToGroup(b: BattleState, id: string, groupId: string) {
 export function newGroup(b: BattleState): string {
   b.nextGroup += 1
   return `g${b.nextGroup}`
-}
-
-export function spend(p: BattlePlayer, tokenId: string, amount: number) {
-  p.resources[tokenId] = Math.max(0, (p.resources[tokenId] ?? 0) - amount)
 }
 
 

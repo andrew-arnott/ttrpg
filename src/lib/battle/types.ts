@@ -34,8 +34,13 @@ export interface BattlePlayer {
 }
 
 export interface SealedToken {
+  /** The token that was sealed. */
   tokenId: string
   byKey: string
+  /** The resource it stood in for, when it was Expertise or a Critical Success rather than the resource itself. */
+  as?: string
+  /** What it counts for: 1 for most tokens, 2 for a Critical Success. */
+  value?: number
 }
 
 export interface BattleEnemy {
@@ -76,6 +81,8 @@ export interface BattleState {
 export interface PlannedCombat {
   actionId: string
   targetId?: string
+  /** Armor or Power to commit to the test before drawing, when the option offers it. */
+  boost?: number
 }
 
 /** Inputs to the enemies' Perception test to surprise the party. */
@@ -89,6 +96,13 @@ export interface TargetChoice {
   label: string
 }
 
+/** Armor or Power that can be committed to a test for +1 each. */
+export interface BoostOption {
+  tokenId: 'armor' | 'power'
+  /** The most that can be added, counting Expertise and Critical Success tokens in play. */
+  max: number
+}
+
 export interface CombatOption {
   id: string
   slot: 'action' | 'fast'
@@ -100,6 +114,7 @@ export interface CombatOption {
    * not when it is planned, so an earlier action can move the player into position.
    */
   requiresEngaged?: boolean
+  boost?: BoostOption
   disabledReason?: string
 }
 

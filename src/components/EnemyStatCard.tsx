@@ -1,4 +1,5 @@
 import { ENEMIES_BY_ID } from '../data/enemies'
+import { TOKENS } from '../data/tokens'
 import { enemyDefense, type BattleEnemy } from '../lib/battle'
 import { Portrait } from './Portrait'
 
@@ -8,7 +9,7 @@ export function EnemyStatCard({ enemy }: { enemy: BattleEnemy }) {
   if (!def) return null
   const defense = enemyDefense(enemy)
   const statuses = [
-    ...enemy.sealed.map((s) => `Sealed ${s.tokenId}`),
+    ...enemy.sealed.map((s) => `Sealed ${TOKENS[s.as ?? s.tokenId]?.name ?? s.tokenId}`),
     enemy.provokedBy ? 'Provoked' : '',
     enemy.disabled ? 'Disabled' : '',
     enemy.empowered > 0 ? `+${enemy.empowered} attack this round` : '',

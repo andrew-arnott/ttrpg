@@ -17,6 +17,7 @@ import {
   type PlannedCombat,
 } from './battle'
 import { mulberry32 } from './drawTest'
+import { countInBag } from './tokenFlow'
 import {
   ALWAYS_FAIL,
   ALWAYS_PASS,
@@ -387,6 +388,144 @@ describe('engagement', () => {
   })
 })
 
+const bagCount = (p: BattlePlayer, tokenId: string) => countInBag(p.bag, tokenId)
+
+describe('spending resources', () => {
+  const heal: PlannedCombat = { actionId: 'ability:heal', targetId: 'p' }
+
+  it('returns a spent token to the bag', () => {
+    const b = duel({ professionId: 'priest', abilityIds: ['heal'], resources: { faith: 3 }, hp: 5 })
+    const { battle } = playRound(b, { p: turn(heal) }, rng())
+    expect(battle.players[0].resources.faith).toBe(2)
+    expect(bagCount(battle.players[0], 'faith')).toBe(1)
+  })
+
+  it('returns the Resolve behind a Fight ability to the bag when the attack misses', () => {
+    const b = duel({ bag: ALWAYS_FAIL, abilityIds: ['provoke'], resources: { resolve: 3 } }, { hp: 99 })
+    const { battle } = playRound(b, { p: turn({ actionId: 'ability:provoke', targetId: 'e' }) }, rng())
+    expect(battle.enemies[0].sealed).toEqual([])
+    expect(battle.players[0].resources.resolve).toBe(2)
+    expect(bagCount(battle.players[0], 'resolve')).toBe(1)
+  })
+
+  it('pays with Expertise when the profession resource has run out, and seals the Expertise', () => {
+    const b = duel(
+      { bag: ALWAYS_PASS, abilityIds: ['disable'], resources: { resolve: 0, expertise: 1 } },
+      { hp: 99 },
+      'troll',
+    )
+    const { battle } = playRound(b, { p: turn({ actionId: 'ability:disable', targetId: 'e' }) }, rng())
+    expect(battle.enemies[0].sealed).toEqual([{ tokenId: 'expertise', byKey: 'p', as: 'resolve', value: 1 }])
+    expect(battle.enemies[0].disabled).toBe(true)
+  })
+
+  it('counts a Critical Success as 2 Expertise and spends it whole', () => {
+    const b = duel(
+      { bag: ALWAYS_PASS, abilityIds: ['cheapShot'], resources: { cunning: 0, critSuccess: 1 } },
+      { hp: 99 },
+      'troll',
+    )
+    const { battle } = playRound(b, { p: turn({ actionId: 'ability:cheapShot', targetId: 'e' }) }, rng())
+    expect(battle.enemies[0].sealed).toEqual([{ tokenId: 'critSuccess', byKey: 'p', as: 'cunning', value: 2 }])
+    expect(enemyDefense(battle.enemies[0])).toBe(ENEMIES_BY_ID.troll.defense - 2)
+  })
+
+  it('does not offer an ability the player cannot pay for, even with Expertise', () => {
+    const b = duel({ abilityIds: ['provoke'], resources: { resolve: 0, expertise: 0 } })
+    const option = availableCombatActions(b, b.players[0]).find((o) => o.id === 'ability:provoke')!
+    expect(option.disabledReason).toMatch(/Needs 1 Resolve/)
+  })
+})
+
+describe('drawn resource tokens', () => {
+  const chainBag = (tokenId: string, ender: string) => [
+    { tokenId, count: 10 },
+    { tokenId: ender, count: 1 },
+  ]
+  const drawnCount = (steps: { test?: { result: { drawn: { tokenId: string }[] } } }[], tokenId: string) =>
+    steps.flatMap((s) => s.test?.result.drawn ?? []).filter((d) => d.tokenId === tokenId).length
+
+  it('go into play after the test', () => {
+    const b = duel({ bag: chainBag('expertise', 'critSuccess'), resources: {} })
+    const { battle, steps } = playRound(b, { p: turn(attack('e')) }, rng())
+    const drawn = drawnCount(steps, 'expertise')
+    expect(drawn).toBeGreaterThan(0)
+    expect(battle.players[0].resources.expertise).toBe(drawn)
+    expect(bagCount(battle.players[0], 'expertise')).toBe(10 - drawn)
+  })
+
+  it('put a Critical Success in play, out of the bag', () => {
+    const b = duel({ bag: [{ tokenId: 'critSuccess', count: 2 }], resources: {} })
+    const { battle } = playRound(b, { p: turn(attack('e')) }, rng())
+    expect(battle.players[0].resources.critSuccess).toBe(1)
+    expect(bagCount(battle.players[0], 'critSuccess')).toBe(1)
+  })
+
+  it('keep Mana in the bag when the test fails, and put it in play when it succeeds', () => {
+    const failing = duel({ bag: chainBag('mana', 'critFailure'), resources: {} })
+    const lost = playRound(failing, { p: turn(attack('e')) }, rng())
+    expect(lost.battle.players[0].resources.mana ?? 0).toBe(0)
+    expect(bagCount(lost.battle.players[0], 'mana')).toBe(10)
+
+    const passing = duel({ bag: chainBag('mana', 'critSuccess'), resources: {} })
+    const won = playRound(passing, { p: turn(attack('e')) }, rng())
+    const drawn = drawnCount(won.steps, 'mana')
+    expect(drawn).toBeGreaterThan(0)
+    expect(won.battle.players[0].resources.mana).toBe(drawn)
+  })
+})
+
+describe('Power and Armor', () => {
+  const warrior = (over: Partial<BattlePlayer> = {}) =>
+    duel({ bag: bagOf('plus1'), resources: { power: 2, armor: 2 }, ...over }, { hp: 99 })
+
+  it('are offered only to professions that use them, with Expertise and Critical Success counted in', () => {
+    const b = warrior({ resources: { power: 1, expertise: 1, critSuccess: 1, armor: 0 } })
+    const options = availableCombatActions(b, b.players[0])
+    expect(options.find((o) => o.id === 'attack')!.boost).toEqual({ tokenId: 'power', max: 4 })
+    expect(options.find((o) => o.id === 'defend')!.boost).toEqual({ tokenId: 'armor', max: 3 })
+
+    const priest = duel({ professionId: 'priest', resources: { power: 2 } })
+    expect(availableCombatActions(priest, priest.players[0]).find((o) => o.id === 'attack')!.boost).toBeUndefined()
+  })
+
+  it('add +1 per Power committed to an attack, turning a miss into a hit', () => {
+    const miss = playRound(warrior(), { p: turn(attack('e')) }, rng())
+    expect(miss.steps[0].outcome).toMatch(/misses/)
+
+    const hit = playRound(warrior(), { p: turn({ ...attack('e'), boost: 2 }) }, rng())
+    expect(hit.steps[0].test?.bonus).toEqual({ label: 'Power', value: 2 })
+    expect(hit.steps[0].test?.total).toBe(4)
+    expect(hit.steps[0].outcome).toMatch(/hits/)
+    expect(hit.battle.players[0].resources.power).toBe(0)
+    expect(bagCount(hit.battle.players[0], 'power')).toBe(2)
+  })
+
+  it('cannot commit more than the player has', () => {
+    const { steps, battle } = playRound(warrior({ resources: { power: 1 } }), { p: turn({ ...attack('e'), boost: 5 }) }, rng())
+    expect(steps[0].test?.bonus?.value).toBe(1)
+    expect(battle.players[0].resources.power).toBe(0)
+  })
+
+  it('add +1 per Armor to a Defend result', () => {
+    const plain = playRound(warrior(), { p: turn(defend) }, rng())
+    const boosted = playRound(warrior(), { p: turn({ actionId: 'defend', boost: 2 }) }, rng())
+    const gain = (r: typeof plain) => r.steps.find((s) => s.title === 'Defend')!.test!.total
+    expect(gain(boosted)).toBe(gain(plain) + 2)
+    expect(boosted.steps[0].resultLine).toMatch(/Armor 2/)
+    expect(bagCount(boosted.battle.players[0], 'armor')).toBe(2)
+  })
+
+  it('stack with the ability cost: Power goes to the attack, Resolve to the ability', () => {
+    const b = warrior({ abilityIds: ['disable'], resources: { power: 1, resolve: 1 } })
+    const { battle, steps } = playRound(b, { p: turn({ actionId: 'ability:disable', targetId: 'e', boost: 1 }) }, rng())
+    expect(steps[0].test?.bonus?.value).toBe(1)
+    expect(steps[0].outcome).toMatch(/hits/)
+    expect(battle.enemies[0].sealed).toHaveLength(1)
+    expect(bagCount(battle.players[0], 'power')).toBe(1)
+  })
+})
+
 describe('engage Difficulty', () => {
   const crowd = () =>
     battleOf(
@@ -458,7 +597,10 @@ describe('class abilities', () => {
     const b = duel({ bag: ALWAYS_PASS, abilityIds: ['provoke'], resources: { resolve: 3 } }, { hp: 1 })
     const { battle } = playRound(b, { p: turn({ actionId: 'ability:provoke', targetId: 'e' }) }, rng())
     expect(battle.enemies[0].hp).toBe(0)
-    expect(battle.players[0].resources.resolve).toBe(3)
+    expect(battle.enemies[0].sealed).toEqual([])
+    const me = battle.players[0]
+    expect(me.resources.resolve).toBe(2)
+    expect(me.bag.find((t) => t.tokenId === 'resolve')?.count).toBe(1)
   })
 
   it('Disable reduces enemy damage by the Resolve sealed on it', () => {

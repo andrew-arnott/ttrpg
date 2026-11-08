@@ -7,10 +7,10 @@ import {
   createDungeonState,
   KEEP_WATCH,
   passagesOf,
-  REST_BONUS_LIMIT,
   STAND_WATCH,
   unlockLock,
   type DungeonState,
+  type PartyMember,
 } from './dungeonState'
 import { availableActions, resolveInterval, type InteractionPlan } from './intervalActions'
 import { createPartyMember } from './partyMember'
@@ -142,22 +142,31 @@ describe('resolveInterval', () => {
   })
 
   describe('resting', () => {
-    it('regains one of the profession resource', () => {
-      const m = sampleMember('warrior', 'w')
-      const s = stateWith(m)
-      const { state, steps } = resolveInterval(s, { w: { actionId: 'rest' } }, rng())
-      expect(state.party[0].resources.resolve).toBe((m.resources.resolve ?? 0) + 1)
-      expect(steps[0].outcome).toMatch(/regains 1 Resolve/)
+    const spent = (member: PartyMember, tokenId: string): PartyMember => ({
+      ...member,
+      resources: { ...member.resources, [tokenId]: (member.resources[tokenId] ?? 0) - 1 },
+      bag: [...member.bag, { tokenId, count: 1 }],
     })
 
-    it('stops at a small bonus over the starting amount', () => {
-      let s = stateWith(sampleMember('priest', 'p'))
-      const start = s.party[0].startingResources.faith
-      for (let i = 0; i < REST_BONUS_LIMIT + 3; i++) {
-        s = resolveInterval(s, { p: { actionId: 'rest' } }, rng()).state
-      }
-      expect(s.party[0].resources.faith).toBe(start + REST_BONUS_LIMIT)
-      expect(availableActions(s, s.party[0]).find((o) => o.id === 'rest')!.disabledReason).toBeTruthy()
+    it('recovers a spent profession resource from the bag into play', () => {
+      const m = spent(sampleMember('warrior', 'w'), 'resolve')
+      const { state, steps } = resolveInterval(stateWith(m), { w: { actionId: 'rest' } }, rng())
+      expect(state.party[0].resources.resolve).toBe((m.resources.resolve ?? 0) + 1)
+      expect(state.party[0].bag.find((s) => s.tokenId === 'resolve')).toBeUndefined()
+      expect(steps[0].outcome).toMatch(/recovers 1 Resolve/)
+    })
+
+    it('recovers Expertise when the profession resource is all in play', () => {
+      const m = sampleMember('priest', 'p')
+      expect(m.bag.some((s) => s.tokenId === 'expertise')).toBe(true)
+      const { state } = resolveInterval(stateWith(m), { p: { actionId: 'rest' } }, rng())
+      expect(state.party[0].resources.expertise).toBe(1)
+    })
+
+    it('is not offered when the bag holds no resource to recover', () => {
+      const m = { ...sampleMember('priest', 'p'), bag: [{ tokenId: 'plus1', count: 3 }] }
+      const s = stateWith(m)
+      expect(availableActions(s, s.party[0]).find((o) => o.id === 'rest')!.disabledReason).toMatch(/Faith/)
     })
   })
 

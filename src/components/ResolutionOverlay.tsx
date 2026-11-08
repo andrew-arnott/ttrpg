@@ -240,7 +240,8 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
                   <p className={`resolution-math ${step.tone}`}>
                     {step.resultLine ?? (
                       <>
-                        Tokens {fmtSigned(tokensTotal)} + {SPECIAL_LABELS[test.attribute]} {test.attributeValue} ={' '}
+                        Tokens {fmtSigned(tokensTotal)} + {SPECIAL_LABELS[test.attribute]} {test.attributeValue}
+                        {test.bonus ? ` + ${test.bonus.label} ${test.bonus.value}` : ''} ={' '}
                         <b>{test.total}</b> against {test.difficulty + test.penalty}
                       </>
                     )}

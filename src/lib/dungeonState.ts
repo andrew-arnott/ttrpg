@@ -91,9 +91,6 @@ export const LIGHT_REACH: Record<TorchLevel, number> = {
   out: 0,
 }
 
-/** Resting can restore a resource this far above what the character started with. */
-export const REST_BONUS_LIMIT = 2
-
 const LOG_LIMIT = 40
 
 export function roomCenter(room: DungeonRoom): { x: number; y: number } {

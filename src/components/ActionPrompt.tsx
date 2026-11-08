@@ -13,6 +13,7 @@ import {
 } from '../lib/battle'
 import { AVATAR_COLORS } from '../lib/partyColors'
 import { ENGAGE_HELP } from '../data/tutorial'
+import { TOKENS } from '../data/tokens'
 import { Portrait } from './Portrait'
 import { RuleHelpDialog } from './RuleHelpDialog'
 
@@ -37,6 +38,8 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
   const selected = options.find((o) => o.id === choice.actionId)
   const targetId = selected?.targets?.find((t) => t.id === choice.targetId)?.id ?? selected?.targets?.[0]?.id
   const canConfirm = Boolean(selected) && !selected?.disabledReason
+
+  const boost = Math.min(choice.boost ?? 0, selected?.boost?.max ?? 0)
 
   const pick = (option: CombatOption) => {
     setChoice({ actionId: option.id, targetId: option.targets?.[0]?.id })
@@ -112,11 +115,29 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
           <span className="step-index">Target</span>
           <select
             value={targetId}
-            onChange={(e) => setChoice({ actionId: selected.id, targetId: e.target.value })}
+            onChange={(e) => setChoice({ actionId: selected.id, targetId: e.target.value, boost })}
           >
             {selected.targets.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {selected?.boost && (
+        <label className="prompt-target">
+          <span className="step-index">
+            Spend {TOKENS[selected.boost.tokenId].name} (+1 each, committed before you draw)
+          </span>
+          <select
+            value={boost}
+            onChange={(e) => setChoice({ actionId: selected.id, targetId, boost: Number(e.target.value) })}
+          >
+            {Array.from({ length: selected.boost.max + 1 }, (_, n) => (
+              <option key={n} value={n}>
+                {n === 0 ? 'None' : `${n} ${TOKENS[selected.boost!.tokenId].name}`}
               </option>
             ))}
           </select>
@@ -142,7 +163,7 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
         <button
           className="btn primary"
           disabled={!canConfirm}
-          onClick={() => onAct({ actionId: choice.actionId, targetId })}
+          onClick={() => onAct({ actionId: choice.actionId, targetId, boost: boost || undefined })}
         >
           {selected?.slot === 'fast' ? 'Use it (free)' : 'Do it'}
         </button>

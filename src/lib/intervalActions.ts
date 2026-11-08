@@ -20,7 +20,6 @@ import {
   passagesOf,
   patrolCountdown,
   patrolIsDue,
-  REST_BONUS_LIMIT,
   revealVisible,
   roomById,
   springPatrol,
@@ -33,6 +32,7 @@ import {
 } from './dungeonState'
 import { playerActor, type ResolutionStep, type StepTone } from './resolution'
 import { performSkillTest, type SkillTestOutcome } from './skillTest'
+import { canRest, recoverForRest, type TokenHolder } from './tokenFlow'
 import { burnInterval, TORCH_LEVEL_LABEL, totalIntervals, torchLevel } from './torch'
 
 export type ActionId =
@@ -84,10 +84,6 @@ function resourceName(member: PartyMember): string {
   return TOKENS[member.restResourceId]?.name ?? 'resource'
 }
 
-function restCap(member: PartyMember): number {
-  return (member.startingResources[member.restResourceId] ?? 0) + REST_BONUS_LIMIT
-}
-
 export function availableActions(state: DungeonState, member: PartyMember): ActionOption[] {
   const room = roomById(state.dungeon, state.roomId)
   const passages = passagesOf(state)
@@ -107,7 +103,7 @@ export function availableActions(state: DungeonState, member: PartyMember): Acti
       label: 'Rest',
       description: `Catch your breath and regain 1 ${resourceName(member)}.`,
       disabledReason:
-        (member.resources[member.restResourceId] ?? 0) >= restCap(member) ? 'Already fully rested' : undefined,
+        canRest(member, member.restResourceId) ? undefined : `No ${resourceName(member)} in your bag to recover`,
     },
     {
       id: 'watch',
@@ -259,15 +255,18 @@ function search(ctx: Context): Resolution {
 
 function rest(ctx: Context): Resolution {
   const { member } = ctx
-  const id = member.restResourceId
-  const next = (member.resources[id] ?? 0) + 1
-  const state = updateMember(ctx.state, member.key, (m) => ({ ...m, resources: { ...m.resources, [id]: next } }))
+  const rested: TokenHolder = { bag: member.bag, resources: member.resources }
+  const recovered = recoverForRest(rested, member.restResourceId)
+  const state = updateMember(ctx.state, member.key, (m) => ({ ...m, ...rested }))
+  const name = recovered ? (TOKENS[recovered]?.name ?? recovered) : resourceName(member)
   return narrate(
     ctx,
     'Rest',
     `${member.name} sits down and catches their breath.`,
-    `${member.name} regains 1 ${resourceName(member)} (now ${next}).`,
-    'success',
+    recovered
+      ? `${member.name} recovers 1 ${name} into play (${rested.resources[recovered]} now).`
+      : `${member.name} has nothing left to recover.`,
+    recovered ? 'success' : 'neutral',
     state,
   )
 }

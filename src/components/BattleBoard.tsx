@@ -72,7 +72,7 @@ function EnemyCard({ e }: { e: BattleEnemy }) {
           </span>
           {e.sealed.map((s, i) => (
             <span className="chip" key={i} title="Sealed on this enemy">
-              Sealed {TOKENS[s.tokenId]?.name ?? s.tokenId}
+              Sealed {TOKENS[s.as ?? s.tokenId]?.name ?? s.tokenId}
             </span>
           ))}
           {e.provokedBy && <span className="chip">Provoked</span>}

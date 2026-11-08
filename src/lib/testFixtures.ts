@@ -17,7 +17,7 @@ export function testMember(key: string, torches: number, overrides: Partial<Part
 }
 
 /** A bag that always draws the same single token, so test outcomes are certain. */
-export const bagOf = (tokenId: string): TokenStack[] => [{ tokenId, count: 5 }]
+export const bagOf = (tokenId: string): TokenStack[] => [{ tokenId, count: 50 }]
 
 export const ALWAYS_PASS = bagOf('critSuccess')
 export const ALWAYS_FAIL = bagOf('critFailure')

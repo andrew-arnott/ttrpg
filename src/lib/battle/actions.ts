@@ -9,10 +9,10 @@ import {
   parseCost,
   playerActorOf,
   playerByKey,
-  spend,
   type Engine,
 } from './state'
 import { engageTargetLabel } from './engagement'
+import { boostOption, commitResource, resourceAvailable, commitmentValue, noCommitment, releaseCommitment, type Commitment } from './tokens'
 import { enemyTargets, groupTargets, resourceGate } from './targets'
 import type { BattlePlayer, BattleState, CombatOption, PlannedCombat } from './types'
 
@@ -22,7 +22,7 @@ function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
     .filter((ability) => !(ability.types.length === 1 && ['Interval', 'Triggered'].includes(ability.types[0])))
     .flatMap((ability) => {
       const handler = ABILITY_HANDLERS[ability.id] ?? unsupportedAbility
-      return handler.options({
+      const options = handler.options({
         b,
         p,
         id: `ability:${ability.id}`,
@@ -33,6 +33,8 @@ function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
           description: `${ability.cost !== '—' ? `${ability.cost}. ` : ''}${ability.text}`,
         },
       })
+      const boost = ability.types.includes('Fight') ? boostOption(p, 'power') : undefined
+      return boost ? options.map((o) => ({ ...o, boost })) : options
     })
 }
 
@@ -47,6 +49,7 @@ export function availableCombatActions(b: BattleState, p: BattlePlayer): CombatO
       description: `Make a Strength test against an enemy you are engaged with, using its Defense. A hit deals 1 damage.`,
       targets: enemyTargets(livingEnemies(b), engaged),
       requiresEngaged: true,
+      boost: boostOption(p, 'power'),
       disabledReason: livingEnemies(b).length === 0 ? 'No enemy to target' : undefined,
     },
     {
@@ -54,6 +57,7 @@ export function availableCombatActions(b: BattleState, p: BattlePlayer): CombatO
       slot: 'action',
       label: 'Defend',
       description: 'Make an Agility test and add the result to your Defense score for the round.',
+      boost: boostOption(p, 'armor'),
     },
     {
       id: 'engage',
@@ -76,38 +80,53 @@ function isValid(b: BattleState, p: BattlePlayer, planned: PlannedCombat): Comba
   return option
 }
 
+function noMove(engine: Engine, p: BattlePlayer) {
+  addStep(engine, {
+    actor: playerActorOf(p),
+    title: 'No move',
+    intro: `${p.name} hesitates.`,
+    outcome: 'That is no longer possible, so the moment passes.',
+    tone: 'neutral',
+  })
+}
+
+/** Takes the Armor or Power the player chose out of play before the draw. */
+function commitBoost(p: BattlePlayer, option: CombatOption, requested: number | undefined): Commitment {
+  if (!option.boost || !requested) return noCommitment
+  const amount = Math.min(requested, resourceAvailable(p, option.boost.tokenId))
+  return commitResource(p, option.boost.tokenId, amount) ?? noCommitment
+}
+
 export function performAction(engine: Engine, p: BattlePlayer, planned: PlannedCombat) {
   const { b } = engine
   const option = isValid(b, p, planned)
-  if (!option) {
-    addStep(engine, {
-      actor: playerActorOf(p),
-      title: 'No move',
-      intro: `${p.name} hesitates.`,
-      outcome: 'That is no longer possible, so the moment passes.',
-      tone: 'neutral',
-    })
-    return
-  }
+  if (!option) return noMove(engine, p)
 
   const target = planned.targetId ?? ''
   const [, abilityId, extra] = option.id.split(':')
   const enemy = enemyById(b, target)
+  const handler = abilityId ? ABILITY_HANDLERS[abilityId] : undefined
+  if (abilityId && !handler) return
+
+  const ability = abilityId ? abilityById(abilityId) : undefined
+  const cost = handler?.costOf?.(extra) ?? (ability ? parseCost(ability.cost) : null)
+  const commit = cost ? commitResource(p, cost.tokenId, cost.amount) : noCommitment
+  if (!commit) return noMove(engine, p)
+  const boostCommit = commitBoost(p, option, planned.boost)
+  const boost = commitmentValue(boostCommit)
 
   if (option.id === 'attack' && enemy) {
-    attackEnemy(engine, p, enemy)
+    attackEnemy(engine, p, enemy, { power: boost })
   } else if (option.id === 'defend') {
-    defend(engine, p)
+    defend(engine, p, boost)
   } else if (option.id === 'engage') {
     changeEngagement(engine, p, target, true)
-  } else if (abilityId) {
-    const handler = ABILITY_HANDLERS[abilityId]
-    if (!handler) return
-    const ability = abilityById(abilityId)
-    const cost = ability ? parseCost(ability.cost) : null
-    if (cost && !handler.paysOwnCost) spend(p, cost.tokenId, cost.amount)
-    handler.perform({ engine, p, target, extra, enemy, ally: playerByKey(b, target) })
+  } else if (handler) {
+    handler.perform({ engine, p, target, extra, enemy, ally: playerByKey(b, target), commit, boost })
   }
+
+  releaseCommitment(p, commit)
+  releaseCommitment(p, boostCommit)
 }
 
 /** What to pre-select for a player: attack an engaged enemy if there is one, otherwise defend. */

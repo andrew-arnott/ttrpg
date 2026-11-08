@@ -10,9 +10,9 @@ import {
   groupOf,
   livingEnemies,
   moveToGroup,
-  spend,
   type Engine,
 } from './state'
+import { resourceAvailable, type Commitment } from './tokens'
 import { allyTargets, enemyTargets, groupTargets } from './targets'
 
 const UNSUPPORTED = 'Not in the sample battle yet'
@@ -37,13 +37,17 @@ export interface PerformContext {
   extra?: string
   enemy?: BattleEnemy
   ally?: BattlePlayer
+  /** The tokens paid for the ability. Sealing one keeps it from returning to the bag. */
+  commit: Commitment
+  /** Power committed to an attack, or Armor to a Defend. */
+  boost: number
 }
 
 export interface AbilityHandler {
   options(ctx: OptionContext): CombatOption[]
   perform(ctx: PerformContext): void
-  /** The handler pays its own cost, because the amount is chosen with the option. */
-  paysOwnCost?: boolean
+  /** The cost when it depends on the option chosen, such as the Mana a Fireball spends. */
+  costOf?(extra: string | undefined): { tokenId: string; amount: number }
 }
 
 const enemyFightOptions = ({ b, p, id, base, gate }: OptionContext): CombatOption[] => {
@@ -71,45 +75,48 @@ export const unsupportedAbility: AbilityHandler = {
 export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
   provoke: {
     options: enemyFightOptions,
-    perform: ({ engine, p, enemy }) => {
+    perform: ({ engine, p, enemy, commit, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {
         title: 'Provoke',
+        power: boost,
         onHit: (e) => {
           e.provokedBy = p.key
           moveToGroup(engine.b, e.id, groupOf(engine.b, p.key))
-          return `${sealOn(p, e, 'resolve')} ${e.name} is Provoked and engages ${p.name}.`
+          return `${sealOn(p, e, commit)} ${e.name} is Provoked and engages ${p.name}.`
         },
       })
     },
   },
   disable: {
     options: enemyFightOptions,
-    perform: ({ engine, p, enemy }) => {
+    perform: ({ engine, p, enemy, commit, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {
         title: 'Disable',
+        power: boost,
         onHit: (e) => {
           e.disabled = true
-          return `${sealOn(p, e, 'resolve')} Its damage is reduced for each Resolve sealed.`
+          return `${sealOn(p, e, commit)} Its damage is reduced for each Resolve sealed.`
         },
       })
     },
   },
   cheapShot: {
     options: enemyFightOptions,
-    perform: ({ engine, p, enemy }) => {
+    perform: ({ engine, p, enemy, commit, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {
         title: 'Cheap Shot',
-        onHit: (e) => `${sealOn(p, e, 'cunning')} ${e.name} is Exposed: Defense ${enemyDefense(e)}.`,
+        power: boost,
+        onHit: (e) => `${sealOn(p, e, commit)} ${e.name} is Exposed: Defense ${enemyDefense(e)}.`,
       })
     },
   },
   smite: {
     options: enemyFightOptions,
-    perform: ({ engine, p, enemy }) => {
-      if (enemy) attackEnemy(engine, p, enemy, { title: 'Smite' })
+    perform: ({ engine, p, enemy, boost }) => {
+      if (enemy) attackEnemy(engine, p, enemy, { title: 'Smite', power: boost })
     },
   },
   backstab: {
@@ -121,11 +128,12 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
         disabledReason: gate ?? (engagedEnemies(b, p).length > 0 ? 'You must not be engaged' : undefined),
       },
     ],
-    perform: ({ engine, p, enemy }) => {
+    perform: ({ engine, p, enemy, boost }) => {
       if (!enemy) return
       moveToGroup(engine.b, p.key, groupOf(engine.b, enemy.id))
       attackEnemy(engine, p, enemy, {
         title: 'Backstab',
+        power: boost,
         intro: `${p.name} slips behind ${enemy.name} and strikes.`,
         bonusDamage: BACKSTAB_DAMAGE,
       })
@@ -165,12 +173,12 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     },
   },
   fireball: {
-    paysOwnCost: true,
+    costOf: (extra) => ({ tokenId: 'mana', amount: Number(extra) }),
     options: ({ b, p, id, base }) => {
       const groups = distinctGroupIds(b)
         .filter((g) => enemiesInGroup(b, g).length > 0)
         .map((g) => ({ id: g, label: describeGroup(b, g) }))
-      const mana = p.resources.mana ?? 0
+      const mana = resourceAvailable(p, 'mana')
       return Array.from({ length: MAX_FIREBALL_MANA }, (_, i) => i + 1).map((x) => ({
         ...base,
         id: `${id}:${x}`,
@@ -179,10 +187,6 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
         disabledReason: mana < x ? `Needs ${x} Mana` : groups.length === 0 ? NO_ENEMY : undefined,
       }))
     },
-    perform: ({ engine, p, target, extra }) => {
-      const mana = Number(extra)
-      spend(p, 'mana', mana)
-      fireball(engine, p, target, mana)
-    },
+    perform: ({ engine, p, target, extra }) => fireball(engine, p, target, Number(extra)),
   },
 }

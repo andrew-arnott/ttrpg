@@ -1,5 +1,6 @@
 import type { Ability } from '../../data/types'
 import { enemiesInGroup, distinctGroupIds, describeGroup, enemyDefense, groupOf, livingPlayers, playersInGroup, tokenName, parseCost } from './state'
+import { resourceAvailable } from './tokens'
 import { NEW_GROUP } from './types'
 import type { BattleEnemy, BattlePlayer, BattleState, TargetChoice } from './types'
 
@@ -25,5 +26,5 @@ export const allyTargets = (b: BattleState): TargetChoice[] =>
 export function resourceGate(p: BattlePlayer, ability: Ability): string | undefined {
   const cost = parseCost(ability.cost)
   if (!cost) return undefined
-  return (p.resources[cost.tokenId] ?? 0) < cost.amount ? `Needs ${cost.amount} ${tokenName(cost.tokenId)}` : undefined
+  return resourceAvailable(p, cost.tokenId) < cost.amount ? `Needs ${cost.amount} ${tokenName(cost.tokenId)}` : undefined
 }
