@@ -182,21 +182,44 @@ appear in the UI as unselectable rather than being invented. Filling them in mea
 
 ```
 src/
-  data/        transcribed rules — types, tokens, species, backgrounds, professions, items, dungeon
-  lib/         pure logic, unit-tested — character building, token draws, torch, dungeon state, storage
-  components/  wizard steps, sheet, simulators, dungeon map, summary sidebar
-  assets/art/  generated portraits and item icons
+  data/        transcribed rules and content: types, tokens, species, backgrounds, professions, items, enemies, dungeon, tutorial text
+  lib/         game logic and state machines, unit-tested: character building, token draws, torch, dungeon, battle, storage
+  components/  wizard steps, sheet, simulators, dungeon map, battle screens, overlays
+  assets/art/  generated portraits and icons
+scripts/       art converter and browser checks (own package.json)
+docs/          architecture, rules and assumptions, handoff
 ```
 
-`src/lib/` has no React imports; all the rules maths is testable in isolation.
+The game logic in `src/lib` is pure and takes its random source as a parameter, so it is testable in isolation. A few
+small React hooks (`useView`, `useSavedCharacters`, `useDrawAnimation`) also live there.
 
 ## Development
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm test         # vitest
+npm run dev          # http://localhost:5173
+npm test             # vitest
+npm run lint         # oxlint
 npm run build
 ```
 
 Pushing to `main` builds, tests, and deploys via `.github/workflows/deploy.yml`.
+
+Browser checks (Playwright against the built app) and the art converter live in `scripts/`, which has its own
+`package.json`:
+
+```bash
+npm run build && npm run preview:e2e &        # serves the built app on :4817
+cd scripts && npm install
+npm run e2e:smoke && npm run e2e:battle && npm run e2e:tutorial
+```
+
+## For contributors and agents
+
+Start with [`AGENTS.md`](AGENTS.md). Then:
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): how the code fits together.
+- [`docs/RULES.md`](docs/RULES.md): which rules are from the guide, which are owner rulings, and which were guessed.
+- [`docs/HANDOFF.md`](docs/HANDOFF.md): current status, open questions, backlog, and a prompt for starting a new agent.
+- [`.cursor/skills`](.cursor/skills): task guides for browser verification, generating art, adding game content and
+  pushing from a cloud agent.
