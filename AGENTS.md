@@ -5,7 +5,7 @@ GitHub Pages at https://andrew-arnott.github.io/ttrpg/. The rules come from the 
 owner holds; agents usually cannot open it from a sandbox, so ask for text rather than guessing). Where a rule had to
 be invented, it is listed in `docs/RULES.md`.
 
-Read next: `docs/ARCHITECTURE.md` (how the code fits together), `docs/RULES.md` (rules and assumptions),
+Read next: `docs/PLAYERS_GUIDE.md` (the rules text itself), `docs/ARCHITECTURE.md` (how the code fits together), `docs/RULES.md` (rules and assumptions),
 `docs/HANDOFF.md` (current status and backlog).
 
 ## Commands
@@ -76,7 +76,7 @@ screen looks right.
 - **A Critical Success always passes a skill test and a Critical Failure always fails**, even against a Difficulty
   that arithmetic says is impossible. A Critical Failure also counts as drawing a Complication.
 - **Local `main` can be stale.** Fetch `origin/main` before branching or pushing, and check the command succeeded.
-- **The rules doc cannot be fetched from a sandbox.** Ask the owner for the text.
+- **The Google Doc cannot be fetched from a sandbox.** `docs/PLAYERS_GUIDE.md` is a copy pasted by the owner; for anything it does not cover, ask.
 
 ## Git and deploys
 

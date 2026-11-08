@@ -1,6 +1,6 @@
 # Rules: what is implemented, and what was made up
 
-The source of truth is the Player's Guide (Google Doc, owned by the repo owner). `src/data` is a transcription of it.
+The source of truth is the Player's Guide (Google Doc, owned by the repo owner; a copy is in `docs/PLAYERS_GUIDE.md`). `src/data` is a transcription of it.
 Two other sources feed the code:
 
 - **Owner rulings**: things the owner told us directly during development. These are firm.
