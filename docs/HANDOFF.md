@@ -18,7 +18,7 @@ The app is feature-complete for a first full tutorial. It is deployed from `main
 | Combat | Step-by-step turns ("Brann's action 1: what should they do?"), engagement groups, Defense scores, animated enemy attacks, enemy stat cards, surprise check, boss fight |
 | Tutorial framing | Intro on the setup screen, goal checklist, Congratulations and "real game is more flexible" outro |
 
-Tests: 228 passing (`npm test`). Lint clean. CI (`deploy.yml`) runs `npm test` and `npm run build` (which runs `tsc -b`)
+Tests: 231 passing (`npm test`). Lint clean. CI (`deploy.yml`) runs `npm test` and `npm run build` (which runs `tsc -b`)
 but does not run `npm run lint`.
 
 ## How it was built (so you can read the history)
@@ -62,15 +62,15 @@ npm run build && npm run preview:e2e &
 
 ## Open questions for the owner
 
-These are assumptions that may be wrong (details in `docs/RULES.md`):
+Answered on 8 Nov 2026 (now owner rulings in `docs/RULES.md`): bright light makes surprise harder; Keep watch gives +2;
+lighting a torch is free; attacks use Strength until weapons exist; fallen characters wake with 1 HP.
 
-1. Surprise modifiers: do bright light and watchfulness make it harder for the enemies to surprise the party (assumed), or easier?
-2. Basic Keep watch gives +1 to the surprise check, Stand Watch +2. Is the basic version meant to count?
-3. Does right-clicking a torch to light it cost an Interval? (Currently free.)
-4. Skill-test rule: token total + attribute at least the Difficulty; Difficulties per room are guesses.
-5. Is Attack really Strength, and should Engage always be an Agility test at Difficulty 4?
-6. Do Armor and Power tokens get spent on tests? How are conditions acquired?
-7. After a won fight, should the fallen wake with 1 HP?
+Still open:
+
+1. Engage and disengage: how should Difficulty scale with enemies engaged and allies engaged? (Needs workshopping.)
+2. Skill-test rule: token total + attribute at least the Difficulty. Difficulties per room are guesses.
+3. Should surprise move to the guide's concealment-versus-light table, with the party making the check?
+4. Should healing items follow the guide (Health Potion 1 HP, Bandage treats Wounds)? That makes the tutorial harder.
 
 ## Backlog, roughly in order of value
 
@@ -116,7 +116,7 @@ START HERE
 2. Read AGENTS.md, then docs/ARCHITECTURE.md, docs/RULES.md and docs/HANDOFF.md. Project skills are in
    .cursor/skills (verify-in-browser, generate-art, add-game-content, push-to-github); read the one you need.
 3. Confirm the baseline: set -o pipefail; npx tsc -b && npm run lint && npm test && npm run build
-   (228 tests should pass).
+   (231 tests should pass).
 
 ENVIRONMENT (same as the previous agent)
 - Linux, Node 22, npm 10, Chrome at /usr/local/bin/google-chrome. Network is restricted: GitHub and npm work, Google
@@ -153,7 +153,7 @@ HOW TO WORK
 
 NEXT STEPS (pick with the owner; see the backlog in docs/HANDOFF.md)
 1. Ask the owner for the actual rules text and reconcile docs/RULES.md.
-2. Resolve the open questions listed in docs/HANDOFF.md (surprise direction, Keep watch bonus, torch lighting cost).
+2. Resolve the open questions listed in docs/HANDOFF.md (engage scaling, healing items, surprise model).
 3. Implement Triggered abilities (needs an interrupt/react prompt in the battle engine), then the remaining combat
    abilities, Armor/Power spending and condition tokens.
 4. Add npm run lint to the deploy workflow; consider component tests or running scripts/e2e in CI.

@@ -24,6 +24,7 @@ Browser checks live in `scripts/` with their own dependencies (kept out of the a
 ```bash
 cd scripts && npm install
 npm run e2e:smoke      # wizard, save/load, sheet, bag simulator, dungeon setup
+npm run e2e:torch      # torch burns down and the dim warning appears
 npm run e2e:battle     # sample battle, stat card, animated enemy clash
 npm run e2e:tutorial   # bot plays the whole tutorial dungeon; exit 2 means the bot lost, not an app bug
 ```
