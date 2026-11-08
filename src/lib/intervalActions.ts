@@ -113,7 +113,7 @@ export function availableActions(state: DungeonState, member: PartyMember): Acti
       id: 'watch',
       group: 'Basic',
       label: 'Keep watch',
-      description: 'Stay alert for approaching threats.',
+      description: 'Stay alert for approaching threats. Makes it harder for enemies to surprise the party.',
     },
     ...ITEMS.filter((item) => item.healing && (member.inventory[item.id] ?? 0) > 0).map(
       (item): ActionOption => ({

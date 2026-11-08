@@ -37,7 +37,7 @@ export interface Watchfulness {
 }
 
 export const STAND_WATCH: Watchfulness = { label: 'Stand Watch', value: 2 }
-export const KEEP_WATCH: Watchfulness = { label: 'Keeping watch', value: 1 }
+export const KEEP_WATCH: Watchfulness = { label: 'Keeping watch', value: 2 }
 
 /** How the torch affects the enemies' chance to surprise the party: better light means more warning. */
 export const TORCH_AWARENESS: Record<TorchLevel, { label: string; value: number }> = {

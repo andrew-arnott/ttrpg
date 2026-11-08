@@ -290,7 +290,7 @@ describe('watching during an Interval', () => {
     expect(state.watch).toEqual(STAND_WATCH)
   })
 
-  it('records the weaker Keep watch, including by default', () => {
+  it('records Keep watch, including by default', () => {
     const s = stateWith(testMember('a', 0))
     expect(resolveInterval(s, { a: { actionId: 'watch' } }, rng()).state.watch).toEqual(KEEP_WATCH)
     expect(resolveInterval(s, {}, rng()).state.watch).toEqual(KEEP_WATCH)
