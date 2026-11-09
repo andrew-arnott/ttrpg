@@ -8,7 +8,9 @@ import {
   adjacentRoomIds,
   createDungeonState,
   dungeonReducer,
+  limitTorches,
   lockedExits,
+  PARTY_TORCH_LIMIT,
   passagesOf,
   roomById,
   sealStatuses,
@@ -21,8 +23,10 @@ import { createPartyMember } from '../lib/partyMember'
 import type { ResolutionStep } from '../lib/resolution'
 import type { RosterEntry } from '../lib/roster'
 import { torchAdvice, torchLevel, TORCH_LEVEL_LABEL, totalIntervals, type TorchState } from '../lib/torch'
+import { BagDialog } from './BagDialog'
 import { BattleView } from './BattleView'
 import { ReactionPrompt } from './ReactionPrompt'
+import { Tip } from './Tip'
 import { DungeonMap } from './DungeonMap'
 import { IntervalPlanner } from './IntervalPlanner'
 import { ResolutionOverlay } from './ResolutionOverlay'
@@ -50,6 +54,11 @@ function TorchGauge({ torch }: { torch: TorchState }) {
 function PartySetup({ roster, onStart }: { roster: RosterEntry[]; onStart: (chosen: RosterEntry[]) => void }) {
   const [chosenKeys, setChosenKeys] = useState<string[]>([])
   const full = chosenKeys.length >= MAX_PARTY
+  const chosenTorches = chosenKeys.reduce((n, key) => {
+    const entry = roster.find((r) => r.key === key)
+    const owned = entry ? buildCharacter(entry.draft).inventory.find((e) => e.item.id === 'torch')?.count : 0
+    return n + (owned ?? 0)
+  }, 0)
 
   const toggle = (key: string) =>
     setChosenKeys((keys) => (keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]))
@@ -111,6 +120,10 @@ function PartySetup({ roster, onStart }: { roster: RosterEntry[]; onStart: (chos
         })}
       </div>
 
+      <p className="hint">
+        The party can carry only {PARTY_TORCH_LIMIT} spare torches between them. {chosenTorches > PARTY_TORCH_LIMIT ? `${chosenTorches - PARTY_TORCH_LIMIT} will be left behind.` : `${chosenTorches} chosen so far.`}
+      </p>
+
       <div className="review-actions">
         <button
           className="btn primary"
@@ -133,6 +146,9 @@ function PartyPanel({
   state: DungeonState
   onLightTorch: (memberKey: string) => void
 }) {
+  const [bagOf, setBagOf] = useState<string | null>(null)
+  const onShowBag = setBagOf
+  const bagOwner = state.party.find((m) => m.key === bagOf)
   return (
     <section className="card">
       <div className="card-head">
@@ -158,12 +174,19 @@ function PartyPanel({
                 </div>
               </div>
               <div className="tokens" style={{ marginTop: 0 }}>
-                {Object.entries(member.resources).map(([tokenId, count]) => (
-                  <span className="chip" key={tokenId} title={TOKENS[tokenId]?.effect}>
-                    <span className="count">{count}×</span>
-                    {TOKENS[tokenId]?.name ?? tokenId}
-                  </span>
-                ))}
+                {Object.entries(member.resources)
+                  .filter(([, count]) => count > 0)
+                  .map(([tokenId, count]) => (
+                    <Tip key={tokenId} content={TOKENS[tokenId]?.effect ?? TOKENS[tokenId]?.name}>
+                      <span className="chip">
+                        <span className="count">{count}×</span>
+                        {TOKENS[tokenId]?.name ?? tokenId}
+                      </span>
+                    </Tip>
+                  ))}
+                <button className="link-button" onClick={() => onShowBag(member.key)}>
+                  Bag
+                </button>
               </div>
               {owned.length === 0 ? (
                 <p className="hint">Empty pack.</p>
@@ -173,14 +196,21 @@ function PartyPanel({
                     const count = member.inventory[item.id]
                     const isTorch = item.id === 'torch'
                     return (
-                      <button
+                      <Tip
                         key={item.id}
-                        className={`inv-slot${isTorch ? ' torch' : ''}`}
-                        title={
-                          isTorch
-                            ? `${item.name} \u00d7${count}. Right-click to light a new torch.`
-                            : `${item.name} \u00d7${count}. ${ITEMS_BY_ID[item.id].description}`
+                        content={
+                          <>
+                            <b className="tip-name">
+                              {item.name} {'\u00d7'}
+                              {count}
+                            </b>
+                            {ITEMS_BY_ID[item.id].description}
+                            {isTorch && ' Right-click to light a new torch.'}
+                          </>
                         }
+                      >
+                      <button
+                        className={`inv-slot${isTorch ? ' torch' : ''}`}
                         aria-label={
                           isTorch
                             ? `${item.name}, ${count} carried. Open the context menu to light a new torch.`
@@ -195,6 +225,7 @@ function PartyPanel({
                         <Portrait kind="item" id={item.id} size="sm" />
                         <span className="inv-count">{count}</span>
                       </button>
+                      </Tip>
                     )
                   })}
                 </div>
@@ -203,6 +234,16 @@ function PartyPanel({
           )
         })}
       </div>
+      {bagOwner && (
+        <BagDialog
+          name={bagOwner.name}
+          bag={bagOwner.bag}
+          inPlay={bagOwner.resources}
+          sealed={(bagOwner.sealedConditions ?? []).map((c) => c.tokenId)}
+          shieldsInPlay={bagOwner.shieldsInPlay}
+          onClose={() => setBagOf(null)}
+        />
+      )}
     </section>
   )
 }
@@ -456,7 +497,7 @@ export function DungeonView({ roster }: { roster: RosterEntry[] }) {
 
   const start = useMemo(
     () => (chosen: RosterEntry[]) => {
-      setInitial(createDungeonState(SUNKEN_CRYPT, chosen.map((e) => createPartyMember(e.key, e.draft))))
+      setInitial(createDungeonState(SUNKEN_CRYPT, limitTorches(chosen.map((e) => createPartyMember(e.key, e.draft)))))
       setRunId((n) => n + 1)
     },
     [],

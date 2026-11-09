@@ -18,13 +18,14 @@ export interface RosterEntry {
 
 const UNNAMED = 'Unnamed adventurer'
 
-/** Each sample takes two combat abilities and two exploration abilities so they have things to do in the dungeon. */
+/** Each sample takes combat and exploration abilities so they have things to do in the dungeon, and a light kit. The party has three torches between them. */
 const SAMPLE_RECIPES = [
   {
     name: 'Brann Ironhold',
     professionId: 'warrior',
     speciesId: 'dwarf',
     backgroundId: 'soldier',
+    equipment: { torch: 1, bandage: 1, healingPotion: 1 },
     combatIds: ['provoke', 'disable', 'intercept'],
     explorationIds: ['fortify'],
   },
@@ -33,6 +34,7 @@ const SAMPLE_RECIPES = [
     professionId: 'rogue',
     speciesId: 'halfling',
     backgroundId: 'urchin',
+    equipment: { torch: 1, antivenom: 1, healingPotion: 1 },
     combatIds: ['backstab', 'flanking'],
     explorationIds: ['scoutAhead', 'findAShortcut'],
   },
@@ -41,6 +43,7 @@ const SAMPLE_RECIPES = [
     professionId: 'priest',
     speciesId: 'human',
     backgroundId: 'scholar',
+    equipment: { torch: 1, bandage: 1, healingPotion: 1 },
     combatIds: ['heal', 'prayer'],
     explorationIds: ['holyLight', 'groupHeal'],
   },
@@ -49,6 +52,7 @@ const SAMPLE_RECIPES = [
     professionId: 'wizard',
     speciesId: 'elf',
     backgroundId: 'scholar',
+    equipment: { healingPotion: 1, antivenom: 1, bandage: 1 },
     combatIds: ['magicMissile', 'fireball'],
     explorationIds: ['detectMagic', 'dispelMagic'],
   },
@@ -77,7 +81,7 @@ function sampleDraft(recipe: (typeof SAMPLE_RECIPES)[number]): CharacterDraft {
     specialAssignment: suggestedSpecialAssignment(profession),
     tokenChoices,
     abilityIds: [...recipe.combatIds, ...recipe.explorationIds],
-    equipment: { torch: 3, ration: 1, healingPotion: 1 },
+    equipment: recipe.equipment,
   }
 }
 

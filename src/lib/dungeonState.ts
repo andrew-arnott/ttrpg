@@ -29,6 +29,19 @@ export interface PartyMember {
   sealedConditions?: SealedCondition[]
 }
 
+/** The party can only carry this many spare torches between them. */
+export const PARTY_TORCH_LIMIT = 3
+
+/** Keeps spare torches in party order until the limit is reached; the rest are left behind. */
+export function limitTorches(party: PartyMember[], limit = PARTY_TORCH_LIMIT): PartyMember[] {
+  let left = limit
+  return party.map((m) => {
+    const kept = Math.min(m.inventory.torch ?? 0, left)
+    left -= kept
+    return { ...m, inventory: { ...m.inventory, torch: kept } }
+  })
+}
+
 /** Something a character set up in a room, such as Fortify, that matters if combat starts there. */
 export interface Preparation {
   tag: string

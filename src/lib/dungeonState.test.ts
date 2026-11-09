@@ -8,6 +8,7 @@ import {
   dungeonReducer,
   endBattle,
   KEEP_WATCH,
+  limitTorches,
   lockedExits,
   NO_PASSAGES,
   passagesOf,
@@ -392,5 +393,18 @@ describe('the boss', () => {
     const s = dungeonReducer(fresh(), { type: 'startBattle', rng })
     const won = endBattle({ ...s, battle: { ...s.battle!, result: 'victory' } })
     expect(won.completed).toBe(false)
+  })
+})
+
+describe('limitTorches', () => {
+  const member = (key: string, torch: number) => testMember(key, torch)
+
+  it('keeps spare torches in party order until the limit and leaves the rest behind', () => {
+    const party = limitTorches([member('a', 2), member('b', 2), member('c', 5)])
+    expect(party.map((m) => m.inventory.torch)).toEqual([2, 1, 0])
+  })
+
+  it('leaves a party under the limit alone', () => {
+    expect(limitTorches([member('a', 1), member('b', 1)]).map((m) => m.inventory.torch)).toEqual([1, 1])
   })
 })

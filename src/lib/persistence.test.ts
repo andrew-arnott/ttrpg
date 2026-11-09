@@ -110,8 +110,14 @@ describe('roster', () => {
       const built = buildCharacter(s.draft)
       expect(built.issues, s.label).toEqual([])
       expect(built.coinsLeft, s.label).toBeGreaterThanOrEqual(0)
-      expect(built.inventory.find((e) => e.item.id === 'torch')?.count, s.label).toBeGreaterThan(0)
+      expect(built.inventory.some((e) => e.item.id === 'ration'), s.label).toBe(false)
+      expect(built.inventory.some((e) => e.item.treats), s.label).toBe(true)
     }
+  })
+
+  it('gives the sample party three torches between them', () => {
+    const torches = sampleRoster().map((s) => buildCharacter(s.draft).inventory.find((e) => e.item.id === 'torch')?.count ?? 0)
+    expect(torches.reduce((a, b) => a + b, 0)).toBe(3)
   })
 
   it('includes the current and saved characters only when they are finished', () => {

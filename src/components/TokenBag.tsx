@@ -1,6 +1,7 @@
 import { TOKENS } from '../data/tokens'
 import type { TokenStack } from '../data/types'
 import type { BagStats } from '../lib/buildCharacter'
+import { Tip } from './Tip'
 import { GROUP_META, GROUP_ORDER, groupOf } from '../lib/tokenGroups'
 
 const fmtMod = (m: number | null) => (m === null ? '—' : m > 0 ? `+${m}` : `${m}`)
@@ -13,6 +14,18 @@ function sortStacks(bag: TokenStack[]): TokenStack[] {
     if (ga !== gb) return ga - gb
     return (TOKENS[a.tokenId]?.modifier ?? -99) - (TOKENS[b.tokenId]?.modifier ?? -99)
   })
+}
+
+function tokenTip(name: string, modifier: number | null, keywords: string[], effect?: string) {
+  return (
+    <>
+      <b className="tip-name">
+        {name} {fmtMod(modifier)}
+      </b>
+      {keywords.length > 0 && <span className="hint">{keywords.join(', ')}. </span>}
+      {effect}
+    </>
+  )
 }
 
 export function TokenBag({ bag, stats }: { bag: TokenStack[]; stats: BagStats }) {
@@ -52,19 +65,14 @@ export function TokenBag({ bag, stats }: { bag: TokenStack[]; stats: BagStats })
           const def = TOKENS[s.tokenId]
           if (!def) return null
           return (
-            <span
-              key={s.tokenId}
-              className="chip"
-              style={{ borderLeftColor: GROUP_META[groupOf(s.tokenId)].cssVar }}
-              title={def.effect ?? ''}
-            >
-              <span className="count">{s.count}×</span>
-              {def.name}
-              {/* Plain numeric tokens are named after their modifier; don't repeat it. */}
-              {groupOf(s.tokenId) !== 'numeric' && (
-                <span className="mod">{fmtMod(def.modifier)}</span>
-              )}
-            </span>
+            <Tip key={s.tokenId} content={tokenTip(def.name, def.modifier, def.keywords, def.effect)}>
+              <span className="chip" style={{ borderLeftColor: GROUP_META[groupOf(s.tokenId)].cssVar }}>
+                <span className="count">{s.count}×</span>
+                {def.name}
+                {/* Plain numeric tokens are named after their modifier; don't repeat it. */}
+                {groupOf(s.tokenId) !== 'numeric' && <span className="mod">{fmtMod(def.modifier)}</span>}
+              </span>
+            </Tip>
           )
         })}
       </div>

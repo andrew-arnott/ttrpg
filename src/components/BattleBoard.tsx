@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { TOKENS } from '../data/tokens'
 import {
   engagementGroups,
@@ -7,8 +8,10 @@ import {
   type BattleState,
 } from '../lib/battle'
 import { AVATAR_COLORS } from '../lib/partyColors'
+import { BagDialog } from './BagDialog'
 import { EnemyStatCard } from './EnemyStatCard'
 import { Portrait } from './Portrait'
+import { Tip } from './Tip'
 
 function HpBar({ hp, max }: { hp: number; max: number }) {
   return (
@@ -21,7 +24,7 @@ function HpBar({ hp, max }: { hp: number; max: number }) {
   )
 }
 
-function PlayerCard({ p, active }: { p: BattlePlayer; active: boolean }) {
+function PlayerCard({ p, active, onShowBag }: { p: BattlePlayer; active: boolean; onShowBag: () => void }) {
   const down = p.hp <= 0
   return (
     <div className={`combatant player${down ? ' down' : ''}${active ? ' active' : ''}`}>
@@ -32,26 +35,37 @@ function PlayerCard({ p, active }: { p: BattlePlayer; active: boolean }) {
         <span className="party-name">{p.name}</span>
         <HpBar hp={p.hp} max={p.maxHp} />
         <div className="tokens" style={{ marginTop: 4 }}>
-          <span className="chip" title="Defense score this round">
-            Defense <span className="count">{p.defense}</span>
-          </span>
-          {p.shieldsInPlay > 0 && (
-            <span className="chip" title={TOKENS.shield.effect}>
-              Shield <span className="count">{p.shieldsInPlay}</span>
+          <Tip content="Defense score this round. Enemy attacks wear it down.">
+            <span className="chip">
+              Defense <span className="count">{p.defense}</span>
             </span>
+          </Tip>
+          {p.shieldsInPlay > 0 && (
+            <Tip content={TOKENS.shield.effect}>
+              <span className="chip">
+                Shield <span className="count">{p.shieldsInPlay}</span>
+              </span>
+            </Tip>
           )}
           {(p.sealedConditions ?? []).map((c, i) => (
-            <span className="chip condition" key={`${c.tokenId}-${i}`} title={TOKENS[c.tokenId]?.effect}>
-              {TOKENS[c.tokenId]?.name ?? c.tokenId} <span className="count">sealed</span>
-            </span>
+            <Tip key={`${c.tokenId}-${i}`} content={TOKENS[c.tokenId]?.effect}>
+              <span className="chip condition">
+                {TOKENS[c.tokenId]?.name ?? c.tokenId} <span className="count">sealed</span>
+              </span>
+            </Tip>
           ))}
           {Object.entries(p.resources)
             .filter(([, n]) => n > 0)
             .map(([id, n]) => (
-              <span className="chip" key={id} title={TOKENS[id]?.effect}>
-                {TOKENS[id]?.name ?? id} <span className="count">{n}</span>
-              </span>
+              <Tip key={id} content={TOKENS[id]?.effect ?? TOKENS[id]?.name}>
+                <span className="chip">
+                  {TOKENS[id]?.name ?? id} <span className="count">{n}</span>
+                </span>
+              </Tip>
             ))}
+          <button className="link-button" onClick={onShowBag}>
+            Bag
+          </button>
         </div>
         {down && <span className="tag warn">Down</span>}
       </div>
@@ -94,6 +108,8 @@ export function BattleBoard({ battle, activeKey }: { battle: BattleState; active
   const groups = engagementGroups(battle)
   const downPlayers = battle.players.filter((p) => p.hp <= 0)
   const defeated = battle.enemies.filter((e) => e.hp <= 0)
+  const [bagOf, setBagOf] = useState<string | null>(null)
+  const bagOwner = battle.players.find((p) => p.key === bagOf)
 
   return (
     <section className="card">
@@ -113,7 +129,7 @@ export function BattleBoard({ battle, activeKey }: { battle: BattleState; active
             <div className="engagement-sides">
               <div className="stack">
                 {g.players.map((p) => (
-                  <PlayerCard key={p.key} p={p} active={p.key === activeKey} />
+                  <PlayerCard key={p.key} p={p} active={p.key === activeKey} onShowBag={() => setBagOf(p.key)} />
                 ))}
               </div>
               <span className="versus" aria-hidden="true">
@@ -137,7 +153,7 @@ export function BattleBoard({ battle, activeKey }: { battle: BattleState; active
           <div className="engagement-sides">
             <div className="stack">
               {downPlayers.map((p) => (
-                <PlayerCard key={p.key} p={p} active={p.key === activeKey} />
+                <PlayerCard key={p.key} p={p} active={p.key === activeKey} onShowBag={() => setBagOf(p.key)} />
               ))}
             </div>
             <span />
@@ -148,6 +164,16 @@ export function BattleBoard({ battle, activeKey }: { battle: BattleState; active
             </div>
           </div>
         </>
+      )}
+      {bagOwner && (
+        <BagDialog
+          name={bagOwner.name}
+          bag={bagOwner.bag}
+          inPlay={bagOwner.resources}
+          sealed={(bagOwner.sealedConditions ?? []).map((c) => c.tokenId)}
+          shieldsInPlay={bagOwner.shieldsInPlay}
+          onClose={() => setBagOf(null)}
+        />
       )}
     </section>
   )

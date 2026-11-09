@@ -27,6 +27,7 @@ npm run e2e:smoke      # wizard, save/load, sheet, bag simulator, dungeon setup
 npm run e2e:torch      # torch burns down and the dim warning appears
 npm run e2e:engage     # Change engagement popup and Difficulty preview
 npm run e2e:resources  # commit Armor to a Defend
+npm run e2e:inventory  # item hover boxes, three-torch limit, token bag viewer
 npm run e2e:prayer     # Sister Maren is asked about Prayer during an Interval in the dungeon
 npm run e2e:reaction   # plays rounds until a Triggered ability question appears and answers it
 npm run e2e:battle     # sample battle, stat card, animated enemy clash
