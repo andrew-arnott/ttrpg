@@ -67,7 +67,7 @@ export function startBattle(
       bag: m.bag.map((s) => ({ ...s })),
       resources: { ...m.resources },
       abilityIds: m.abilityIds,
-      shieldsInPlay: 0,
+      shieldsInPlay: m.shieldsInPlay,
       defense: 0,
       colorIndex: i,
     })),

@@ -12,7 +12,7 @@ import {
   type DungeonState,
   type PartyMember,
 } from './dungeonState'
-import { availableActions, resolveInterval, type InteractionPlan } from './intervalActions'
+import { availableActions, resolveInterval, respondToIntervalReaction, type InteractionPlan } from './intervalActions'
 import { createPartyMember } from './partyMember'
 import { sampleRoster } from './roster'
 import { ALWAYS_FAIL, ALWAYS_PASS, bagOf, testMember } from './testFixtures'
@@ -167,6 +167,77 @@ describe('resolveInterval', () => {
       const m = { ...sampleMember('priest', 'p'), bag: [{ tokenId: 'plus1', count: 3 }] }
       const s = stateWith(m)
       expect(availableActions(s, s.party[0]).find((o) => o.id === 'rest')!.disabledReason).toMatch(/Faith/)
+    })
+  })
+
+  describe('after a test', () => {
+    const searcher = (bag: PartyMember['bag'], extra: Partial<PartyMember> = {}) =>
+      testMember('a', 0, { special: { strength: 1, perception: 1, endurance: 1, charisma: 1, intelligence: 1, agility: 1, luck: 1 }, bag, ...extra })
+    const search: InteractionPlan = { a: { actionId: 'search' } }
+
+    it('puts drawn resource tokens in play', () => {
+      const s = stateWith(searcher([{ tokenId: 'expertise', count: 10 }, { tokenId: 'plus0', count: 1 }]))
+      const { state, steps } = resolveInterval(s, search, rng())
+      const drawn = steps[0].test!.result.drawn.filter((d) => d.tokenId === 'expertise').length
+      expect(state.party[0].resources.expertise ?? 0).toBe(drawn)
+    })
+
+    it('seals a condition drawn in a failed test, hurts for Poison, and releases it when the Interval ends', () => {
+      const s = stateWith(searcher([{ tokenId: 'poison', count: 1 }], { hp: 5 }))
+      const { state, steps } = resolveInterval(s, search, rng())
+      expect(steps[0].outcome).toMatch(/Poison is sealed on a\. a takes 1 poison damage \(4\/\d+ HP\)/)
+      expect(state.party[0].hp).toBe(4)
+      expect(state.party[0].sealedConditions).toEqual([])
+      expect(state.party[0].bag.find((t) => t.tokenId === 'poison')?.count).toBe(1)
+    })
+
+    it('never lets a condition take someone below 1 HP', () => {
+      const s = stateWith(searcher([{ tokenId: 'poison', count: 1 }], { hp: 1 }))
+      expect(resolveInterval(s, search, rng()).state.party[0].hp).toBe(1)
+    })
+
+    it('keeps Shield tokens drawn in play', () => {
+      const s = stateWith(searcher(bagOf('shield'), { hp: 5 }))
+      const first = resolveInterval(s, search, rng()).state
+      expect(first.party[0].shieldsInPlay).toBeGreaterThan(0)
+    })
+  })
+
+  describe('Prayer', () => {
+    const party = () => {
+      const priest = { ...sampleMember('priest', 'p'), abilityIds: ['prayer'] }
+      const tester = testMember('a', 0, { bag: bagOf('plus0') })
+      return stateWith(tester, priest)
+    }
+    const search: InteractionPlan = { a: { actionId: 'search' } }
+
+    it('stops the Interval to ask whether the priest prays for a failed test', () => {
+      const first = resolveInterval(party(), search, rng())
+      expect(first.state.pending?.request).toMatchObject({ abilityId: 'prayer', reactorKey: 'p' })
+      expect(first.steps).toEqual([])
+      expect(resolveInterval(first.state, search, rng()).steps).toEqual([])
+    })
+
+    it('adds +2 and spends 2 Faith when accepted, then finishes the Interval', () => {
+      const first = resolveInterval(party(), search, rng())
+      const done = respondToIntervalReaction(first.state, { use: true }, rng())
+      expect(done.state.pending).toBeNull()
+      expect(done.steps[0].test?.bonuses).toEqual([{ label: 'Prayer (Sister Maren)', value: 2 }])
+      const priest = done.state.party.find((m) => m.key === 'p')!
+      expect(priest.resources.faith).toBe(1)
+      expect(done.steps.at(-1)!.title).toBe('The Interval ends')
+    })
+
+    it('carries on unchanged when declined', () => {
+      const first = resolveInterval(party(), search, rng())
+      const done = respondToIntervalReaction(first.state, { use: false }, rng())
+      expect(done.steps[0].test?.bonuses).toEqual([])
+      expect(done.state.party.find((m) => m.key === 'p')!.resources.faith).toBe(3)
+    })
+
+    it('does not ask when nobody can pray', () => {
+      const s = stateWith(testMember('a', 0, { bag: bagOf('plus0') }), testMember('b', 0))
+      expect(resolveInterval(s, search, rng()).state.pending).toBeFalsy()
     })
   })
 

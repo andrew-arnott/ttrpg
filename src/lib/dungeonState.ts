@@ -2,6 +2,8 @@ import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
 import { linkKey, type Dungeon, type DungeonLink, type DungeonRoom, type Lock } from '../data/dungeon'
 import type { SpecialSpread, TokenStack } from '../data/types'
 import { releaseAllConditions } from './characterTest'
+import type { SealedCondition } from './conditionRules'
+import type { PendingInterval } from './intervalActions/types'
 import { startBattle, type BattleState, type SurpriseCheck } from './battle'
 import type { Rng } from './drawTest'
 import { burnInterval, lightTorch, torchLevel, TORCH_LEVEL_LABEL, type TorchLevel, type TorchState } from './torch'
@@ -20,9 +22,11 @@ export interface PartyMember {
   resources: Record<string, number>
   /** The resource that resting restores. */
   restResourceId: string
-  /** Resource totals the character started with; resting can exceed them by a little. */
-  startingResources: Record<string, number>
   abilityIds: string[]
+  /** Shield tokens drawn and waiting to absorb the next damage taken. */
+  shieldsInPlay: number
+  /** Conditions sealed on the character until the end of the Interval or fight. */
+  sealedConditions?: SealedCondition[]
 }
 
 /** Something a character set up in a room, such as Fortify, that matters if combat starts there. */
@@ -76,6 +80,8 @@ export interface DungeonState {
   completed: boolean
   /** Set when someone kept watch in the Interval that just ended; cleared by moving. */
   watch: Watchfulness | null
+  /** Set while the Interval waits for a player to decide whether to use a Triggered ability. */
+  pending?: PendingInterval | null
 }
 
 export type DungeonAction =
@@ -325,6 +331,8 @@ export function endBattle(state: DungeonState): DungeonState {
       hp: Math.max(1, fought.hp),
       resources: fought.resources,
       bag: fought.bag,
+      shieldsInPlay: fought.shieldsInPlay,
+      sealedConditions: [],
     }
   })
   const wonBoss = state.battleKind === 'boss' && battle.result === 'victory'
@@ -343,7 +351,7 @@ export function dungeonReducer(state: DungeonState, action: DungeonAction): Dung
       return state.battle || state.patrolTriggered ? state : springPatrol(state, action.rng)
 
     case 'moveTo': {
-      if (state.battle) return state
+      if (state.battle || state.pending) return state
       if (!adjacentRoomIds(state.dungeon, state.roomId, passagesOf(state)).includes(action.roomId)) return state
       const room = roomById(state.dungeon, action.roomId)
       const burned = burnTorchInterval(state)
@@ -361,7 +369,7 @@ export function dungeonReducer(state: DungeonState, action: DungeonAction): Dung
 
     case 'lightTorch': {
       const member = state.party.find((m) => m.key === action.memberKey)
-      if (state.battle || !member || (member.inventory.torch ?? 0) <= 0) return state
+      if (state.battle || state.pending || !member || (member.inventory.torch ?? 0) <= 0) return state
       const party = state.party.map((m) =>
         m.key === member.key ? { ...m, inventory: { ...m.inventory, torch: (m.inventory.torch ?? 0) - 1 } } : m,
       )

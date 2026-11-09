@@ -18,7 +18,7 @@ export function createPartyMember(key: string, draft: CharacterDraft): PartyMemb
     inventory: Object.fromEntries(built.inventory.map((e) => [e.item.id, e.count])),
     resources,
     restResourceId,
-    startingResources: { ...resources },
+    shieldsInPlay: 0,
     abilityIds: built.chosenAbilities.map((a) => a.id),
   }
 }
