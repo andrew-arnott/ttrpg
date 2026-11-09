@@ -57,6 +57,7 @@ export function releaseAtRoundEnd(engine: Engine) {
         cost: 'free',
         targets: options,
         required: true,
+        confirmLabel: 'Release it',
       })
       chosen = eligible[Number(answer.targetId)] ?? eligible[0]
     }

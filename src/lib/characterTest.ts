@@ -1,11 +1,13 @@
 import { TOKENS } from '../data/tokens'
 import type { SpecialSpread } from '../data/types'
 import { countSealed, hasSealed, isCondition, sealedOf, type SealedCondition } from './conditionRules'
-import type { TestResult } from './drawTest'
+import { drewComplication, type TestResult } from './drawTest'
+import type { Ask } from './replay'
 import { adjustBag, type TokenHolder } from './tokenFlow'
 
 /** Anyone who makes tests: an adventurer in a fight or in the dungeon. */
 export interface TestTaker extends TokenHolder {
+  key: string
   name: string
   hp: number
   maxHp: number
@@ -54,13 +56,14 @@ export function releaseAllConditions(taker: TestTaker) {
  * What a finished test does to the tokens. Shields wait in play for the next damage, Bless tokens
  * are used up, and resource tokens go into play (Mana only if the test succeeded). Condition
  * tokens drawn in a failed test are sealed and take effect; in a successful test they go back in
- * the bag, and a sealed Curse that started the draw is released. Returns what to tell the player.
+ * the bag, and a sealed Curse that started the draw is released. A failed test that drew a Complication
+ * also costs a token in play. Returns what to tell the player.
  */
 export function settleTest(
   taker: TestTaker,
   result: TestResult,
   succeeded: boolean,
-  options: { round: number; lethal: boolean },
+  options: { round: number; lethal: boolean; ask: Ask },
 ): string[] {
   const shields = result.drawn.filter((d) => d.tokenId === 'shield').length
   if (shields > 0) {
@@ -70,13 +73,50 @@ export function settleTest(
   const blessed = result.drawn.filter((d) => d.tokenId === 'bless').length
   if (blessed > 0) taker.bag = adjustBag(taker.bag, 'bless', -blessed)
   putDrawnResourcesInPlay(taker, result, succeeded)
-  return settleConditions(taker, result, succeeded, options)
+  const notes = settleConditions(taker, result, succeeded, options)
+  if (!succeeded && drewComplication(result)) notes.push(...returnTokenInPlay(taker, options.ask))
+  return notes
 }
 
+function tokensInPlay(taker: TestTaker): { id: string; count: number }[] {
+  const resources = Object.entries(taker.resources)
+    .filter(([, count]) => count > 0)
+    .map(([id, count]) => ({ id, count }))
+  return taker.shieldsInPlay > 0 ? [...resources, { id: 'shield', count: taker.shieldsInPlay }] : resources
+}
+
+/**
+ * The default price of a Complication on a failed test: return a token in play to the bag, the
+ * player's choice. Sealed conditions are not in play, so they cannot be given back this way.
+ */
+function returnTokenInPlay(taker: TestTaker, ask: Ask): string[] {
+  const inPlay = tokensInPlay(taker)
+  if (inPlay.length === 0) return []
+  let chosen = inPlay[0]
+  if (inPlay.length > 1) {
+    const answer = ask({
+      abilityId: 'returnToken',
+      reactorKey: taker.key,
+      title: 'Return a token',
+      prompt: `${taker.name} drew a Complication on a failed test and must return a token in play to their bag.`,
+      cost: 'free',
+      targets: inPlay.map((t) => ({ id: t.id, label: `${tokenName(t.id)} (${t.count} in play)` })),
+      required: true,
+      confirmLabel: 'Return it',
+    })
+    chosen = inPlay.find((t) => t.id === answer.targetId) ?? inPlay[0]
+  }
+  if (chosen.id === 'shield') taker.shieldsInPlay -= 1
+  else taker.resources = { ...taker.resources, [chosen.id]: chosen.count - 1 }
+  taker.bag = adjustBag(taker.bag, chosen.id, 1)
+  return [`${taker.name} returns a ${tokenName(chosen.id)} token to their bag.`]
+}
+
+/** Resource tokens only come into play from a successful test. */
 function putDrawnResourcesInPlay(taker: TestTaker, result: TestResult, succeeded: boolean) {
+  if (!succeeded) return
   for (const drawn of result.drawn) {
     if (!TOKENS[drawn.tokenId]?.keywords.includes('resource')) continue
-    if (drawn.tokenId === 'mana' && !succeeded) continue
     taker.bag = adjustBag(taker.bag, drawn.tokenId, -1)
     taker.resources = { ...taker.resources, [drawn.tokenId]: (taker.resources[drawn.tokenId] ?? 0) + 1 }
   }

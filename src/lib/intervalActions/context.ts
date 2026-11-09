@@ -119,7 +119,7 @@ export function runTestFor(
   const party = ctx.state.party.map((m) => ({ ...m }))
   const taker = party.find((m) => m.key === subject.key)!
   const test = offerPrayer(ctx.ask, party, taker, rolled)
-  ctx.notes.push(...settleTest(taker, test.result, test.passed, { round: 0, lethal: false }))
+  ctx.notes.push(...settleTest(taker, test.result, test.passed, { round: 0, lethal: false, ask: ctx.ask }))
   ctx.state = { ...ctx.state, party }
   ctx.member = party.find((m) => m.key === ctx.member.key) ?? ctx.member
   return test

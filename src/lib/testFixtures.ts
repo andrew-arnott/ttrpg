@@ -21,6 +21,7 @@ export function testMember(key: string, torches: number, overrides: Partial<Part
     ...createPartyMember(key, sample.draft),
     name: key,
     inventory: { torch: torches },
+    resources: {},
     ...overrides,
   }
 }

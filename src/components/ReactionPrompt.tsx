@@ -16,7 +16,7 @@ export function ReactionPrompt({ request, reactor, onAnswer }: Props) {
   return (
     <section className="card" aria-live="polite">
       <div className="card-head">
-        <span className="step-index">{request.required ? 'Condition' : 'Triggered ability'}</span>
+        <span className="step-index">{request.required ? 'Choice' : 'Triggered ability'}</span>
         <div className="resolution-actor">
           {reactor && (
             <span
@@ -61,7 +61,7 @@ export function ReactionPrompt({ request, reactor, onAnswer }: Props) {
           </button>
         )}
         <button className="btn primary" onClick={() => onAnswer({ use: true, targetId })}>
-          {request.required ? 'Release it' : `Use ${request.title}`}
+          {request.required ? (request.confirmLabel ?? 'Choose') : `Use ${request.title}`}
         </button>
       </div>
     </section>

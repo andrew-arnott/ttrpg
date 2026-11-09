@@ -17,6 +17,8 @@ export interface ReactionRequest {
   targets?: TargetChoice[]
   /** The question must be answered with a choice; there is no declining. */
   required?: boolean
+  /** Label for the confirm button of a required question. */
+  confirmLabel?: string
 }
 
 export interface ReactionAnswer {

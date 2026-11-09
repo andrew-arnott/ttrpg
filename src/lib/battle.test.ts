@@ -409,12 +409,12 @@ describe('spending resources', () => {
     expect(bagCount(battle.players[0], 'faith')).toBe(1)
   })
 
-  it('returns the Resolve behind a Fight ability to the bag when the attack misses', () => {
+  it('returns the Resolve behind a Fight ability to the bag when the attack misses (and a Complication costs one more)', () => {
     const b = duel({ bag: ALWAYS_FAIL, abilityIds: ['provoke'], resources: { resolve: 3 } }, { hp: 99 })
     const { battle } = playRound(b, { p: turn({ actionId: 'ability:provoke', targetId: 'e' }) }, rng())
     expect(battle.enemies[0].sealed).toEqual([])
-    expect(battle.players[0].resources.resolve).toBe(2)
-    expect(bagCount(battle.players[0], 'resolve')).toBe(1)
+    expect(bagCount(battle.players[0], 'resolve')).toBe(2)
+    expect(battle.players[0].resources.resolve).toBe(1)
   })
 
   it('pays with Expertise when the profession resource has run out, and seals the Expertise', () => {
@@ -481,6 +481,55 @@ describe('drawn resource tokens', () => {
     const drawn = drawnCount(won.steps, 'mana')
     expect(drawn).toBeGreaterThan(0)
     expect(won.battle.players[0].resources.mana).toBe(drawn)
+  })
+})
+
+describe('failing with a Complication', () => {
+  const failing = (resources: Record<string, number>, over: Partial<BattlePlayer> = {}) =>
+    duel({ bag: [{ tokenId: 'complication', count: 1 }], resources, ...over }, { hp: 9 })
+
+  it('only puts drawn resource tokens in play after a successful test', () => {
+    const lost = duel({ bag: [{ tokenId: 'expertise', count: 10 }, { tokenId: 'critFailure', count: 1 }], resources: {} }, { hp: 9 })
+    const result = playRound(lost, { p: turn(attack('e')) }, rng())
+    expect(result.battle.players[0].resources.expertise ?? 0).toBe(0)
+    expect(bagCount(result.battle.players[0], 'expertise')).toBe(10)
+  })
+
+  it('returns a token in play to the bag when there is only one kind', () => {
+    const { battle, steps } = playRound(failing({ resolve: 2 }), { p: turn(attack('e')) }, rng())
+    expect(battle.players[0].resources.resolve).toBe(1)
+    expect(bagCount(battle.players[0], 'resolve')).toBe(1)
+    expect(steps[0].outcome).toMatch(/returns a Resolve token/)
+  })
+
+  it('asks which to return when several kinds are in play', () => {
+    let asked: string[] = []
+    const { battle } = playRound(failing({ resolve: 2, armor: 1 }), { p: turn(attack('e')) }, rng(), (r) => {
+      asked = r.targets!.map((t) => t.label)
+      return { use: true, targetId: 'armor' }
+    })
+    expect(asked).toEqual(['Resolve (2 in play)', 'Armor (1 in play)'])
+    expect(battle.players[0].resources.armor).toBe(0)
+    expect(battle.players[0].resources.resolve).toBe(2)
+  })
+
+  it('can return a Shield in play, and nothing happens with nothing in play', () => {
+    const shielded = failing({}, { shieldsInPlay: 2 })
+    const { battle } = takeAction(shielded, attack('e'), rng())
+    expect(battle.players[0].shieldsInPlay).toBe(1)
+    expect(bagCount(battle.players[0], 'shield')).toBe(1)
+    const bare = playRound(failing({}), { p: turn(attack('e')) }, rng())
+    expect(bare.steps[0].outcome).not.toMatch(/returns a/)
+  })
+
+  it('does not touch sealed conditions, and costs nothing when the test succeeds', () => {
+    const sealed = failing({ resolve: 1 }, { sealedConditions: [{ tokenId: 'fear', round: 1 }] })
+    const { battle } = playRound(sealed, { p: turn({ actionId: 'defend' }) }, rng())
+    expect((battle.players[0].sealedConditions ?? []).map((c) => c.tokenId)).toEqual(['fear'])
+
+    const winning = duel({ bag: [{ tokenId: 'complication', count: 1 }, ...ALWAYS_PASS], resources: { resolve: 2 } }, { hp: 9 })
+    const kept = playRound(winning, { p: turn(attack('e')) }, rng())
+    expect(kept.battle.players[0].resources.resolve).toBe(2)
   })
 })
 
@@ -805,11 +854,11 @@ describe('Triggered abilities', () => {
       const tooFar = praying()
       tooFar.players[0].bag = bagOf('plus0')
       playRound(tooFar, { p: turn(attack('e')) }, rng(), reactions)
-      expect(seen).toEqual(['prayer'])
+      expect(seen.filter((id) => id === 'prayer')).toEqual(['prayer'])
 
       const crit = praying()
       crit.players[0].bag = ALWAYS_FAIL
-      expect(takeAction(crit, attack('e'), rng()).battle.pending).toBeFalsy()
+      expect(takeAction(crit, attack('e'), rng()).battle.pending?.request.abilityId).not.toBe('prayer')
     })
 
     it('is not offered for the priest’s own test, or without 2 Faith', () => {

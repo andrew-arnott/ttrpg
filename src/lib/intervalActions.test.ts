@@ -178,7 +178,7 @@ describe('resolveInterval', () => {
     const search: InteractionPlan = { a: { actionId: 'search' } }
 
     it('puts drawn resource tokens in play', () => {
-      const s = stateWith(searcher([{ tokenId: 'expertise', count: 10 }, { tokenId: 'plus0', count: 1 }]))
+      const s = stateWith(searcher([{ tokenId: 'expertise', count: 10 }, { tokenId: 'critSuccess', count: 1 }]))
       const { state, steps } = resolveInterval(s, search, rng())
       const drawn = steps[0].test!.result.drawn.filter((d) => d.tokenId === 'expertise').length
       expect(state.party[0].resources.expertise ?? 0).toBe(drawn)

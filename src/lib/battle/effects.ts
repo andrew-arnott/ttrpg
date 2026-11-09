@@ -35,7 +35,7 @@ import type { BattleEnemy, BattlePlayer, BattleState } from './types'
 
 /** What a finished test does to the tokens, and the notes about it for the step that follows. */
 export function afterTest(engine: Engine, p: BattlePlayer, result: TestResult, succeeded: boolean) {
-  engine.notes.push(...settleTest(p, result, succeeded, { round: engine.b.round, lethal: true }))
+  engine.notes.push(...settleTest(p, result, succeeded, { round: engine.b.round, lethal: true, ask: engine.ask }))
   updateResult(engine.b)
 }
 
