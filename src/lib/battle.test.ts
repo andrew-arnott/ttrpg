@@ -653,6 +653,22 @@ describe('picking targets', () => {
   })
 })
 
+describe('Fireball draws once', () => {
+  it('compares a single result with every enemy in the group', () => {
+    const b = battleOf(
+      [player('p', { abilityIds: ['fireball'], bag: bagOf('plus3'), resources: { mana: 3 } })],
+      [enemy('goblin', 'g', { hp: 9 }), enemy('troll', 't', { hp: 9 })],
+      { p: 'g1', g: 'g2', t: 'g2' },
+    )
+    const { steps } = takeAction(b, { actionId: 'ability:fireball:2', targetId: 'g2' }, rng())
+    const fireball = steps.filter((s) => s.title === 'Fireball')
+    expect(fireball).toHaveLength(1)
+    expect(fireball[0].test?.total).toBe(4)
+    expect(fireball[0].outcome).toMatch(/g takes 2 damage/)
+    expect(fireball[0].outcome).toMatch(/t \(Defense 5\) dodges/)
+  })
+})
+
 describe('Triggered abilities', () => {
   const weak = (id: string) => enemy('goblin', id, { hp: 1 })
   const asks = (abilityId: string, answer: Reactions = acceptAll): { seen: string[]; reactions: Reactions } => {

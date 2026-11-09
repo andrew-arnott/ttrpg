@@ -409,40 +409,34 @@ export function fireball(engine: Engine, caster: BattlePlayer, groupId: string, 
   const groupName = describeGroup(b, groupId)
   const fatigue = Math.floor(mana / 3)
 
-  targets.forEach((e, i) => {
-    if (e.hp <= 0) return
-    const test = playerTest(engine, caster, 'intelligence', enemyDefense(e))
-    const first = i === 0
-    const intro = first
-      ? `${caster.name} unleashes a fireball (${mana} Mana) on ${groupName}.`
-      : `The fireball rolls over ${e.name}.`
-    if (!test.passed) {
-      addStep(engine, {
-        actor: playerActorOf(caster),
-        title: 'Fireball',
-        intro,
-        test,
-        testMode: 'check',
-        outcome: `${e.name} dodges the flames.`,
-        tone: 'failure',
-      })
-    } else {
-      const groupId = groupOf(b, e.id)
+  const living = targets.filter((e) => e.hp > 0)
+  if (living.length > 0) {
+    const lowest = Math.min(...living.map((e) => enemyDefense(e)))
+    const test = playerTest(engine, caster, 'intelligence', lowest)
+    const outcome = test.result.outcome
+    const reaches = (e: BattleEnemy) =>
+      outcome === 'critical-success' || (outcome !== 'critical-failure' && test.total >= enemyDefense(e))
+    const lines = living.map((e) => {
+      if (!reaches(e)) return `${e.name} (Defense ${enemyDefense(e)}) dodges the flames.`
+      const where = groupOf(b, e.id)
       const defeated = damageEnemy(b, e, mana)
-      if (defeated) engine.defeats.push({ enemyId: e.id, byKey: caster.key, groupId, viaAttack: true })
-      addStep(engine, {
-        actor: playerActorOf(caster),
-        title: 'Fireball',
-        intro,
-        test,
-        testMode: 'check',
-        outcome: `${e.name} takes ${mana} damage (${e.hp}/${e.maxHp} HP).${defeated ? ` ${e.name} is defeated!` : ''}`,
-        tone: 'success',
-      })
-    }
+      if (defeated) engine.defeats.push({ enemyId: e.id, byKey: caster.key, groupId: where, viaAttack: true })
+      return `${e.name} takes ${mana} damage (${e.hp}/${e.maxHp} HP).${defeated ? ` ${e.name} is defeated!` : ''}`
+    })
+    addStep(engine, {
+      actor: playerActorOf(caster),
+      title: 'Fireball',
+      intro: `${caster.name} unleashes a fireball (${mana} Mana) on ${groupName}. One result is compared with every enemy's Defense.`,
+      test,
+      testMode: 'score',
+      testHeading: 'Intelligence test against each enemy in the group',
+      resultLine: `Tokens ${fmtSigned(test.result.total)} + Intelligence ${test.attributeValue}${test.bonuses.map((x) => ` ${x.value < 0 ? '-' : '+'} ${x.label} ${Math.abs(x.value)}`).join('')} = ${test.total}`,
+      outcome: lines.join(' '),
+      tone: living.some(reaches) ? 'success' : 'failure',
+    })
     updateResult(b)
     runTriggers(engine, caster, test.result)
-  })
+  }
 
   const burned = allies.filter((a) => a.hp > 0)
   if (burned.length > 0 || fatigue > 0) {
