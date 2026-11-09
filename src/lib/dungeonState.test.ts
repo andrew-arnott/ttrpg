@@ -408,3 +408,32 @@ describe('limitTorches', () => {
     expect(limitTorches([member('a', 1), member('b', 1)]).map((m) => m.inventory.torch)).toEqual([1, 1])
   })
 })
+
+describe('the optional Ossuary', () => {
+  const nearby = () => ({ ...createDungeonState(SUNKEN_CRYPT, [testMember('a', 0), testMember('b', 0)]), roomId: 'cistern' })
+  const rng = mulberry32(2)
+
+  it('wakes its guardian the first time the party walks in, and only then', () => {
+    const entered = dungeonReducer(nearby(), { type: 'moveTo', roomId: 'ossuary', rng })
+    expect(entered.battle).not.toBeNull()
+    expect(entered.battleKind).toBe('guardian')
+    expect(entered.done).toContain('guardian:ossuary')
+    expect(entered.battle!.enemies.map((e) => e.defId)).toEqual(['colossus'])
+
+    const after = endBattle({ ...entered, battle: { ...entered.battle!, result: 'victory' } })
+    const back = dungeonReducer({ ...after, roomId: 'cistern' }, { type: 'moveTo', roomId: 'ossuary', rng })
+    expect(back.battle).toBeNull()
+  })
+
+  it('is not needed to finish the dungeon', () => {
+    const room = SUNKEN_CRYPT.rooms.find((r) => r.id === 'ossuary')!
+    expect(room.optional).toBe(true)
+    const needed = SUNKEN_CRYPT.links.flatMap((l) => (l.lock?.kind === 'seal' ? l.lock.requires.map((r) => r.flag) : []))
+    expect(needed.some((flag) => flag.includes('ossuary'))).toBe(false)
+  })
+
+  it('lets Scout Ahead say what is inside', () => {
+    const room = SUNKEN_CRYPT.rooms.find((r) => r.id === 'ossuary')!
+    expect(room.description).toMatch(/Colossus/)
+  })
+})

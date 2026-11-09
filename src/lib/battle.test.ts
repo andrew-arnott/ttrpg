@@ -8,6 +8,7 @@ import {
   actionsThisTurn,
   enemyDefense,
   engageBreakdown,
+  engagementGroups,
   respondToReaction,
   engageDifficulty,
   runEnemyPhase,
@@ -650,6 +651,39 @@ describe('picking targets', () => {
   it('will not resolve a plan aimed at a disabled target', () => {
     const { steps } = playRound(split(['disable']), { p: turn({ actionId: 'ability:disable', targetId: 'far' }) }, rng())
     expect(steps[0].title).toBe('No move')
+  })
+})
+
+describe('the Bone Colossus', () => {
+  it('starts engaged with everyone, in one group', () => {
+    const members = [testMember('a', 0), testMember('b', 0), testMember('c', 0)]
+    const b = startBattle(members, [], ['colossus'], rng(), 'x', null)
+    expect(new Set(Object.values(b.groups)).size).toBe(1)
+    expect(engagementGroups(b)).toHaveLength(1)
+  })
+
+  it('drags everyone back into reach at the end of its turn, so slipping away only helps for a turn', () => {
+    const b = battleOf(
+      [player('p', { abilityIds: ['slipAway'], hp: 30, maxHp: 30 }), player('q', { hp: 30, maxHp: 30 })],
+      [enemy('colossus', 'c')],
+      { p: 'g1', q: 'g1', c: 'g1' },
+    )
+    const slip: PlannedCombat = { actionId: 'ability:slipAway', targetId: 'new' }
+    const round = playRound(b, { p: { actions: [null, null], fast: slip }, q: turn(defend, defend) }, rng())
+    expect(round.steps.some((s) => s.title === 'Inescapable')).toBe(true)
+    expect(round.steps.find((s) => s.clash)!.clash!.target.key).toBe('q')
+    expect(round.battle.groups.p).toBe(round.battle.groups.c)
+  })
+})
+
+describe('an unwarded enemy', () => {
+  it('no longer heals itself when a Complication is drawn', () => {
+    const b = battleOf([player('p', { bag: [{ tokenId: 'complication', count: 1 }], hp: 20 })], [enemy('warden', 'w', { hp: 3, unwarded: true })], {
+      p: 'g1',
+      w: 'g1',
+    })
+    const { steps } = playRound(b, { p: turn(attack('w')) }, rng())
+    expect(steps.some((s) => s.title === 'Undying')).toBe(false)
   })
 })
 
