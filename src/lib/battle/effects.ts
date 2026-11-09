@@ -7,7 +7,8 @@ import { engageBreakdown, engageDifficulty } from './engagement'
 import { settleTest, takeDamage } from '../characterTest'
 import { drawRulesFor } from './conditionRules'
 import { gainCondition } from './conditions'
-import { INTERCEPT_DEFENSE, offerIntercept, offerPrayer } from './reactions'
+import { offerPrayer } from '../reactorRules'
+import { INTERCEPT_DEFENSE, offerIntercept } from './reactions'
 import { releaseCommitment, type Commitment } from './tokens'
 import {
   adjustBag,
@@ -205,7 +206,7 @@ export function playerTest(
   bonuses: TestBonus[] = [],
 ): SkillTestOutcome {
   const rolled = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng, 0, bonuses, drawRulesFor(p))
-  const test = offerPrayer(engine, p, rolled)
+  const test = offerPrayer(engine.ask, engine.b.players, p, rolled)
   afterTest(engine, p, test.result, test.passed)
   return test
 }

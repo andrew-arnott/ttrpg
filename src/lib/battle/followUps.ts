@@ -1,5 +1,5 @@
 import { attackEnemy } from './effects'
-import { canReact, payForReaction } from './reactions'
+import { canReact, payForReaction } from '../reactorRules'
 import {
   enemiesInGroup,
   enemyById,
