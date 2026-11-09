@@ -69,12 +69,11 @@ Still open:
 
 1. Engage and disengage: how should Difficulty scale with enemies engaged and allies engaged? (Needs workshopping.)
 2. Skill-test rule: token total + attribute at least the Difficulty. Difficulties per room are guesses.
-3. Should surprise move to the guide's concealment-versus-light table, with the party making the check?
-4. Should healing items follow the guide (Health Potion 1 HP, Bandage treats Wounds)? That makes the tutorial harder.
+3. Should healing items follow the guide (Health Potion 1 HP, Bandage treats Wounds)? That makes the tutorial harder.
 
 ## Backlog, roughly in order of value
 
-1. **Surprise** as the guide describes it: concealment against light level, the party's check, a 1-action surprise round.
+1. **Surprise** follow-ups: a 1-action surprise round (unspotted enemies currently take their whole turn), and enemies that are hidden by more than a number.
 2. **Inventory** with 6 slots, stack sizes and the four equipment slots; weapons (Attack uses the held weapon's attribute).
 3. **Healing items**: decide whether to follow the guide (Health Potion 1 HP, Bandage treats Wounds only).
 4. **Smaller gaps**: Scry beyond a neighbouring room, Secure Area and Barricade in a fight, species traits that are not bag
@@ -153,7 +152,7 @@ HOW TO WORK
 
 NEXT STEPS (pick with the owner; see the backlog in docs/HANDOFF.md)
 1. Ask the owner for the actual rules text and reconcile docs/RULES.md.
-2. Resolve the open questions listed in docs/HANDOFF.md (engage scaling, healing items, surprise model).
+2. Resolve the open questions listed in docs/HANDOFF.md (engage scaling, healing items).
 3. Implement Triggered abilities (needs an interrupt/react prompt in the battle engine), then the remaining combat
    abilities, Armor/Power spending and condition tokens.
 4. Add npm run lint to the deploy workflow; consider component tests or running scripts/e2e in CI.

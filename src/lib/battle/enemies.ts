@@ -52,9 +52,10 @@ export function resetRoundState(b: BattleState) {
   })
 }
 
-export function enemyActions(engine: Engine) {
+/** The enemies take their turns in random order. A surprise round lets only some of them act. */
+export function enemyActions(engine: Engine, acting: BattleEnemy[] = livingEnemies(engine.b)) {
   const { b, rng } = engine
-  for (const e of shuffled(livingEnemies(b), rng)) {
+  for (const e of shuffled(acting.filter((a) => a.hp > 0), rng)) {
     if (b.result !== 'ongoing') break
     if (e.hp > 0) enemyTurn(engine, e)
   }

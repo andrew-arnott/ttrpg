@@ -1,9 +1,7 @@
 import { ENEMIES_BY_ID, type EnemyDef } from '../../data/enemies'
-import { STANDARD_BAG } from '../../data/tokens'
 import type { Rng } from '../drawTest'
 import type { PartyMember, Preparation } from '../dungeonState'
-import { performSkillTest } from '../skillTest'
-import { attackEnemy } from './effects'
+import { attackEnemy, playerTest } from './effects'
 import { enemyActions, resetRoundState } from './enemies'
 import {
   addStep,
@@ -24,7 +22,7 @@ import {
   updateResult,
   type Engine,
 } from './state'
-import { FORTIFY_DEFENSE, SURPRISE_BASE_DIFFICULTY } from './types'
+import { FORTIFY_DEFENSE } from './types'
 import type { BattleState, SurpriseCheck } from './types'
 
 
@@ -139,46 +137,62 @@ export function startBattle(
 }
 
 /**
- * The enemy group makes a Perception test to surprise the party. Stand Watch, Keep Watch
- * and a bright torch make that harder; a dim or dead torch makes it easier. If they
- * succeed they get a full round of attacks before anyone can act.
+ * Each player makes a Perception test, and every enemy whose notice Difficulty that result meets is
+ * spotted. Light and watchfulness help. Enemies nobody spotted get a surprise round before the
+ * players can act; enemies that were spotted hold back.
  */
 function surpriseCheck(engine: Engine, check: SurpriseCheck) {
   const { b } = engine
-  const difficulty = SURPRISE_BASE_DIFFICULTY + check.modifiers.reduce((sum, m) => sum + m.value, 0)
-  const test = performSkillTest(STANDARD_BAG, 'perception', check.perception, difficulty, engine.rng)
-  const lead = livingEnemies(b)[0]
-  const surprised = test.passed
-  const breakdown = [
-    `${SURPRISE_BASE_DIFFICULTY} base`,
-    ...check.modifiers.map((m) => `${fmtSigned(m.value)} ${m.label}`),
-  ].join(', ')
+  const enemies = livingEnemies(b)
+  const bonuses = check.modifiers.map((m) => ({ label: m.label, value: m.value }))
+  const spotted = new Set<string>()
 
+  for (const p of livingPlayers(b)) {
+    const test = playerTest(engine, p, 'perception', 0, bonuses)
+    const result = test.result.outcome
+    const score = result === 'critical-success' ? Infinity : result === 'critical-failure' ? -Infinity : test.total
+    const seen = enemies.filter((e) => ENEMIES_BY_ID[e.defId].noticeDifficulty <= score)
+    seen.forEach((e) => spotted.add(e.id))
+    const names = seen.map((e) => e.name).join(', ')
+    addStep(engine, {
+      actor: playerActorOf(p),
+      title: 'Look out!',
+      intro: `${p.name} peers into the shadows for movement.`,
+      test,
+      testMode: 'score',
+      resultLine: `Tokens ${fmtSigned(test.result.total)} + Perception ${test.attributeValue}${bonuses
+        .map((x) => ` ${x.value < 0 ? '-' : '+'} ${x.label} ${Math.abs(x.value)}`)
+        .join('')} = ${test.total}`,
+      testHeading: `Perception test against each enemy's notice Difficulty (${enemies
+        .map((e) => `${e.name} ${ENEMIES_BY_ID[e.defId].noticeDifficulty}`)
+        .join(', ')})`,
+      outcome: seen.length > 0 ? `${p.name} spots ${names}.` : `${p.name} notices nothing.`,
+      tone: seen.length === enemies.length ? 'success' : seen.length > 0 ? 'neutral' : 'failure',
+    })
+  }
+
+  const ambushers = enemies.filter((e) => !spotted.has(e.id))
+  const modifiers =
+    check.modifiers.length > 0 ? ` (${check.modifiers.map((m) => `${fmtSigned(m.value)} ${m.label}`).join(', ')})` : ''
   addStep(engine, {
-    actor: lead ? enemyActorOf(lead) : null,
+    actor: ambushers[0] ? enemyActorOf(ambushers[0]) : null,
     title: 'Surprise?',
-    intro: 'The enemies creep closer, trying to catch the party off guard.',
-    test,
-    testMode: 'score',
-    testHeading: `Enemy Perception test \u00b7 Difficulty ${difficulty} (${breakdown})`,
-    bagLabel: "The enemies' bag",
-    resultLine: `Tokens ${fmtSigned(test.result.total)} + Perception ${check.perception} = ${test.total} against ${difficulty}: ${
-      surprised ? 'the enemies succeed' : 'the party notices them'
-    }`,
-    outcome: surprised
-      ? 'The enemies strike from the shadows! They get a surprise round before anyone can act.'
-      : 'The party spots them in time. Combat begins on even terms.',
-    tone: surprised ? 'failure' : 'success',
+    intro: `The party's eyes against the dark${modifiers}.`,
+    outcome:
+      ambushers.length === 0
+        ? 'Everything was spotted in time. Combat begins on even terms.'
+        : `${ambushers.map((e) => e.name).join(', ')} ${ambushers.length === 1 ? 'was' : 'were'} not spotted and strike${ambushers.length === 1 ? 's' : ''} first.`,
+    tone: ambushers.length === 0 ? 'success' : 'failure',
   })
-  if (!surprised) return
+  if (ambushers.length === 0) return
 
   addStep(engine, {
     actor: null,
     title: 'Surprise round',
     intro: 'The party is caught flat-footed.',
-    outcome: 'The enemies attack before anyone can defend.',
+    outcome: 'The unspotted enemies attack before anyone can defend.',
     tone: 'failure',
   })
-  enemyActions(engine)
+  enemyActions(engine, ambushers)
   resetRoundState(b)
 }

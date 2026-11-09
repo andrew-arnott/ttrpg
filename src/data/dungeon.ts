@@ -114,8 +114,6 @@ export interface Patrol {
   /** Intervals after the first lock is opened. */
   delayAfterUnlock: number
   enemyIds: string[]
-  /** The group's Perception score when it tries to surprise the party. */
-  perception: number
   /** Heard by anyone keeping watch in the Interval before the patrol arrives. */
   warning: string
   arrival: string
@@ -544,7 +542,6 @@ export const SUNKEN_CRYPT: Dungeon = {
   patrol: {
     delayAfterUnlock: 4,
     enemyIds: ['goblin', 'goblin', 'troll'],
-    perception: 2,
     warning: 'Boots scrape and something heavy drags along the stone. A patrol is close.',
     arrival: 'A goblin patrol led by a cave troll stumbles into the party!',
   },

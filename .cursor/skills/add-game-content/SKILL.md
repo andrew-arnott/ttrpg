@@ -34,8 +34,8 @@ and file name differ. Equipment prices are assumptions, so note changes in `docs
 
 ## An enemy
 
-1. `src/data/enemies.ts`: Defense, HP, attacks (`attackValue`, `damage`, `area`) and triggers
-   (`strike`, `empower`, `heal`). Adding a new trigger kind means handling it in `applyTrigger` in `battle.ts`.
+1. `src/data/enemies.ts`: Defense, HP, `noticeDifficulty` (the Perception Difficulty to spot it before it strikes), attacks (`attackValue`, `damage`, `area`) and triggers
+   (`strike`, `empower`, `heal`, `condition`; a trigger only fires for a character engaged with the enemy unless it is `global`). Adding a new trigger kind means handling it in `applyTrigger` in `src/lib/battle/effects.ts`.
 2. Art: `enemy-<id>.webp`.
 3. Reference it by id from `dungeon.patrol` or `dungeon.boss`.
 4. Check balance by simulating many fights (see below).

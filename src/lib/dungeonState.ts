@@ -228,7 +228,6 @@ export function burnTorchInterval(state: DungeonState): { state: DungeonState; m
 export function surpriseCheckFor(state: DungeonState): SurpriseCheck {
   const light = TORCH_AWARENESS[torchLevel(state.torch)]
   return {
-    perception: state.dungeon.patrol.perception,
     modifiers: [state.watch, light].flatMap((m) => (m && m.value !== 0 ? [m] : [])),
   }
 }

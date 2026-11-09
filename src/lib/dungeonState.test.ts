@@ -243,19 +243,17 @@ describe('the surprise check', () => {
     expect(STAND_WATCH.value).toBe(2)
   })
 
-  it('uses the patrol’s Perception', () => {
-    expect(surpriseCheckFor(fresh()).perception).toBe(SUNKEN_CRYPT.patrol.perception)
-  })
-
-  it('feeds the Difficulty of the test when the patrol arrives', () => {
+  it('gives each player the watch and torch as bonuses to their Perception test when the patrol arrives', () => {
     const s = dungeonReducer({ ...fresh(), watch: STAND_WATCH }, { type: 'startBattle', rng })
-    const step = s.battle!.opening.find((o) => o.title === 'Surprise?')!
-    expect(step.test!.difficulty).toBe(4 + 2 + 1)
+    const looks = s.battle!.opening.filter((o) => o.title === 'Look out!')
+    expect(looks).toHaveLength(s.party.length)
+    expect(looks[0].test!.bonuses).toEqual([STAND_WATCH, { label: 'Bright torch', value: 1 }])
   })
 
-  it('is easier on the enemies once the torch is dim and nobody is watching', () => {
+  it('takes away a bonus once the torch is dim and nobody is watching', () => {
     const s = dungeonReducer(withTorch(2), { type: 'startBattle', rng })
-    expect(s.battle!.opening.find((o) => o.title === 'Surprise?')!.test!.difficulty).toBe(4 - 1)
+    const look = s.battle!.opening.find((o) => o.title === 'Look out!')!
+    expect(look.test!.bonuses).toEqual([{ label: 'Dim torch', value: -1 }])
   })
 
   it('forgets watching as soon as the party moves', () => {

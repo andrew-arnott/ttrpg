@@ -39,6 +39,8 @@ export interface EnemyDef {
   blurb: string
   hp: number
   defense: number
+  /** The Perception Difficulty for a character to spot this enemy before it strikes. */
+  noticeDifficulty: number
   /** Undead or otherwise vulnerable to divine power, which Smite hits harder. */
   supernatural?: boolean
   attacks: EnemyAttack[]
@@ -53,6 +55,7 @@ export const ENEMIES: EnemyDef[] = [
     blurb: 'A skulking scavenger that darts in whenever someone slips up.',
     hp: 3,
     defense: 3,
+    noticeDifficulty: 6,
     attacks: [{ name: 'Rusty Knife', attackValue: 4, damage: 1 }],
     triggers: [
       {
@@ -73,6 +76,7 @@ export const ENEMIES: EnemyDef[] = [
     blurb: 'A hulking brute that swings wildly at anything in reach.',
     hp: 4,
     defense: 5,
+    noticeDifficulty: 3,
     attacks: [
       { name: 'Club Smash', attackValue: 6, damage: 2, condition: 'wound' },
       { name: 'Ground Slam', attackValue: 3, damage: 1, area: true },
@@ -91,6 +95,7 @@ export const ENEMIES: EnemyDef[] = [
     blurb: 'A rattling sentinel that has stood watch for centuries.',
     hp: 2,
     defense: 3,
+    noticeDifficulty: 6,
     supernatural: true,
     attacks: [{ name: 'Bone Claws', attackValue: 4, damage: 1 }],
     triggers: [
@@ -107,6 +112,7 @@ export const ENEMIES: EnemyDef[] = [
     blurb: 'The undead guardian of the Founders\u2019 Crypt, bound to its post by the seal you broke.',
     hp: 7,
     defense: 5,
+    noticeDifficulty: 5,
     supernatural: true,
     attacks: [
       { name: 'Rusted Greatsword', attackValue: 6, damage: 2 },

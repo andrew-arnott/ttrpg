@@ -772,12 +772,11 @@ describe('Triggered abilities', () => {
     })
 
     it('is not offered during a surprise round', () => {
-      const party = [testMember('w', 0), testMember('q', 0)]
+      const blind = { bag: ALWAYS_FAIL }
+      const party = [testMember('w', 0, blind), testMember('q', 0, blind)]
       const warrior = { ...party[0], abilityIds: ['intercept'] }
-      const b = startBattle([warrior, party[1]], [], ['goblin'], rng(), 'A patrol appears.', {
-        perception: 99,
-        modifiers: [],
-      })
+      const b = startBattle([warrior, party[1]], [], ['goblin'], rng(), 'A patrol appears.', { modifiers: [] })
+      expect(b.opening.some((s) => s.title === 'Surprise round')).toBe(true)
       expect(b.pending).toBeFalsy()
     })
   })
@@ -1544,79 +1543,74 @@ describe('the enemy phase', () => {
 })
 
 describe('surprise', () => {
-  const party = () => [testMember('a', 0), testMember('b', 0)]
-  const check = (perception: number, modifiers: { label: string; value: number }[] = []) => ({
-    perception,
-    modifiers,
-  })
+  const sighted = (perception: number, bag = bagOf('plus3')) =>
+    (key: string) => testMember(key, 0, { special: { ...flat, perception }, bag })
+  const blind = (key: string) => testMember(key, 0, { bag: ALWAYS_FAIL })
+  const look = (b: BattleState) => b.opening.filter((s) => s.title === 'Look out!')
+  const check = (modifiers: { label: string; value: number }[] = []) => ({ modifiers })
+  const goblinsAndTroll = ['goblin', 'goblin', 'troll']
 
   it('has no check at all when none is given', () => {
-    const b = startBattle(party(), [], ['goblin'], rng(), 'x', null)
-    expect(b.opening.some((s) => s.title === 'Surprise?')).toBe(false)
+    const b = startBattle([sighted(1)('a')], [], ['goblin'], rng(), 'x', null)
+    expect(b.opening.some((s) => s.title === 'Surprise?' || s.title === 'Look out!')).toBe(false)
   })
 
-  it('builds the Difficulty from the base and each modifier', () => {
+  it('has every player make their own Perception test, helped or hindered by light and watchfulness', () => {
     const b = startBattle(
-      party(),
+      [sighted(1)('a'), sighted(1)('b')],
       [],
       ['goblin'],
       rng(),
       'x',
-      check(2, [
+      check([
         { label: 'Stand Watch', value: 2 },
-        { label: 'Bright torch', value: 1 },
+        { label: 'Dim torch', value: -1 },
       ]),
     )
-    const step = b.opening.find((s) => s.title === 'Surprise?')!
-    expect(step.test?.difficulty).toBe(7)
-    expect(step.testHeading).toMatch(/Difficulty 7/)
-    expect(step.testHeading).toMatch(/\+2 Stand Watch/)
-    expect(step.testHeading).toMatch(/\+1 Bright torch/)
-    expect(step.test?.attribute).toBe('perception')
+    expect(look(b).map((s) => s.actor?.key)).toEqual(['a', 'b'])
+    const test = look(b)[0].test!
+    expect(test.attribute).toBe('perception')
+    expect(test.bonuses).toEqual([
+      { label: 'Stand Watch', value: 2 },
+      { label: 'Dim torch', value: -1 },
+    ])
+    expect(test.total).toBe(3 + 1 + 2 - 1)
+    expect(look(b)[0].resultLine).toMatch(/\+ Stand Watch 2 - Dim torch 1 = 5/)
   })
 
-  it('lets the enemies strike first when they succeed, and then hands over to the players', () => {
-    const b = startBattle(party(), [], ['goblin', 'troll'], rng(), 'x', check(99, [{ label: 'x', value: -3 }]))
-    const titles = b.opening.map((s) => s.title)
-    expect(titles).toContain('Surprise round')
-    expect(b.opening.some((s) => s.actor?.artKind === 'enemy' && s.clash)).toBe(true)
-    expect(b.round).toBe(1)
-    expect(b.phase).toBe('players')
-    expect(currentPlayer(b)).not.toBeNull()
-    expect(b.players.every((p) => p.defense === 0)).toBe(true)
+  it('spots each enemy only if a result meets its own notice Difficulty', () => {
+    const b = startBattle([sighted(1)('a')], [], goblinsAndTroll, rng(), 'x', check())
+    expect(look(b)[0].outcome).toMatch(/spots Cave Troll\./)
+    const ambush = b.opening.filter((s) => s.clash)
+    expect(ambush.length).toBeGreaterThan(0)
+    expect(ambush.every((s) => s.actor?.name.startsWith('Goblin Scout'))).toBe(true)
+    expect(b.opening.find((s) => s.title === 'Surprise?')!.outcome).toMatch(/Goblin Scout A, Goblin Scout B were not spotted/)
   })
 
-  /** Finds a seed whose Perception draw comes out the wanted way, since the draw is random. */
-  const withOutcome = (
-    surprised: boolean,
-    prepared: Parameters<typeof startBattle>[1] = [],
-    members = party(),
-  ) => {
-    for (let seed = 1; seed < 500; seed++) {
-      const b = startBattle(members, prepared, ['goblin', 'troll'], mulberry32(seed), 'x', check(2))
-      if (b.opening.find((s) => s.title === 'Surprise?')!.test!.passed === surprised) return b
-    }
-    throw new Error('no seed found')
-  }
-
-  it('leaves the party untouched when the enemies fail', () => {
-    const b = withOutcome(false)
-    const step = b.opening.find((s) => s.title === 'Surprise?')!
-    expect(step.tone).toBe('success')
+  it('counts an enemy as spotted if any one player notices it', () => {
+    const b = startBattle([sighted(5)('a'), blind('b')], [], ['goblin'], rng(), 'x', check())
     expect(b.opening.some((s) => s.title === 'Surprise round')).toBe(false)
+    expect(b.opening.find((s) => s.title === 'Surprise?')!.tone).toBe('success')
     expect(b.players.every((p) => p.hp === p.maxHp)).toBe(true)
   })
 
-  it('reports whether they were surprised in the step itself', () => {
-    const b = startBattle(party(), [], ['goblin'], rng(), 'x', check(2))
-    const step = b.opening.find((s) => s.title === 'Surprise?')!
-    expect(step.tone).toBe(step.test!.passed ? 'failure' : 'success')
-    expect(b.opening.some((s) => s.title === 'Surprise round')).toBe(step.test!.passed)
+  it('spots everything on a Critical Success and nothing on a Critical Failure', () => {
+    const lucky = startBattle([testMember('a', 0, { bag: ALWAYS_PASS })], [], ['warden'], rng(), 'x', check())
+    expect(lucky.opening.some((s) => s.title === 'Surprise round')).toBe(false)
+    const unlucky = startBattle([blind('a'), blind('b')], [], ['troll'], rng(), 'x', check())
+    expect(unlucky.opening.some((s) => s.title === 'Surprise round')).toBe(true)
+  })
+
+  it('lets only the unspotted enemies act, then hands over to the players', () => {
+    const b = startBattle([sighted(1)('a'), sighted(1)('b')], [], goblinsAndTroll, rng(), 'x', check())
+    expect(b.opening.some((s) => s.actor?.name === 'Cave Troll' && s.clash)).toBe(false)
+    expect(b.round).toBe(1)
+    expect(b.phase).toBe('players')
+    expect(currentPlayer(b)).not.toBeNull()
   })
 
   it('uses up Fortify against the surprise round', () => {
-    const b = withOutcome(true, [{ tag: 'Fortified', memberKey: 'a' }], [testMember('a', 0)])
-    const first = b.opening.find((s) => s.clash)!.clash!
-    expect(first.defenseBefore).toBe(2)
+    const b = startBattle([blind('a')], [{ tag: 'Fortified', memberKey: 'a' }], ['goblin'], rng(), 'x', check())
+    expect(b.opening.find((s) => s.clash)!.clash!.defenseBefore).toBe(2)
   })
 })

@@ -36,7 +36,7 @@ Two other sources feed the code:
 | Engagement | Groups of players and enemies. You can usually only attack within your group. Enemies engage randomly for now. An action changes group; some abilities (Provoke) force it |
 | Triggers | Enemy triggered abilities usually fire when a Complication is drawn |
 | End | The fight ends when all of one side is at 0 HP |
-| Surprise | The enemy group makes a Perception test to surprise the party. Better light and watchfulness make it harder for them: Bright torch +1, Steady 0, Dim -1, no torch -2 to the party's side of the Difficulty, and Stand Watch or Keep watch +2 (the better one applies) |
+| Surprise | Owner ruling: each player makes a Perception test against the enemies, and every enemy has its own notice Difficulty (Goblin Scout 6, Cave Troll 3, Skeleton Guard 6, Barrow Warden 5, all invented). An enemy is spotted if any one player's result meets it. Bright torch +1, Steady 0, Dim -1, no torch -2, and Stand Watch or Keep watch +2 (the better one) are bonuses to those tests |
 | Patrol | No patrol until the first door is unlocked |
 | Locked doors | Entrance door can be picked (Agility) or broken (Strength). Retrying is intended, to make torches a constraint |
 | Final room | Sealed by a lock that only opens through actions in other rooms; guarded by a boss |
@@ -56,7 +56,7 @@ Two other sources feed the code:
 | Darkness | Tests made with the torch out get +3 Difficulty | `DARKNESS_PENALTY` in `intervalActions.ts` |
 | Skill tests | Token total + attribute must be at least the Difficulty. Critical Success always passes, Critical Failure always fails | `src/lib/skillTest.ts` |
 | Rest | Regain 1 of the profession's main resource, up to 2 above the starting amount | `REST_BONUS_LIMIT` |
-| Surprise round | A successful enemy test gives them a full round of attacks first; a hit on someone with no Defense lands | `surpriseCheck` in `battle.ts` |
+| Surprise round | Enemies nobody spotted take their turn before the players act; spotted enemies hold back. A hit on someone with no Defense lands | `surpriseCheck` in `battle/start.ts` |
 | Patrol timing | Arrives 4 Intervals after the first lock opens; a Complication-driven noise brings it one Interval sooner | `patrol.delayAfterUnlock` |
 | Room Difficulties | Search 4 to 6, interactions 4 to 6, lockpicking 6, breaking the door 7; rewards are items | `src/data/dungeon.ts` |
 | Room complications | Damage (never below 1 HP), an extra step of torch burn, noise (patrol sooner), or a lost spare torch, per room | `room.complication` in `dungeon.ts` |
@@ -80,6 +80,8 @@ Two other sources feed the code:
 | Conditions | Enemy attacks and triggers can give a condition token (Cave Troll's Club Smash a Wound, the Barrow Warden's Grave Chill Fear, the Goblin Scout's Poisoned Blade trigger Poison for an engaged character who draws a Complication; all invented content). It goes in the bag; drawn in a failed test it is sealed and takes effect as the guide describes. A Fatigue takes effect from the round after it was sealed. At the end of each combat round everyone releases one condition sealed in an earlier round, choosing if there are several, and all are released when the fight ends. Divine Intervention is for allies only. In the dungeon a condition drawn in a failed test is sealed too, takes effect for that test (Poison hurts, but never below 1 HP) and is released when the Interval ends | `src/lib/battle/conditions.ts`, `conditionRules.ts`, `data/enemies.ts` |
 | Treat Conditions | An Interval action. The patient tests at Difficulty 6 with the better of the two listed attributes; success removes the token from their bag for good, and the item is used up either way. Tend the Afflicted does the same with no test | `treatCondition` in `intervalActions.ts` |
 | Fireball | X Mana (1 to 3 offered as separate options); the caster is hurt too if they stand in the target group; 3 Mana adds a Fatigue token | `fireball` in `battle.ts` |
+| Complications | Owner ruling: a Complication sets off only the enemies the character is engaged with, unless an enemy's trigger is marked global (the Barrow Warden's Undying) | `trigger.global` in `data/enemies.ts` |
+| Targets | Owner ruling: abilities list every enemy but disable the ones they cannot reach, pick the first usable one, and are themselves disabled when none is usable. Provoke can hit any enemy in the room; Attack, Disable, Cheap Shot and Smite need an engaged enemy | `src/lib/battle/targets.ts` |
 | Fortify | Owner ruling: everyone in the party, not just the warrior, begins combat with +2 Defense | `FORTIFY_DEFENSE` |
 | Set an Ambush | A free attack on a random enemy at the start of the fight | `startBattle` |
 
@@ -90,8 +92,8 @@ them settled yet. Rows marked "owner ruling" were decided in conversation and wi
 
 | Area | Guide | Implementation |
 | --- | --- | --- |
-| Surprise check | Each enemy has a concealment (Obvious, Concealed, Hidden). The current light level decides whether the party notices, must make a test, or is surprised, using a table. Keep Watch counts the light as one level brighter | Enemies make a Perception test against a base Difficulty adjusted by light and watchfulness. Keep watch is +2 (owner ruling, for now) |
-| Surprise round | Each combatant on the surprising side takes 1 action; the surprised side does not act | Enemies get a full round of attacks |
+| Surprise check | Concealment levels against light, with a single check | Owner's per-player Perception tests against each enemy's notice Difficulty (see the owner rulings). The guide's table is not used |
+| Surprise round | Each combatant on the surprising side takes 1 action; the surprised side does not act | Unspotted enemies take their whole turn (all their attacks) |
 | Engage and disengage | Agility test, Difficulty 6. Engage pulls an enemy into your group. Disengage leaves your group and may join another or form a new one | Agility, Difficulty from the formula in the assumptions table (4 base, up with enemies, down with allies). Owner is still workshopping it. A popup explains it the first time a player picks Change engagement |
 | Consumables | Torch, Bandage (treats Wounds), Antivenom, Laudanum, Holy Water, Stimulant, Liquid Courage, Health Potion (restores 1 HP), Rations; stack sizes 2 or 3; using one in combat costs 1 action | The treatments are in, but Bandage also heals 2 HP, Healing Potion heals 4 HP, Smoke Bomb is not in the guide, and prices are invented. Items cannot be used in combat. The new treatments reuse existing icons |
 | Inventory | 6 inventory slots, stacking, and four equipment slots (Main Hand, Off Hand, Body, Accessory), plus tools such as Rope and Thieves' Tools | No slot limit, no equipment slots, no tools |

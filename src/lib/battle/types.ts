@@ -16,8 +16,6 @@ export const BACKSTAB_DAMAGE = 2
 export const SMITE_BONUS_DAMAGE = 2
 export const HEAL_AMOUNT = 2
 export const MAX_FIREBALL_MANA = 3
-/** Difficulty for the enemies' Perception test to surprise the party, before watchfulness and light. */
-export const SURPRISE_BASE_DIFFICULTY = 4
 export const LOG_LIMIT = 40
 export const NEW_GROUP = 'new'
 
@@ -116,9 +114,8 @@ export interface PlannedCombat {
   boost?: number
 }
 
-/** Inputs to the enemies' Perception test to surprise the party. */
+/** What helps or hinders the party's Perception tests to spot enemies before they strike. */
 export interface SurpriseCheck {
-  perception: number
   modifiers: { label: string; value: number }[]
 }
 
