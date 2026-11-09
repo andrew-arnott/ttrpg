@@ -535,6 +535,35 @@ describe('Power and Armor', () => {
   })
 })
 
+describe('Complications and engagement', () => {
+  const complication = [{ tokenId: 'complication', count: 1 }]
+  const room = (defId: string) =>
+    battleOf([player('p', { bag: complication, hp: 20 }), player('q')], [enemy(defId, 'e', { hp: 3 }), enemy('goblin', 'g', { hp: 9 })], {
+      p: 'g1',
+      q: 'g2',
+      e: 'g2',
+      g: 'g1',
+    })
+  const drawComplication: BattlePlan = { p: turn({ actionId: 'engage', targetId: 'g2' }) }
+
+  it('only sets off enemies the character is engaged with', () => {
+    const engaged = playRound(room('troll'), { p: turn(attack('g')) }, rng())
+    expect(engaged.steps.some((s) => s.title === 'Opportunist')).toBe(true)
+    const apart = playRound(room('troll'), drawComplication, rng())
+    expect(apart.steps.some((s) => s.title === 'Bellow')).toBe(false)
+  })
+
+  it('lets a global trigger fire for a Complication drawn anywhere', () => {
+    const b = battleOf(
+      [player('p', { bag: complication, hp: 20 }), player('q')],
+      [enemy('warden', 'w', { hp: 3 })],
+      { p: 'g1', q: 'g2', w: 'g2' },
+    )
+    const { steps } = playRound(b, drawComplication, rng())
+    expect(steps.some((s) => s.title === 'Undying')).toBe(true)
+  })
+})
+
 describe('picking targets', () => {
   const split = (abilityIds: string[]) =>
     battleOf(

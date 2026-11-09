@@ -29,8 +29,8 @@ export interface EnemyTrigger {
   name: string
   text: string
   effect: TriggerEffect
-  /** Only fires when the character who drew the Complication is in the enemy's engagement group. */
-  engagedOnly?: boolean
+  /** Fires for a Complication drawn anywhere in the room. Otherwise only for a character engaged with this enemy. */
+  global?: boolean
 }
 
 export interface EnemyDef {
@@ -42,7 +42,7 @@ export interface EnemyDef {
   /** Undead or otherwise vulnerable to divine power, which Smite hits harder. */
   supernatural?: boolean
   attacks: EnemyAttack[]
-  /** Fires whenever a Complication is drawn (including from a Critical Failure). */
+  /** Fires when a Complication is drawn (including from a Critical Failure). */
   triggers: EnemyTrigger[]
 }
 
@@ -57,14 +57,13 @@ export const ENEMIES: EnemyDef[] = [
     triggers: [
       {
         name: 'Opportunist',
-        text: 'When a Complication is drawn, lunges at the character who drew it.',
+        text: 'When a character engaged with it draws a Complication, lunges at them.',
         effect: { kind: 'strike', attackValue: 4, damage: 1 },
       },
       {
         name: 'Poisoned Blade',
         text: 'When an engaged character draws a Complication, they gain 1 Poison token.',
         effect: { kind: 'condition', conditionId: 'poison' },
-        engagedOnly: true,
       },
     ],
   },
@@ -81,7 +80,7 @@ export const ENEMIES: EnemyDef[] = [
     triggers: [
       {
         name: 'Bellow',
-        text: 'When a Complication is drawn, flies into a rage: +2 attack value until the end of the round.',
+        text: 'When a character engaged with it draws a Complication, flies into a rage: +2 attack value until the end of the round.',
         effect: { kind: 'empower', attackBonus: 2 },
       },
     ],
@@ -97,7 +96,7 @@ export const ENEMIES: EnemyDef[] = [
     triggers: [
       {
         name: 'Clatter',
-        text: 'When a Complication is drawn, its bones rattle in fury: +1 attack value until the end of the round.',
+        text: 'When a character engaged with it draws a Complication, its bones rattle in fury: +1 attack value until the end of the round.',
         effect: { kind: 'empower', attackBonus: 1 },
       },
     ],
@@ -116,8 +115,9 @@ export const ENEMIES: EnemyDef[] = [
     triggers: [
       {
         name: 'Undying',
-        text: 'When a Complication is drawn, the Warden knits itself back together and regains 1 HP.',
+        text: 'When anyone in the room draws a Complication, the Warden knits itself back together and regains 1 HP.',
         effect: { kind: 'heal', amount: 1 },
+        global: true,
       },
     ],
   },
