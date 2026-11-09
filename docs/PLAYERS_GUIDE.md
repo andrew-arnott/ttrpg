@@ -857,7 +857,7 @@ You choose which incoming attacks consume your Defend score.
 
 **Interval**
 
-Prepare the current room for defense. If combat begins in this room before the party leaves, you begin combat with **+2 Defend**.
+Prepare the current room for defense. If combat begins in this room before the party leaves, **everyone in the party** begins combat with **+2 Defend**.
 
 #### Stand Watch
 

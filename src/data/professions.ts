@@ -68,7 +68,7 @@ export const PROFESSIONS: Profession[] = [
         name: 'Fortify',
         types: ['Interval'],
         cost: '—',
-        text: 'Prepare the current room for defense. If combat begins in this room before the party leaves, you begin combat with +2 Defend.',
+        text: 'Prepare the current room for defense. If combat begins in this room before the party leaves, everyone in the party begins combat with +2 Defend.',
       },
       {
         id: 'standWatch',

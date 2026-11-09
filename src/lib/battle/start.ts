@@ -111,12 +111,14 @@ export function startBattle(
     const p = playerByKey(b, prep.memberKey)
     if (!p) continue
     if (prep.tag === 'Fortified') {
-      p.defense += FORTIFY_DEFENSE
+      livingPlayers(b).forEach((ally) => {
+        ally.defense += FORTIFY_DEFENSE
+      })
       addStep(engine, {
         actor: playerActorOf(p),
         title: 'Fortified',
         intro: `${p.name}'s preparations pay off.`,
-        outcome: `${p.name} begins combat with +${FORTIFY_DEFENSE} Defense.`,
+        outcome: `Everyone begins combat with +${FORTIFY_DEFENSE} Defense.`,
         tone: 'success',
       })
     } else if (prep.tag === 'Ambush set') {

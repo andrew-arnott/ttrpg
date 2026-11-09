@@ -1388,9 +1388,21 @@ describe('startBattle', () => {
     expect(b.enemies.map((e) => e.name)).toEqual(['Goblin Scout A', 'Goblin Scout B', 'Cave Troll'])
   })
 
-  it('applies Fortify to the player who prepared it', () => {
+  it('applies Fortify to everyone in the party, and stacks if two fortified', () => {
     const b = startBattle(party(), [{ tag: 'Fortified', memberKey: 'b' }], ['goblin'], rng(), 'x', null)
-    expect(b.players.map((p) => p.defense)).toEqual([0, 2, 0, 0])
+    expect(b.players.map((p) => p.defense)).toEqual([2, 2, 2, 2])
+    const twice = startBattle(
+      party(),
+      [
+        { tag: 'Fortified', memberKey: 'a' },
+        { tag: 'Fortified', memberKey: 'b' },
+      ],
+      ['goblin'],
+      rng(),
+      'x',
+      null,
+    )
+    expect(twice.players.map((p) => p.defense)).toEqual([4, 4, 4, 4])
   })
 
   it('gives the player who set an ambush a free attack', () => {

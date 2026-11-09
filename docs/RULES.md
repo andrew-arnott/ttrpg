@@ -80,7 +80,7 @@ Two other sources feed the code:
 | Conditions | Enemy attacks and triggers can give a condition token (Cave Troll's Club Smash a Wound, the Barrow Warden's Grave Chill Fear, the Goblin Scout's Poisoned Blade trigger Poison for an engaged character who draws a Complication; all invented content). It goes in the bag; drawn in a failed test it is sealed and takes effect as the guide describes. A Fatigue takes effect from the round after it was sealed. At the end of each combat round everyone releases one condition sealed in an earlier round, choosing if there are several, and all are released when the fight ends. Divine Intervention is for allies only. In the dungeon a condition drawn in a failed test is sealed too, takes effect for that test (Poison hurts, but never below 1 HP) and is released when the Interval ends | `src/lib/battle/conditions.ts`, `conditionRules.ts`, `data/enemies.ts` |
 | Treat Conditions | An Interval action. The patient tests at Difficulty 6 with the better of the two listed attributes; success removes the token from their bag for good, and the item is used up either way. Tend the Afflicted does the same with no test | `treatCondition` in `intervalActions.ts` |
 | Fireball | X Mana (1 to 3 offered as separate options); the caster is hurt too if they stand in the target group; 3 Mana adds a Fatigue token | `fireball` in `battle.ts` |
-| Fortify | +2 Defense in round 1 for the character who prepared it | `FORTIFY_DEFENSE` |
+| Fortify | Owner ruling: everyone in the party, not just the warrior, begins combat with +2 Defense | `FORTIFY_DEFENSE` |
 | Set an Ambush | A free attack on a random enemy at the start of the fight | `startBattle` |
 
 ## Where the implementation differs from the Player's Guide
