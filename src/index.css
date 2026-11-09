@@ -1166,3 +1166,6 @@ table.tokens-table td.num { text-align: right; }
 }
 .tip:hover .tip-box, .tip:focus-within .tip-box { display: block; }
 .tip-name { display: block; color: var(--accent); margin-bottom: 2px; }
+
+.drawn.still { animation: none; }
+.bag-felt { max-height: 46vh; overflow: visible; justify-content: flex-start; }

@@ -50,3 +50,13 @@ export function torchAdvice(level: TorchLevel, spareTorches: number): string | n
   }
   return null
 }
+
+/** What the popup says when the torch goes out, for a tutorial player who has not seen it happen before. */
+export function torchOutPopup(spareTorches: number): string[] {
+  return [
+    'Uh oh... without light the party can only see its own room, and every test is harder in the dark. Anything lurking nearby is more likely to catch you by surprise, too.',
+    spareTorches > 0
+      ? 'You still have a spare. Right-click a torch in someone\u2019s pack to light it. Lighting a torch takes no time.'
+      : 'Nobody is carrying a spare torch. Rooms you have not searched may hold one, so feel your way back to somewhere promising.',
+  ]
+}

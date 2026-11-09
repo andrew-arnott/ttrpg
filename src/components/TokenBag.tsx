@@ -2,19 +2,10 @@ import { TOKENS } from '../data/tokens'
 import type { TokenStack } from '../data/types'
 import type { BagStats } from '../lib/buildCharacter'
 import { Tip } from './Tip'
-import { GROUP_META, GROUP_ORDER, groupOf } from '../lib/tokenGroups'
+import { GROUP_META, GROUP_ORDER, groupOf, sortStacks } from '../lib/tokenGroups'
 
 const fmtMod = (m: number | null) => (m === null ? '—' : m > 0 ? `+${m}` : `${m}`)
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`
-
-function sortStacks(bag: TokenStack[]): TokenStack[] {
-  return [...bag].sort((a, b) => {
-    const ga = GROUP_ORDER.indexOf(groupOf(a.tokenId))
-    const gb = GROUP_ORDER.indexOf(groupOf(b.tokenId))
-    if (ga !== gb) return ga - gb
-    return (TOKENS[a.tokenId]?.modifier ?? -99) - (TOKENS[b.tokenId]?.modifier ?? -99)
-  })
-}
 
 function tokenTip(name: string, modifier: number | null, keywords: string[], effect?: string) {
   return (

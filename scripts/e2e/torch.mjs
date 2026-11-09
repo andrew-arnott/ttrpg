@@ -17,6 +17,17 @@ assert.match(await page.locator('.torch-level').innerText(), /Dim/i)
 assert.match(await page.locator('.torch-hud .blocker-text').innerText(), /running out.*right-clicking/i)
 await shot('dim', true)
 
+for (let i = 0; i < 2; i++) {
+  await page.getByRole('button', { name: 'Resolve Interval' }).click()
+  await skipOverlay(page)
+}
+const popup = page.getByRole('dialog')
+await popup.waitFor()
+assert.match(await popup.innerText(), /Uh oh/)
+await shot('out', true)
+await page.getByRole('button', { name: 'Got it' }).click()
+await popup.waitFor({ state: 'detached' })
+
 console.log('torch check passed')
 await browser.close()
 report(errors)

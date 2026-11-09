@@ -22,10 +22,11 @@ import { AVATAR_COLORS } from '../lib/partyColors'
 import { createPartyMember } from '../lib/partyMember'
 import type { ResolutionStep } from '../lib/resolution'
 import type { RosterEntry } from '../lib/roster'
-import { torchAdvice, torchLevel, TORCH_LEVEL_LABEL, totalIntervals, type TorchState } from '../lib/torch'
+import { torchAdvice, torchOutPopup, torchLevel, TORCH_LEVEL_LABEL, totalIntervals, type TorchState } from '../lib/torch'
 import { BagDialog } from './BagDialog'
 import { BattleView } from './BattleView'
 import { ReactionPrompt } from './ReactionPrompt'
+import { RuleHelpDialog } from './RuleHelpDialog'
 import { Tip } from './Tip'
 import { DungeonMap } from './DungeonMap'
 import { IntervalPlanner } from './IntervalPlanner'
@@ -319,14 +320,17 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
   const [state, dispatch] = useReducer(dungeonReducer, initial)
   const [plan, setPlan] = useState<InteractionPlan>({})
   const [pending, setPending] = useState<PendingResolution | null>(null)
+  const [darkSeen, setDarkSeen] = useState(false)
 
   const level = torchLevel(state.torch)
+  if (level !== 'out' && darkSeen) setDarkSeen(false)
   const room = roomById(state.dungeon, state.roomId)
   const passages = passagesOf(state)
   const exits = adjacentRoomIds(state.dungeon, state.roomId, passages).map((id) => roomById(state.dungeon, id))
   const locked = lockedExits(state.dungeon, state.roomId, passages)
   const spareTorches = state.party.reduce((n, m) => n + (m.inventory.torch ?? 0), 0)
   const advice = torchAdvice(level, spareTorches)
+  const darkPopup = level === 'out' && !darkSeen && !pending
   const preparations = state.prepared[state.roomId] ?? []
   const move = (roomId: string) => dispatch({ type: 'moveTo', roomId, rng: Math.random })
 
@@ -478,6 +482,15 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
         </aside>
       </div>
         </>
+      )}
+
+      {darkPopup && (
+        <RuleHelpDialog
+          label="Uh oh..."
+          title="The torch has gone out"
+          paragraphs={torchOutPopup(spareTorches)}
+          onClose={() => setDarkSeen(true)}
+        />
       )}
 
       {pending && (

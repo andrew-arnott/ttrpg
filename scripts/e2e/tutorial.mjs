@@ -118,6 +118,16 @@ for (let step = 0; step < MAX_STEPS; step++) {
     continue
   }
 
+  if ((await page.getByRole('button', { name: 'Got it' }).count()) > 0) {
+    await page.getByRole('button', { name: 'Got it' }).click()
+    continue
+  }
+
+  if ((await page.locator('.engagement-group').count()) === 0 && (await page.getByRole('button', { name: 'Return it' }).count()) > 0) {
+    await page.getByRole('button', { name: 'Return it' }).click()
+    continue
+  }
+
   if ((await page.locator('.engagement-group').count()) === 0 && (await page.getByRole('button', { name: 'No thanks' }).count()) > 0) {
     await page.getByRole('button', { name: 'No thanks' }).click()
     continue
@@ -136,6 +146,8 @@ for (let step = 0; step < MAX_STEPS; step++) {
       break
     } else if ((await page.getByRole('button', { name: 'No thanks' }).count()) > 0) {
       await page.getByRole('button', { name: 'No thanks' }).click()
+    } else if ((await page.getByRole('button', { name: 'Return it' }).count()) > 0) {
+      await page.getByRole('button', { name: 'Return it' }).click()
     } else if ((await page.getByRole('button', { name: 'Release it' }).count()) > 0) {
       await page.getByRole('button', { name: 'Release it' }).click()
     } else {

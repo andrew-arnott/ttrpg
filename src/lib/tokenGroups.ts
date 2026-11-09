@@ -1,3 +1,6 @@
+import { TOKENS } from '../data/tokens'
+import type { TokenStack } from '../data/types'
+
 /**
  * Tokens are grouped into four families for charts and coins. Per-token
  * colouring would need more categorical slots than the palette safely offers,
@@ -42,8 +45,30 @@ const GLYPHS: Record<string, string> = {
   shield: 'SH',
   might: 'MI',
   bless: 'BL',
+  resolve: 'RE',
+  armor: 'AR',
+  power: 'PW',
+  cunning: 'CN',
+  faith: 'FA',
+  mana: 'MA',
+  wound: 'WO',
+  poison: 'PO',
+  insanity: 'IN',
+  curse: 'CR',
+  fatigue: 'FT',
+  fear: 'FE',
 }
 
 export function tokenGlyph(tokenId: string, name: string): string {
   return GLYPHS[tokenId] ?? name
+}
+
+/** Stacks ordered by family, then by modifier, the way a bag is laid out. */
+export function sortStacks(bag: TokenStack[]): TokenStack[] {
+  return [...bag].sort((a, b) => {
+    const ga = GROUP_ORDER.indexOf(groupOf(a.tokenId))
+    const gb = GROUP_ORDER.indexOf(groupOf(b.tokenId))
+    if (ga !== gb) return ga - gb
+    return (TOKENS[a.tokenId]?.modifier ?? -99) - (TOKENS[b.tokenId]?.modifier ?? -99)
+  })
 }
