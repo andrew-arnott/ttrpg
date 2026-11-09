@@ -45,6 +45,7 @@ export function resetRoundState(b: BattleState) {
   b.players.forEach((p) => {
     p.defense = 0
     p.usedThisRound = []
+    p.shieldWall = false
   })
   b.enemies.forEach((e) => {
     e.empowered = 0

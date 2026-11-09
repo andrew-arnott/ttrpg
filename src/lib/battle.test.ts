@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ENEMIES_BY_ID } from '../data/enemies'
+import { PROFESSIONS } from '../data/professions'
 import {
   availableCombatActions,
   currentPlayer,
@@ -951,6 +952,152 @@ describe('conditions', () => {
   })
 })
 
+describe('Shield Wall', () => {
+  const wall = () =>
+    battleOf(
+      [
+        player('w', { abilityIds: ['shieldWall'], bag: bagOf('plus3'), resources: { resolve: 3 } }),
+        player('q', { hp: 20 }),
+      ],
+      [enemy('troll', 't', { hp: 99 })],
+      { w: 'g1', q: 'g1', t: 'g1' },
+    )
+  const useWall: BattlePlan = { w: turn({ actionId: 'ability:shieldWall' }), q: turn() }
+
+  it('spends 1 Resolve on a Defend test and keeps the score for the round', () => {
+    const { battle, steps } = playRound(wall(), { w: turn({ actionId: 'ability:shieldWall' }) }, rng(), declineAll)
+    expect(steps[0].title).toBe('Shield Wall')
+    expect(steps[0].test?.total).toBe(4)
+    expect(battle.players[0].resources.resolve).toBe(2)
+  })
+
+  it('lets the warrior spend their Defense on an attack against an ally in the same group', () => {
+    const seen: string[] = []
+    const { steps } = playRound(wall(), useWall, rng(), (r) => {
+      seen.push(r.abilityId)
+      return { use: true }
+    })
+    expect(seen).toContain('shieldWall')
+    expect(steps.some((s) => /Shield Wall absorbs/.test(s.resultLine ?? ''))).toBe(true)
+  })
+
+  it('does nothing for allies in another group, or once the score is spent', () => {
+    const b = wall()
+    b.groups.q = 'g2'
+    const { seen, reactions } = (() => {
+      const seen: string[] = []
+      return { seen, reactions: ((r) => (seen.push(r.abilityId), { use: true })) as Reactions }
+    })()
+    playRound(b, useWall, rng(), reactions)
+    expect(seen).not.toContain('shieldWall')
+  })
+})
+
+describe('Chain Lightning', () => {
+  const storm = (mana = 6) =>
+    battleOf(
+      [player('p', { abilityIds: ['chainLightning'], bag: ALWAYS_PASS, resources: { mana } })],
+      [enemy('goblin', 'a', { hp: 2 }), enemy('goblin', 'b', { hp: 2 }), enemy('goblin', 'c', { hp: 2 })],
+      { p: 'g1', a: 'g1', b: 'g2', c: 'g2' },
+    )
+  const cast = { actionId: 'ability:chainLightning', targetId: 'a' }
+
+  it('hits the first enemy for 2 and stops when the caster declines', () => {
+    const { battle } = playRound(storm(), { p: turn(cast) }, rng(), declineAll)
+    expect(battle.enemies.map((e) => e.hp)).toEqual([0, 2, 2])
+    expect(battle.players[0].resources.mana).toBe(5)
+  })
+
+  it('offers each further target at an escalating cost, and tests Intelligence for each', () => {
+    const costs: string[] = []
+    const { battle, steps } = playRound(storm(), { p: turn(cast) }, rng(), (r) => {
+      costs.push(r.cost)
+      return { use: true, targetId: r.targets![0].id }
+    })
+    expect(costs).toEqual(['2 Mana', '3 Mana'])
+    expect(steps.filter((s) => s.title === 'Chain Lightning').every((s) => s.test?.attribute === 'intelligence')).toBe(true)
+    expect(battle.enemies.every((e) => e.hp === 0)).toBe(true)
+    expect(battle.players[0].resources.mana).toBe(0)
+    expect(bagCount(battle.players[0], 'mana')).toBe(6)
+  })
+
+  it('does not offer a target the caster cannot afford', () => {
+    const { seen, reactions } = (() => {
+      const seen: string[] = []
+      return { seen, reactions: ((r) => (seen.push(r.abilityId), { use: false })) as Reactions }
+    })()
+    const weak = storm(2)
+    weak.players[0].bag = bagOf('plus3')
+    playRound(weak, { p: turn(cast) }, rng(), reactions)
+    expect(seen).toEqual([])
+  })
+
+  it('never hits the same enemy twice', () => {
+    const targets: string[][] = []
+    playRound(storm(), { p: turn(cast) }, rng(), (r) => {
+      targets.push(r.targets!.map((t) => t.id))
+      return { use: true, targetId: 'b' }
+    })
+    expect(targets).toEqual([['b', 'c'], ['c']])
+  })
+})
+
+describe('Transpose and Arcane Focus', () => {
+  it('Transpose swaps engagement groups with an enemy or ally for 1 Mana, with no test', () => {
+    const b = battleOf(
+      [player('p', { abilityIds: ['transpose'] }), player('q')],
+      [enemy('goblin', 'e1'), enemy('goblin', 'e2')],
+      { p: 'g1', q: 'g2', e1: 'g1', e2: 'g2' },
+    )
+    const { battle, steps } = takeAction(b, { actionId: 'ability:transpose', targetId: 'e2' }, rng())
+    expect(steps[0].test).toBeUndefined()
+    expect(battle.groups.p).toBe('g2')
+    expect(battle.groups.e2).toBe('g1')
+    expect(battle.players[0].resources.mana).toBe(2)
+
+    const ally = takeAction(b, { actionId: 'ability:transpose', targetId: 'q' }, rng()).battle
+    expect([ally.groups.p, ally.groups.q]).toEqual(['g2', 'g1'])
+  })
+
+  it('Arcane Focus draws exactly 5 tokens, putting Mana in play and hurting for Complications', () => {
+    const bag = [
+      { tokenId: 'mana', count: 3 },
+      { tokenId: 'complication', count: 2 },
+      { tokenId: 'plus1', count: 5 },
+    ]
+    const b = duel({ abilityIds: ['arcaneFocus'], bag, resources: { mana: 0 }, hp: 10 }, { hp: 9 })
+    const { battle, steps } = playRound(b, { p: turn({ actionId: 'ability:arcaneFocus' }) }, rng())
+    const drawn = steps[0].test!.result.drawn
+    const count = (id: string) => drawn.filter((d) => d.tokenId === id).length
+    expect(drawn).toHaveLength(5)
+    const me = battle.players[0]
+    expect(me.resources.mana).toBe(count('mana'))
+    expect(bagCount(me, 'mana')).toBe(3 - count('mana'))
+    expect(bagCount(me, 'complication')).toBe(2)
+    expect(steps[0].outcome).toMatch(count('complication') > 0 ? /takes \d damage/ : /recovers/)
+  })
+
+  it('Arcane Focus recovers Mana only, never other resources', () => {
+    const bag = [{ tokenId: 'expertise', count: 10 }]
+    const b = duel({ abilityIds: ['arcaneFocus'], bag, resources: {} })
+    const { battle } = playRound(b, { p: turn({ actionId: 'ability:arcaneFocus' }) }, rng())
+    expect(battle.players[0].resources.expertise ?? 0).toBe(0)
+    expect(bagCount(battle.players[0], 'expertise')).toBe(10)
+  })
+})
+
+describe('Smite', () => {
+  it('deals 2 extra damage to undead and other supernatural enemies', () => {
+    const smite = (defId: string) => {
+      const b = duel({ abilityIds: ['smite'], bag: ALWAYS_PASS, professionId: 'priest' }, { hp: 9 }, defId)
+      return playRound(b, { p: turn({ actionId: 'ability:smite', targetId: 'e' }) }, rng()).steps[0]
+    }
+    expect(smite('skeleton').outcome).toMatch(/hits e for 3 damage/)
+    expect(smite('skeleton').outcome).toMatch(/Divine power/)
+    expect(smite('goblin').outcome).toMatch(/hits e for 1 damage/)
+  })
+})
+
 describe('engage Difficulty', () => {
   const crowd = () =>
     battleOf(
@@ -1130,12 +1277,22 @@ describe('class abilities', () => {
     expect(option.disabledReason).toBe('Needs 1 Resolve')
   })
 
-  it('lists abilities that are not built yet as unavailable, and hides Triggered and Interval ones', () => {
-    const b = duel({ abilityIds: ['shieldWall', 'cleave', 'fortify'] })
+  it('hides Triggered and Interval abilities from the menu', () => {
+    const b = duel({ abilityIds: ['cleave', 'fortify'] })
     const options = availableCombatActions(b, b.players[0])
-    expect(options.find((o) => o.id === 'ability:shieldWall')!.disabledReason).toMatch(/sample battle/)
     expect(options.some((o) => o.id === 'ability:cleave')).toBe(false)
     expect(options.some((o) => o.id === 'ability:fortify')).toBe(false)
+  })
+
+  it('has a handler for every combat ability in the guide', () => {
+    const every = PROFESSIONS.flatMap((prof) =>
+      prof.abilities.filter((a) => !(a.types.length === 1 && a.types[0] === 'Triggered')).map((a) => a.id),
+    )
+    const b = duel({ abilityIds: every, resources: { resolve: 3, cunning: 3, faith: 3, mana: 6 } })
+    const unsupported = availableCombatActions(b, b.players[0])
+      .filter((o) => /sample battle/.test(o.disabledReason ?? ''))
+      .map((o) => o.id)
+    expect(unsupported).toEqual([])
   })
 })
 

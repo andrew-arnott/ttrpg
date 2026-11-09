@@ -1,6 +1,8 @@
-import { BACKSTAB_DAMAGE, MAX_FIREBALL_MANA } from './types'
+import { ENEMIES_BY_ID } from '../../data/enemies'
+import { BACKSTAB_DAMAGE, MAX_FIREBALL_MANA, SMITE_BONUS_DAMAGE } from './types'
 import type { BattleEnemy, BattlePlayer, BattleState, CombatOption } from './types'
-import { attackEnemy, blessAlly, changeEngagement, fireball, healAlly, magicMissile, sealOn } from './effects'
+import { attackEnemy, blessAlly, changeEngagement, defend, fireball, healAlly, magicMissile, sealOn } from './effects'
+import { arcaneFocus, chainLightning, transpose } from './spells'
 import {
   distinctGroupIds,
   describeGroup,
@@ -10,6 +12,7 @@ import {
   groupOf,
   livingEnemies,
   addStep,
+  livingPlayers,
   moveToGroup,
   playerActorOf,
   type Engine,
@@ -119,7 +122,14 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
   smite: {
     options: enemyFightOptions,
     perform: ({ engine, p, enemy, boost }) => {
-      if (enemy) attackEnemy(engine, p, enemy, { title: 'Smite', power: boost })
+      if (!enemy) return
+      const smitten = ENEMIES_BY_ID[enemy.defId]?.supernatural
+      attackEnemy(engine, p, enemy, {
+        title: 'Smite',
+        power: boost,
+        bonusDamage: smitten ? SMITE_BONUS_DAMAGE : 0,
+        onHit: () => (smitten ? `Divine power burns the ${enemy.name.toLowerCase()} for ${SMITE_BONUS_DAMAGE} extra.` : ''),
+      })
     },
   },
   backstab: {
@@ -165,6 +175,49 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
         tone: released > 0 ? 'success' : 'neutral',
       })
     },
+  },
+  shieldWall: {
+    options: ({ id, base, gate }) => [{ ...base, id, disabledReason: gate }],
+    perform: ({ engine, p, boost }) => {
+      defend(engine, p, boost, 'Shield Wall')
+      p.shieldWall = true
+    },
+  },
+  chainLightning: {
+    costOf: () => ({ tokenId: 'mana', amount: 1 }),
+    options: ({ b, p, id, base, gate }) => {
+      const living = livingEnemies(b)
+      return [
+        {
+          ...base,
+          id,
+          targets: enemyTargets(living),
+          disabledReason:
+            gate ??
+            (resourceAvailable(p, 'mana') < 1 ? 'Needs 1 Mana' : living.length === 0 ? NO_ENEMY : undefined),
+        },
+      ]
+    },
+    perform: ({ engine, p, enemy }) => {
+      if (enemy) chainLightning(engine, p, enemy)
+    },
+  },
+  transpose: {
+    options: ({ b, p, id, base, gate }) => {
+      const others = [
+        ...livingPlayers(b).filter((a) => a.key !== p.key).map((a) => ({ id: a.key, label: `${a.name} (${describeGroup(b, groupOf(b, a.key))})` })),
+        ...livingEnemies(b).map((e) => ({ id: e.id, label: `${e.name} (${describeGroup(b, groupOf(b, e.id))})` })),
+      ]
+      return [{ ...base, id, targets: others, disabledReason: gate ?? (others.length === 0 ? 'Nobody to swap with' : undefined) }]
+    },
+    perform: ({ engine, p, target, enemy, ally }) => {
+      const name = enemy?.name ?? ally?.name
+      if (name) transpose(engine, p, target, name)
+    },
+  },
+  arcaneFocus: {
+    options: ({ id, base, gate }) => [{ ...base, id, disabledReason: gate }],
+    perform: ({ engine, p }) => arcaneFocus(engine, p),
   },
   blessAbility: {
     options: allyOptions,

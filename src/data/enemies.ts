@@ -39,6 +39,8 @@ export interface EnemyDef {
   blurb: string
   hp: number
   defense: number
+  /** Undead or otherwise vulnerable to divine power, which Smite hits harder. */
+  supernatural?: boolean
   attacks: EnemyAttack[]
   /** Fires whenever a Complication is drawn (including from a Critical Failure). */
   triggers: EnemyTrigger[]
@@ -90,6 +92,7 @@ export const ENEMIES: EnemyDef[] = [
     blurb: 'A rattling sentinel that has stood watch for centuries.',
     hp: 2,
     defense: 3,
+    supernatural: true,
     attacks: [{ name: 'Bone Claws', attackValue: 4, damage: 1 }],
     triggers: [
       {
@@ -105,6 +108,7 @@ export const ENEMIES: EnemyDef[] = [
     blurb: 'The undead guardian of the Founders\u2019 Crypt, bound to its post by the seal you broke.',
     hp: 7,
     defense: 5,
+    supernatural: true,
     attacks: [
       { name: 'Rusted Greatsword', attackValue: 6, damage: 2 },
       { name: 'Grave Chill', attackValue: 3, damage: 1, area: true, condition: 'fear' },

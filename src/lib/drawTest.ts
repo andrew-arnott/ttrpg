@@ -45,7 +45,7 @@ export interface DrawRules {
   woundSealed?: boolean
 }
 
-function drawnToken(tokenId: string): DrawnToken {
+export function drawnToken(tokenId: string): DrawnToken {
   const def = TOKENS[tokenId]
   return { tokenId, name: def?.name ?? tokenId, modifier: def?.modifier ?? 0, chain: def?.keywords.includes('chain') ?? false }
 }
@@ -78,6 +78,11 @@ export function drawTest(bag: TokenStack[], rng: Rng = Math.random, rules: DrawR
         : 'normal',
     complication: ids.includes('complication') || woundCrash,
   }
+}
+
+/** Draws exactly `count` tokens (or the whole bag, if smaller), ignoring Chain, without replacement. */
+export function drawExactly(bag: TokenStack[], count: number, rng: Rng = Math.random): DrawnToken[] {
+  return shuffle(expand(bag), rng).slice(0, count).map(drawnToken)
 }
 
 export interface SimulationSummary {

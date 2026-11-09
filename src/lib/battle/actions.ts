@@ -38,7 +38,11 @@ function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
         },
       })
       const fights = ability.types.includes('Fight')
-      const boost = fights ? boostOption(p, 'power') : undefined
+      const boost = fights
+        ? boostOption(p, 'power')
+        : ability.types.includes('Defend')
+          ? boostOption(p, 'armor')
+          : undefined
       const blocked = fights && !canAttack(p) ? FEAR_REASON : ability.types.includes('Fast') && !canUseFastOrTriggered(p) ? INSANITY_REASON : undefined
       return options.map((o) => ({
         ...o,

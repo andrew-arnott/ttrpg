@@ -241,6 +241,29 @@ describe('resolveInterval', () => {
     })
   })
 
+  describe('Tend the Afflicted', () => {
+    const tending = () => {
+      const priest = { ...sampleMember('priest', 'p'), abilityIds: ['tendTheAfflicted'], inventory: { antivenom: 1 } }
+      const patient = testMember('b', 0, { bag: [{ tokenId: 'poison', count: 1 }, ...ALWAYS_FAIL] })
+      return stateWith(priest, patient)
+    }
+
+    it('is offered for each treatable condition the priest has the item for', () => {
+      const s = tending()
+      const ids = availableActions(s, s.party[0]).map((o) => o.id)
+      expect(ids).toContain('ability:tendTheAfflicted:antivenom:b')
+      expect(ids).not.toContain('ability:tendTheAfflicted')
+    })
+
+    it('removes the token with no test, even for someone who would fail it, and uses the item up', () => {
+      const s = tending()
+      const { state, steps } = resolveInterval(s, { p: { actionId: 'ability:tendTheAfflicted:antivenom:b' } }, rng())
+      expect(steps[0].test).toBeUndefined()
+      expect(state.party[1].bag.find((t) => t.tokenId === 'poison')).toBeUndefined()
+      expect(state.party[0].inventory.antivenom).toBe(0)
+    })
+  })
+
   describe('treating conditions', () => {
     const afflicted = (bag: PartyMember['bag']) =>
       stateWith(

@@ -13,6 +13,7 @@ export const ENGAGE_BASE_DIFFICULTY = 4
 export const ENGAGE_MIN_DIFFICULTY = 2
 export const FORTIFY_DEFENSE = 2
 export const BACKSTAB_DAMAGE = 2
+export const SMITE_BONUS_DAMAGE = 2
 export const HEAL_AMOUNT = 2
 export const MAX_FIREBALL_MANA = 3
 /** Difficulty for the enemies' Perception test to surprise the party, before watchfulness and light. */
@@ -39,6 +40,8 @@ export interface BattlePlayer {
   usedThisRound?: string[]
   /** Condition tokens sealed on this character. They return to the bag when released. */
   sealedConditions?: SealedCondition[]
+  /** Shield Wall was used this round: this Defense score can cover allies in the same group. */
+  shieldWall?: boolean
 }
 
 

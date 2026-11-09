@@ -8,7 +8,7 @@ import { settleTest, takeDamage } from '../characterTest'
 import { drawRulesFor } from './conditionRules'
 import { gainCondition } from './conditions'
 import { offerPrayer } from '../reactorRules'
-import { INTERCEPT_DEFENSE, offerIntercept } from './reactions'
+import { INTERCEPT_DEFENSE, offerIntercept, offerShieldWall } from './reactions'
 import { releaseCommitment, type Commitment } from './tokens'
 import {
   adjustBag,
@@ -86,12 +86,13 @@ export function strikePlayer(
   }
   const raw = attack.attackValue + e.empowered
   const bonus = options.defenseBonus ?? 0
-  const value = Math.max(0, raw - bonus)
+  const cover = offerShieldWall(engine, e, attack.name, target, Math.max(0, raw - bonus))
+  const value = cover.remaining
   const defense = target.defense
   const breaks = value > defense
   target.defense = Math.max(0, defense - value)
 
-  const resultLine = `Attack ${raw}${bonus > 0 ? ` - ${bonus} ${options.bonusLabel}` : ''} against Defense ${defense}: ${breaks ? 'breaks through' : 'blocked'}`
+  const resultLine = `Attack ${raw}${bonus > 0 ? ` - ${bonus} ${options.bonusLabel}` : ''}${cover.note} against Defense ${defense}: ${breaks ? 'breaks through' : 'blocked'}`
   const clash = {
     attack: value,
     defenseBefore: defense,
@@ -216,6 +217,8 @@ export interface AttackOptions {
   intro?: string
   attribute?: SpecialKey
   bonusDamage?: number
+  /** Damage on a hit before bonuses. */
+  damage?: number
   /** Power committed before the draw, added to the attack result. */
   power?: number
   /** Called when the attack hits, for effects such as sealing a token. */
@@ -245,7 +248,7 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
     return false
   }
 
-  const damage = 1 + might + (options.bonusDamage ?? 0)
+  const damage = (options.damage ?? 1) + might + (options.bonusDamage ?? 0)
   const extra = options.onHit?.(e) ?? ''
   const groupId = groupOf(b, e.id)
   const defeated = damageEnemy(b, e, damage)
@@ -292,7 +295,7 @@ export function sealOn(p: BattlePlayer, e: BattleEnemy, commit: Commitment): str
   return `${names} ${commit.tokens.length > 1 ? 'are' : 'is'} sealed on ${e.name}.`
 }
 
-export function defend(engine: Engine, p: BattlePlayer, armor = 0) {
+export function defend(engine: Engine, p: BattlePlayer, armor = 0, title = 'Defend') {
   const attribute = DEFEND_ATTRIBUTE
   const result = drawTest(p.bag, engine.rng, drawRulesFor(p))
   const attributeValue = p.special[attribute]
@@ -314,7 +317,7 @@ export function defend(engine: Engine, p: BattlePlayer, armor = 0) {
   }
   addStep(engine, {
     actor: playerActorOf(p),
-    title: 'Defend',
+    title,
     intro: `${p.name} braces for the enemy's attacks.`,
     test,
     testMode: 'score',
