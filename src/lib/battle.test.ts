@@ -514,7 +514,7 @@ describe('failing with a Complication', () => {
   })
 
   it('can return a Shield in play, and nothing happens with nothing in play', () => {
-    const shielded = failing({}, { shieldsInPlay: 2 })
+    const shielded = duel({ bag: [{ tokenId: 'complication', count: 1 }], resources: {}, shieldsInPlay: 2 }, { hp: 9 }, 'skeleton')
     const { battle } = takeAction(shielded, attack('e'), rng())
     expect(battle.players[0].shieldsInPlay).toBe(1)
     expect(bagCount(battle.players[0], 'shield')).toBe(1)
