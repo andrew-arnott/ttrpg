@@ -67,14 +67,18 @@ Two other sources feed the code:
 | Engaging | Changing engagement is an Agility test. Difficulty = 4 + enemies in the group you leave + enemies in the group you join - allies who stay behind, never below 2. Agreed with the owner as a starting point to workshop; the guide's flat 6 is the fallback | `engageDifficulty` in `src/lib/battle/engagement.ts` |
 | Starting engagement | Each player starts in their own group; each enemy joins a random player | `startBattle` |
 | Sealed tokens | Resolve and Cunning sealed on an enemy return to their owner when it is defeated | `releaseSealedTokens` |
-| Resource tokens | Resource tokens in play are spent by moving them to the bag, and drawn ones move from the bag into play after the test (Mana only if the test succeeded). Tokens sealed on an enemy return to their owner's bag when it is defeated. Exploration tests do not yet put drawn resources into play | `src/lib/battle/tokens.ts`, `afterTest` |
+| Resource tokens | Resource tokens in play are spent by moving them to the bag, and drawn ones move from the bag into play after the test (Mana only if the test succeeded). Tokens sealed on an enemy return to their owner's bag when it is defeated. The same settling happens after exploration tests | `src/lib/battle/tokens.ts`, `afterTest` |
 | Paying a cost | Own tokens first, then Expertise, then a Critical Success. A Critical Success is spent whole and may overpay. Sealing Expertise or a Critical Success counts as 1 or 2 of the resource | `commitResource` |
 | Power and Armor | Committed before the draw for +1 each. Power applies to the basic Attack and to a Warrior's Fight abilities, Armor to Defend. Returned to the bag afterwards, hit or miss | `boostOption` in `tokens.ts` |
 | Resting | Recovers one token from the bag into play: the profession's resource if the bag has one, otherwise Expertise, otherwise a Critical Success | `recoverForRest` in `tokenFlow.ts` |
 | Reactions | A Triggered ability is offered as a question when it comes up. Prayer is for allies only, for failed tests that are not Critical Failures (not Defend). Intercept is for single-target attacks, not area attacks; the +2 Defend is taken off that attack's Attack value. Cleave follows an attack that defeats an enemy, Opportunist any defeat in the reactor's group by an ally, and both are offered when the action ends. Nobody reacts during a surprise round. Flanking is automatic and needs a Cunning in the bag | `src/lib/battle/reactions.ts`, `followUps.ts` |
+| Shield Wall | A Defend test for 1 Resolve. For the rest of the round the warrior is asked whether to spend their Defense score on each attack against an ally in the same group; what the score cannot cover is set against the ally's own Defense. Armor can be added to it | `offerShieldWall` in `battle/reactions.ts` |
+| Chain Lightning | 1 Mana, an Intelligence attack for 2 damage, then the caster is asked about each further target at +2 and then +3 Mana. The same enemy is never hit twice | `src/lib/battle/spells.ts` |
+| Transpose, Arcane Focus | Transpose swaps groups with any other living character or enemy. Arcane Focus draws five tokens at random from the bag; Complications are not set off as test Complications, so enemy triggers do not fire | `spells.ts` |
+| Smite | 2 extra damage against enemies marked `supernatural` (Skeleton Guard, Barrow Warden) | `data/enemies.ts` |
 | Sample party | Brann takes Provoke and Intercept, Wren Backstab and Flanking, Sister Maren Heal and Prayer, Ilvara Magic Missile and Fireball | `src/lib/roster.ts` |
-| Conditions | Enemy attacks can give a condition token (Cave Troll's Club Smash a Wound, the Barrow Warden's Grave Chill Fear). It goes in the bag; drawn in a failed test it is sealed and takes effect as the guide describes. A Fatigue takes effect from the round after it was sealed. At the end of each combat round everyone releases one condition sealed in an earlier round, choosing if there are several, and all are released when the fight ends. Divine Intervention is for allies only. Outside combat condition tokens are never sealed, they only drag the draw down | `src/lib/battle/conditions.ts`, `conditionRules.ts`, `data/enemies.ts` |
-| Treat Conditions | An Interval action. The patient tests at Difficulty 6 with the better of the two listed attributes; success removes the token from their bag for good, and the item is used up either way. Tend the Afflicted is not implemented | `treatCondition` in `intervalActions.ts` |
+| Conditions | Enemy attacks and triggers can give a condition token (Cave Troll's Club Smash a Wound, the Barrow Warden's Grave Chill Fear, the Goblin Scout's Poisoned Blade trigger Poison for an engaged character who draws a Complication; all invented content). It goes in the bag; drawn in a failed test it is sealed and takes effect as the guide describes. A Fatigue takes effect from the round after it was sealed. At the end of each combat round everyone releases one condition sealed in an earlier round, choosing if there are several, and all are released when the fight ends. Divine Intervention is for allies only. In the dungeon a condition drawn in a failed test is sealed too, takes effect for that test (Poison hurts, but never below 1 HP) and is released when the Interval ends | `src/lib/battle/conditions.ts`, `conditionRules.ts`, `data/enemies.ts` |
+| Treat Conditions | An Interval action. The patient tests at Difficulty 6 with the better of the two listed attributes; success removes the token from their bag for good, and the item is used up either way. Tend the Afflicted does the same with no test | `treatCondition` in `intervalActions.ts` |
 | Fireball | X Mana (1 to 3 offered as separate options); the caster is hurt too if they stand in the target group; 3 Mana adds a Fatigue token | `fireball` in `battle.ts` |
 | Fortify | +2 Defense in round 1 for the character who prepared it | `FORTIFY_DEFENSE` |
 | Set an Ambush | A free attack on a random enemy at the start of the fight | `startBattle` |
@@ -96,15 +100,10 @@ them settled yet. Rows marked "owner ruling" were decided in conversation and wi
 
 ## Not implemented yet
 
-- Tend the Afflicted.
-- Prayer for exploration tests; resource tokens drawn in exploration tests.
-- Combat abilities shown greyed out as "Not in the sample battle yet": Shield Wall, Cleanse, Chain Lightning, Transpose,
-  Arcane Focus.
-- Conditions from complications (a trigger that adds a token), and Insanity or Curse effects outside combat.
 - Species traits that are not bag changes (Catfolk Foresight, Jann Exchange, Verdant Accumulated Knowledge) and
   background abilities: flavour only.
 - Room preparations other than Fortify and Ambush (Secure Area, Barricade) are recorded but have no effect in a fight.
-- Smite's bonus against supernatural enemies; Scry beyond showing a neighbouring room.
+- Scry beyond showing a neighbouring room.
 - Weapons and armor, other equipment effects, buying or selling in play.
 - Smarter enemy engagement than random, and players choosing the order enemies resolve in.
 - Ranger and Berserker (TBD in the guide).

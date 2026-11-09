@@ -63,11 +63,26 @@ as "token total + attribute against a Difficulty". `drewComplication()` treats a
 - `lib/dungeonState.ts`: `DungeonState`, `dungeonReducer` (move, light a torch, start battle, replace), passage helpers
   (`passagesOf`, `adjacentRoomIds`, `lockedExits`, `visibleRoomIds`), the patrol clock (`patrolStartedAt`,
   `patrolIsDue`), `unlockLock`, `breakReadySeals`, `springPatrol`/`springBoss`, `endBattle`.
-- `lib/intervalActions.ts`: `availableActions` (per character, per state) and `resolveInterval`. Each Interval,
-  characters act in party order, room complication triggers fire, the torch burns, and the patrol may arrive.
+- `lib/intervalActions/`: `availableActions` (per character, per state), `resolveInterval` and
+  `respondToIntervalReaction`. Each Interval, characters act in party order, room complication triggers fire, the torch
+  burns, sealed conditions are released, and the patrol may arrive. An action kind is a handler (`options` builds its
+  menu entries, `perform` resolves it): `basic.ts` has search, rest, watch, items, treating conditions, room
+  interactions and doors; `abilities.ts` has a table of Interval abilities; `context.ts` has the shared `Context`
+  and `runTestFor`, which rolls a test and then settles the tokens (see below).
 - `lib/torch.ts`: torch specs and levels. `lib/partyMember.ts` builds a dungeon party member from a draft.
 - UI: `DungeonView.tsx` (setup screen, HUD, goal card, room card), `DungeonMap.tsx` (SVG map, light, doors, avatars),
   `IntervalPlanner.tsx`, `ResolutionOverlay.tsx`.
+
+## Tests and tokens, shared by the dungeon and battle
+
+- `lib/characterTest.ts`: `settleTest` is what a finished test does to a character: Shields go in play, Bless is used up,
+  drawn resource tokens go in play, and condition tokens drawn in a failed test are sealed (Poison hurts). `takeDamage`
+  uses up Shields, and is non-lethal outside combat.
+- `lib/tokenFlow.ts`: bag helpers, Rest, and paying costs (`commitResource`, `releaseCommitment`).
+- `lib/conditionRules.ts`: pure checks for sealed conditions. `lib/reactorRules.ts`: who can react, and Prayer.
+- `lib/replay.ts`: `runReplayable` runs a flow that may stop to ask a player a question (see "Asking the player" below).
+  Both `resolveInterval` and the battle engine use it, and `DungeonState.pending` or `BattleState.pending` holds the
+  question.
 
 ## Combat
 
@@ -82,7 +97,8 @@ as "token total + attribute against a Difficulty". `drewComplication()` treats a
 - `engagement.ts`: the Difficulty of changing engagement.
 - `abilities.ts`: a table of ability handlers (`options` builds the menu entries, `perform` does it). Add an ability by
   adding a handler; `actions.ts` builds the menu (`availableCombatActions`) and runs a choice (`performAction`).
-- `reactions.ts` and `followUps.ts`: Triggered abilities (Prayer, Intercept, Cleave, Opportunist).
+- `reactions.ts`, `followUps.ts`: Triggered abilities and Shield Wall (Intercept, Cleave, Opportunist; Prayer lives in `lib/reactorRules.ts`).
+- `spells.ts`: Chain Lightning, Transpose, Arcane Focus.
 - `conditionRules.ts` and `conditions.ts`: conditions. The rules file has the pure checks (can this player attack, how many
   actions, how the draw changes); `conditions.ts` seals tokens after failed tests, hands them out on enemy hits (offering
   Divine Intervention) and releases them at the end of a round.
@@ -103,7 +119,8 @@ Public calls:
 ### Asking the player in the middle of an action
 
 An engine call is synchronous, but a Triggered ability needs an answer from a person. `takeAction` and `runEnemyPhase`
-run through `runFlow`, which gives the engine an `ask` function. When `ask` finds no answer yet it throws, the call
+run through `runFlow`, which uses `runReplayable` (`lib/replay.ts`) to give the engine an `ask` function. The dungeon's
+`resolveInterval` works the same way. When `ask` finds no answer yet it throws, the call
 stops, and the battle comes back with `pending` set (the question, a snapshot from before the call, the dice rolled so
 far on a `tape`, and the answers so far). Only the steps played before the question are returned. `respondToReaction`
 runs the same flow again from the snapshot with one more answer, replaying the tape so the dice repeat, and returns

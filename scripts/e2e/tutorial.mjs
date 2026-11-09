@@ -118,6 +118,11 @@ for (let step = 0; step < MAX_STEPS; step++) {
     continue
   }
 
+  if ((await page.locator('.engagement-group').count()) === 0 && (await page.getByRole('button', { name: 'No thanks' }).count()) > 0) {
+    await page.getByRole('button', { name: 'No thanks' }).click()
+    continue
+  }
+
   if ((await page.locator('.engagement-group').count()) > 0) {
     if ((await page.getByRole('button', { name: 'Finish tutorial' }).count()) > 0) {
       await shot('congratulations', true)

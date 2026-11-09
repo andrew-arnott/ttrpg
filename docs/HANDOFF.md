@@ -15,10 +15,10 @@ The app is feature-complete for a first full tutorial. It is deployed from `main
 | Art | 39 generated pixel-art portraits and icons (professions, species, backgrounds, items, enemies) |
 | Token bag simulator | Animated draws using the real rule, plus a "run 5,000 tests" check against the exact odds |
 | Dungeon (exploration) | Interval planner: each character chooses an action, resolved in order with animation; torch burns; light reach by torch level; hidden passage; locked door; Founders' Seal; room secrets and interactions; room complication consequences; healing items |
-| Combat | Triggered abilities (Cleave, Opportunist, Intercept, Prayer, Flanking) ask the player mid-action; Armor, Power and Expertise can be spent; engage Difficulty scales with the groups; conditions from enemy attacks are sealed on failed tests; Treat Conditions is an Interval action. Step-by-step turns ("Brann's action 1: what should they do?"), engagement groups, Defense scores, animated enemy attacks, enemy stat cards, surprise check, boss fight |
+| Combat | Triggered abilities (Cleave, Opportunist, Intercept, Prayer, Flanking, Shield Wall, Divine Intervention) ask the player mid-action, in battle and in the dungeon; Armor, Power and Expertise can be spent; engage Difficulty scales with the groups; conditions from enemy attacks are sealed on failed tests; Treat Conditions is an Interval action. Step-by-step turns ("Brann's action 1: what should they do?"), engagement groups, Defense scores, animated enemy attacks, enemy stat cards, surprise check, boss fight |
 | Tutorial framing | Intro on the setup screen, goal checklist, Congratulations and "real game is more flexible" outro |
 
-Tests: 288 passing (`npm test`). Lint clean. CI (`deploy.yml`) runs `npm test` and `npm run build` (which runs `tsc -b`)
+Tests: 311 passing (`npm test`). Lint clean. CI (`deploy.yml`) runs `npm test` and `npm run build` (which runs `tsc -b`)
 but does not run `npm run lint`.
 
 ## How it was built (so you can read the history)
@@ -74,25 +74,25 @@ Still open:
 
 ## Backlog, roughly in order of value
 
-1. **Conditions** follow-ups: a trigger that adds a condition on a Complication (the guide's Venomous), Tend the Afflicted,
-   conditions outside combat, and a decision on healing items (Health Potion 1 HP, Bandage treats Wounds only).
-2. **Remaining combat abilities**: Shield Wall, Cleanse, Chain Lightning, Transpose, Arcane Focus; Smite's bonus.
-3. **Surprise** as the guide describes it: concealment against light level, the party's check, a 1-action surprise round.
-4. **Inventory** with 6 slots, stack sizes and the four equipment slots; weapons (Attack uses the held weapon's attribute).
+1. **Surprise** as the guide describes it: concealment against light level, the party's check, a 1-action surprise round.
+2. **Inventory** with 6 slots, stack sizes and the four equipment slots; weapons (Attack uses the held weapon's attribute).
+3. **Healing items**: decide whether to follow the guide (Health Potion 1 HP, Bandage treats Wounds only).
+4. **Smaller gaps**: Scry beyond a neighbouring room, Secure Area and Barricade in a fight, species traits that are not bag
+   changes (Catfolk Foresight, Jann Exchange, Verdant Accumulated Knowledge), art for the new treatment items.
 5. **More content**: a second dungeon, more enemies (use the `add-game-content` skill), Ranger and Berserker once the
    guide defines them.
 6. **Smarter enemies**: engagement behaviour beyond random; let players choose the order enemies resolve in.
 7. **Quality**:
-   - Add `npm run lint` to the deploy workflow.
+   - Add `npm run lint` to the deploy workflow. The agent token has no `workflow` scope, so the owner has to edit `deploy.yml`.
    - Component tests, or at least run `scripts/e2e` in CI.
    - Keyboard operation of the map and a focus trap in the overlays.
    - A mobile layout pass on the dungeon and battle screens.
 8. **Refactors worth considering** (none urgent):
-   - `src/lib/intervalActions.ts` is long; a per-action table would make adding actions cheaper.
    - `ResolutionStep` carries several optional display fields; they could be grouped by kind of step.
    - The "species · background · profession" summary line is built in several components.
-   - `performSkillTest` in exploration and `playerTest` in battle both draw a test and then apply token effects; one
-     shared "resolve a test for a character" would let exploration tests put drawn resources in play and offer Prayer.
+   - `battle/effects.ts` is still the biggest battle file; strikes and triggers could move to their own module.
+   - `BattlePlayer` and `PartyMember` overlap a lot; a shared `Adventurer` base would remove the field-by-field copy in
+     `startBattle` and `endBattle`.
 
 ## Known quirks
 
@@ -116,7 +116,7 @@ START HERE
 2. Read AGENTS.md, then docs/ARCHITECTURE.md, docs/RULES.md and docs/HANDOFF.md. Project skills are in
    .cursor/skills (verify-in-browser, generate-art, add-game-content, push-to-github); read the one you need.
 3. Confirm the baseline: set -o pipefail; npx tsc -b && npm run lint && npm test && npm run build
-   (288 tests should pass).
+   (311 tests should pass).
 
 ENVIRONMENT (same as the previous agent)
 - Linux, Node 22, npm 10, Chrome at /usr/local/bin/google-chrome. Network is restricted: GitHub and npm work, Google

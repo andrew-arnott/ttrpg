@@ -10,22 +10,26 @@ const select = (name) => page.getByLabel(`Action for ${name}`)
 const usePrayer = page.getByRole('button', { name: 'Use Prayer' })
 
 let asked = false
-for (let attempt = 0; attempt < 12 && !asked; attempt++) {
-  await select('Brann Ironhold').selectOption('unlock:entranceDoor:break')
-  await select('Wren Quickfingers').selectOption('unlock:entranceDoor:pick')
-  await select('Sister Maren').selectOption('watch')
-  await select('Ilvara Dawnleaf').selectOption('watch')
-  await page.getByRole('button', { name: 'Resolve Interval' }).click()
+for (let dungeon = 0; dungeon < 8 && !asked; dungeon++) {
+  if (dungeon > 0) {
+    await page.getByRole('button', { name: 'Leave dungeon' }).click()
+    await enterDungeon(page)
+  }
+  for (let attempt = 0; attempt < 8 && !asked; attempt++) {
+    if ((await select('Brann Ironhold').locator('option[value^="unlock"]').count()) === 0) break
+    await select('Brann Ironhold').selectOption('unlock:entranceDoor:break')
+    for (const name of ['Wren Quickfingers', 'Sister Maren', 'Ilvara Dawnleaf']) await select(name).selectOption('watch')
+    await page.getByRole('button', { name: 'Resolve Interval' }).click()
 
-  const first = await Promise.race([
-    usePrayer.waitFor({ timeout: 30000 }).then(() => 'prompt'),
-    page.waitForSelector('.resolution', { timeout: 30000 }).then(() => 'overlay'),
-  ])
-  if (first === 'overlay') {
-    await skipOverlay(page)
-    asked = (await usePrayer.count()) > 0
-  } else asked = true
-  if (!asked && (await page.getByLabel('Action for Brann Ironhold').locator('option[value^="unlock"]').count()) === 0) break
+    const first = await Promise.race([
+      usePrayer.waitFor({ timeout: 30000 }).then(() => 'prompt', () => 'none'),
+      page.waitForSelector('.resolution', { timeout: 30000 }).then(() => 'overlay', () => 'none'),
+    ])
+    if (first === 'overlay') {
+      await skipOverlay(page)
+      asked = (await usePrayer.count()) > 0
+    } else asked = true
+  }
 }
 
 assert.ok(asked, 'a failed test should have let Sister Maren pray')

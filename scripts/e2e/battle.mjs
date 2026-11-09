@@ -27,6 +27,7 @@ await shot('prompt', true)
 
 for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'End turn' }).click()
 let sawClash = false
+let overlayPolls = 0
 for (let i = 0; i < 80; i++) {
   if ((await page.locator('.clash').count()) > 0 && !sawClash) {
     sawClash = true
@@ -34,8 +35,11 @@ for (let i = 0; i < 80; i++) {
     console.log('clash:', (await page.locator('.clash').innerText()).replace(/\n+/g, ' | '))
   }
   if ((await page.locator('.resolution').count()) > 0) {
-    if (sawClash) await skipOverlay(page)
-    else await page.waitForTimeout(500)
+    overlayPolls += 1
+    if (sawClash || overlayPolls > 8) {
+      await skipOverlay(page)
+      overlayPolls = 0
+    } else await page.waitForTimeout(500)
   } else if ((await page.getByRole('button', { name: 'No thanks' }).count()) > 0) {
     await page.getByRole('button', { name: 'No thanks' }).click()
   } else if ((await page.locator('.card-head .step-index', { hasText: 'Round 2' }).count()) > 0) {

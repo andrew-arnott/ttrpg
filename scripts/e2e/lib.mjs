@@ -44,8 +44,11 @@ export async function enterDungeon(page, names = SAMPLE_PARTY) {
 /** Plays the animated overlay to its summary and dismisses it. */
 export async function skipOverlay(page) {
   await page.waitForSelector('.resolution')
-  await page.getByRole('button', { name: 'Skip to summary' }).click()
-  await page.getByRole('button', { name: 'Continue' }).click()
+  const skip = page.getByRole('button', { name: 'Skip to summary' })
+  const next = page.getByRole('button', { name: 'Continue' })
+  await skip.or(next).first().waitFor()
+  if (await skip.count()) await skip.click()
+  await next.click()
 }
 
 export function report(errors) {
