@@ -225,9 +225,7 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
                   {step.testHeading ??
                     (step.testMode === 'score'
                       ? `${SPECIAL_LABELS[test.attribute]} test \u00b7 the result is added to the score`
-                      : `${SPECIAL_LABELS[test.attribute]} test \u00b7 Difficulty ${test.difficulty}${
-                          test.penalty > 0 ? ` +${test.penalty} for darkness` : ''
-                        }`)}
+                      : `${SPECIAL_LABELS[test.attribute]} test \u00b7 Difficulty ${test.difficulty}`)}
                 </p>
                 <DrawStage
                   compact
@@ -242,7 +240,7 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
                       <>
                         Tokens {fmtSigned(tokensTotal)} + {SPECIAL_LABELS[test.attribute]} {test.attributeValue}
                         {test.bonuses.map((b) => ` ${b.value < 0 ? '-' : '+'} ${b.label} ${Math.abs(b.value)}`).join('')} ={' '}
-                        <b>{test.total}</b> against {test.difficulty + test.penalty}
+                        <b>{test.total}</b> against {test.difficulty}
                       </>
                     )}
                     {step.testMode === 'check' && (

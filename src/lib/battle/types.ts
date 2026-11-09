@@ -1,4 +1,5 @@
 import type { SpecialKey, SpecialSpread, TokenStack } from '../../data/types'
+import type { TestBonus } from '../skillTest'
 import type { SealedCondition } from '../conditionRules'
 import type { ReactionAnswer, ReactionRequest, TargetChoice } from '../reactionTypes'
 import type { ResolutionStep } from '../resolution'
@@ -90,6 +91,8 @@ export interface BattleState {
   opening: ResolutionStep[]
   /** Set while the battle waits for a player to decide whether to use a Triggered ability. */
   pending?: PendingReaction | null
+  /** What the party's torch does to every test in this fight. */
+  light?: TestBonus | null
 }
 
 

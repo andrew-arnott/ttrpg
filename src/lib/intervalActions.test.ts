@@ -122,25 +122,26 @@ describe('resolveInterval', () => {
         { a: { actionId: 'investigate' } },
         rng(),
       )
-      expect(pass.steps[0].test).toMatchObject({ attribute: 'perception', total: 4, difficulty: 4, passed: true })
+      expect(pass.steps[0].test).toMatchObject({ attribute: 'perception', total: 5, difficulty: 4, passed: true })
       const fail = resolveInterval(
         stateWith(testMember('a', 0, { bag: bagOf('plus1'), special: { ...flat, perception: 1 } })),
         { a: { actionId: 'investigate' } },
         rng(),
       )
-      expect(fail.steps[0].test).toMatchObject({ total: 2, passed: false })
+      expect(fail.steps[0].test).toMatchObject({ total: 3, passed: false })
     })
 
-    it('makes tests harder once the torch has gone out', () => {
+    it('adds the torch to every test: +1 bright, 0 steady, -1 dim, -2 once it is out', () => {
       const lit = stateWith(testMember('a', 0, { bag: bagOf('plus3'), special: flat }))
-      const dark = { ...lit, torch: { ...lit.torch, remaining: 0 } }
-      expect(torchLevel(dark.torch)).toBe('out')
       const plan: InteractionPlan = { a: { actionId: 'investigate' } }
-      expect(resolveInterval(lit, plan, rng()).steps[0].test?.passed).toBe(true)
-      const darkStep = resolveInterval(dark, plan, rng()).steps[0]
-      expect(darkStep.test?.passed).toBe(false)
-      expect(darkStep.test?.penalty).toBeGreaterThan(0)
-      expect(darkStep.intro).toMatch(/too dark/)
+      const at = (remaining: number) => resolveInterval({ ...lit, torch: { ...lit.torch, remaining } }, plan, rng()).steps[0]
+      expect(torchLevel({ ...lit.torch, remaining: 0 })).toBe('out')
+      expect([6, 4, 2, 0].map((remaining) => at(remaining).test?.total)).toEqual([5, 4, 3, 2])
+      expect(at(6).test?.bonuses).toEqual([{ label: 'Bright torch', value: 1 }])
+      expect(at(4).test?.bonuses).toEqual([])
+      expect(at(0).test?.bonuses).toEqual([{ label: 'No torch', value: -2 }])
+      expect(at(0).test?.passed).toBe(false)
+      expect(at(0).intro).toMatch(/light is poor/)
     })
   })
 
@@ -186,13 +187,13 @@ describe('resolveInterval', () => {
     it('Investigate reveals what is at or below the result: the trap but not a harder secret', () => {
       const s = inRoom('library', reader(bagOf('plus3')))
       const { state, steps } = resolveInterval(s, investigate, rng())
-      expect(steps[0].test?.total).toBe(6)
+      expect(steps[0].test?.total).toBe(7)
       expect(steps[0].outcome).toMatch(/healing potion/)
       expect(state.done).toEqual(expect.arrayContaining(['secret:library', 'trap:found:library']))
 
       const shrine = inRoom('shrine', reader(bagOf('plus1'), { special: { ...flat, perception: 1 } }))
       const partial = resolveInterval(shrine, investigate, rng())
-      expect(partial.steps[0].test?.total).toBe(2)
+      expect(partial.steps[0].test?.total).toBe(3)
       expect(partial.steps[0].tone).toBe('failure')
 
       const mid = inRoom('shrine', reader(bagOf('plus1'), { special: { ...flat, perception: 4 } }))
@@ -355,7 +356,10 @@ describe('resolveInterval', () => {
       const first = resolveInterval(party(), search, rng())
       const done = respondToIntervalReaction(first.state, { use: true }, rng())
       expect(done.state.pending).toBeNull()
-      expect(done.steps[0].test?.bonuses).toEqual([{ label: 'Prayer (Sister Maren)', value: 2 }])
+      expect(done.steps[0].test?.bonuses).toEqual([
+        { label: 'Bright torch', value: 1 },
+        { label: 'Prayer (Sister Maren)', value: 2 },
+      ])
       const priest = done.state.party.find((m) => m.key === 'p')!
       expect(priest.resources.faith).toBe(1)
       expect(done.steps.at(-1)!.title).toBe('The Interval ends')
@@ -364,7 +368,7 @@ describe('resolveInterval', () => {
     it('carries on unchanged when declined', () => {
       const first = resolveInterval(party(), search, rng())
       const done = respondToIntervalReaction(first.state, { use: false }, rng())
-      expect(done.steps[0].test?.bonuses).toEqual([])
+      expect(done.steps[0].test?.bonuses).toEqual([{ label: 'Bright torch', value: 1 }])
       expect(done.state.party.find((m) => m.key === 'p')!.resources.faith).toBe(3)
     })
 

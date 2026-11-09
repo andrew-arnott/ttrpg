@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
-import { burnInterval, lightTorch, torchAdvice, torchLevel, totalIntervals, type TorchLevel } from './torch'
+import { burnInterval, lightBonus, lightTorch, torchAdvice, torchLevel, totalIntervals, type TorchLevel } from './torch'
 
 describe('torch', () => {
   it('burns Bright, then Steady, then Dim, then goes out', () => {
@@ -48,5 +48,12 @@ describe('torchAdvice', () => {
   it('does not point at a torch that is not there', () => {
     expect(torchAdvice('dim', 0)).toContain('spare')
     expect(torchAdvice('out', 0)).toContain('No spare torches')
+  })
+})
+
+describe('lightBonus', () => {
+  it('is +1 bright, nothing steady, -1 dim and -2 with no torch', () => {
+    const at = (remaining: number) => lightBonus({ spec: ORDINARY_TORCH, remaining })?.value ?? 0
+    expect([6, 4, 2, 0].map(at)).toEqual([1, 0, -1, -2])
   })
 })

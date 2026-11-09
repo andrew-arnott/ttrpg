@@ -66,7 +66,7 @@ const investigate: ActionHandler = {
     const test = runTest(ctx, 'perception', Math.min(...finds.map((f) => f.difficulty)))
     const outcome = test.result.outcome
     const reaches = (difficulty: number) =>
-      outcome === 'critical-success' || (outcome !== 'critical-failure' && test.total >= difficulty + test.penalty)
+      outcome === 'critical-success' || (outcome !== 'critical-failure' && test.total >= difficulty)
     const found = finds.filter((f) => reaches(f.difficulty)).map((f) => f.kind)
     if (found.length === 0) {
       return narrate(ctx, 'Investigate', intro, `${member.name} turns up nothing this time.`, 'failure', ctx.state, test)

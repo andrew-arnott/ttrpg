@@ -207,7 +207,8 @@ export function playerTest(
   difficulty: number,
   bonuses: TestBonus[] = [],
 ): SkillTestOutcome {
-  const rolled = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng, 0, bonuses, drawRulesFor(p))
+  const all = engine.b.light ? [engine.b.light, ...bonuses] : bonuses
+  const rolled = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng, all, drawRulesFor(p))
   const test = offerPrayer(engine.ask, engine.b.players, p, rolled)
   afterTest(engine, p, test.result, test.passed)
   return test
@@ -300,7 +301,8 @@ export function defend(engine: Engine, p: BattlePlayer, armor = 0, title = 'Defe
   const attribute = DEFEND_ATTRIBUTE
   const result = drawTest(p.bag, engine.rng, drawRulesFor(p))
   const attributeValue = p.special[attribute]
-  const total = result.total + attributeValue + armor
+  const bonuses = [...(engine.b.light ? [engine.b.light] : []), ...(armor > 0 ? [{ label: 'Armor', value: armor }] : [])]
+  const total = result.total + attributeValue + bonuses.reduce((sum, x) => sum + x.value, 0)
   const failed = result.outcome === 'critical-failure'
   afterTest(engine, p, result, !failed)
   const gain = failed ? 0 : Math.max(0, total)
@@ -310,8 +312,7 @@ export function defend(engine: Engine, p: BattlePlayer, armor = 0, title = 'Defe
     attribute,
     attributeValue,
     difficulty: 0,
-    penalty: 0,
-    bonuses: armor > 0 ? [{ label: 'Armor', value: armor }] : [],
+    bonuses,
     result,
     total,
     passed: gain > 0,
@@ -324,7 +325,7 @@ export function defend(engine: Engine, p: BattlePlayer, armor = 0, title = 'Defe
     testMode: 'score',
     resultLine: failed
       ? `Critical Failure: nothing is added. Defense stays at ${p.defense}`
-      : `Tokens ${fmtSigned(result.total)} + Agility ${attributeValue}${armor > 0 ? ` + Armor ${armor}` : ''} = ${total}: Defense ${before} \u2192 ${p.defense}`,
+      : `Tokens ${fmtSigned(result.total)} + Agility ${attributeValue}${bonuses.map((x) => ` ${x.value < 0 ? '-' : '+'} ${x.label} ${Math.abs(x.value)}`).join('')} = ${total}: Defense ${before} \u2192 ${p.defense}`,
     outcome:
       gain > 0
         ? `${p.name} has ${p.defense} Defense this round.`

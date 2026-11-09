@@ -50,7 +50,7 @@ export function offerPrayer(ask: Ask, party: Reactor[], tester: Reactor, test: S
       abilityId: 'prayer',
       reactorKey: priest.key,
       title: 'Prayer',
-      prompt: `${tester.name} failed the test with ${test.total} against ${test.difficulty + test.penalty}. ${priest.name} can pray to add +${PRAYER_BONUS}.`,
+      prompt: `${tester.name} failed the test with ${test.total} against ${test.difficulty}. ${priest.name} can pray to add +${PRAYER_BONUS}.`,
       cost: '2 Faith',
     }
     if (!ask(request).use) continue

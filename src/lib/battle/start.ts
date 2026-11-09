@@ -10,7 +10,6 @@ import {
   distinctGroupIds,
   enemyActorOf,
   finalStep,
-  fmtSigned,
   groupOf,
   livingEnemies,
   livingPlayers,
@@ -23,7 +22,8 @@ import {
   type Engine,
 } from './state'
 import { FORTIFY_DEFENSE } from './types'
-import type { BattleState, SurpriseCheck } from './types'
+import type { TestBonus } from '../skillTest'
+import type { BattleEnemy, BattleState, SurpriseCheck } from './types'
 
 
 function nameEnemies(defs: EnemyDef[]): { id: string; name: string; def: EnemyDef }[] {
@@ -51,7 +51,7 @@ export function startBattle(
   rng: Rng,
   arrival: string,
   surprise: SurpriseCheck | null,
-  options: { unwarded?: boolean } = {},
+  options: { unwarded?: boolean; light?: TestBonus | null } = {},
 ): BattleState {
   const defs = enemyIds.flatMap((id) => (ENEMIES_BY_ID[id] ? [ENEMIES_BY_ID[id]] : []))
   const b: BattleState = {
@@ -91,6 +91,7 @@ export function startBattle(
     turnIndex: 0,
     actionsUsed: 0,
     opening: [],
+    light: options.light ?? null,
   }
 
   b.players.forEach((p) => moveToGroup(b, p.key, newGroup(b)))
@@ -144,63 +145,58 @@ export function startBattle(
   return b
 }
 
+/** The middle notice Difficulty of the enemies; with an even number, the average of the middle two, rounded up. */
+export function medianNoticeDifficulty(enemies: BattleEnemy[]): number {
+  const sorted = enemies.map((e) => ENEMIES_BY_ID[e.defId].noticeDifficulty).sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 1 ? sorted[mid] : Math.ceil((sorted[mid - 1] + sorted[mid]) / 2)
+}
+
 /**
- * Each player makes a Perception test, and every enemy whose notice Difficulty that result meets is
- * spotted. Light and watchfulness help. Enemies nobody spotted get a surprise round before the
- * players can act; enemies that were spotted hold back.
+ * Each player makes one Perception test against the median notice Difficulty of the enemies. If
+ * anyone passes, the party sees the danger coming. If nobody does, the enemies get a surprise
+ * round before the players can act. Light and watchfulness help, as they do on every test.
  */
 function surpriseCheck(engine: Engine, check: SurpriseCheck) {
   const { b } = engine
   const enemies = livingEnemies(b)
+  const difficulty = medianNoticeDifficulty(enemies)
   const bonuses = check.modifiers.map((m) => ({ label: m.label, value: m.value }))
-  const spotted = new Set<string>()
+  let spotted = false
 
   for (const p of livingPlayers(b)) {
-    const test = playerTest(engine, p, 'perception', 0, bonuses)
-    const result = test.result.outcome
-    const score = result === 'critical-success' ? Infinity : result === 'critical-failure' ? -Infinity : test.total
-    const seen = enemies.filter((e) => ENEMIES_BY_ID[e.defId].noticeDifficulty <= score)
-    seen.forEach((e) => spotted.add(e.id))
-    const names = seen.map((e) => e.name).join(', ')
+    const test = playerTest(engine, p, 'perception', difficulty, bonuses)
+    spotted = spotted || test.passed
     addStep(engine, {
       actor: playerActorOf(p),
       title: 'Look out!',
       intro: `${p.name} peers into the shadows for movement.`,
       test,
-      testMode: 'score',
-      resultLine: `Tokens ${fmtSigned(test.result.total)} + Perception ${test.attributeValue}${bonuses
-        .map((x) => ` ${x.value < 0 ? '-' : '+'} ${x.label} ${Math.abs(x.value)}`)
-        .join('')} = ${test.total}`,
-      testHeading: `Perception test against each enemy's notice Difficulty (${enemies
-        .map((e) => `${e.name} ${ENEMIES_BY_ID[e.defId].noticeDifficulty}`)
-        .join(', ')})`,
-      outcome: seen.length > 0 ? `${p.name} spots ${names}.` : `${p.name} notices nothing.`,
-      tone: seen.length === enemies.length ? 'success' : seen.length > 0 ? 'neutral' : 'failure',
+      testMode: 'check',
+      testHeading: `Perception test \u00b7 Difficulty ${difficulty}, the median of the enemies' notice Difficulties`,
+      outcome: test.passed ? `${p.name} spots the danger.` : `${p.name} notices nothing.`,
+      tone: test.passed ? 'success' : 'failure',
     })
   }
 
-  const ambushers = enemies.filter((e) => !spotted.has(e.id))
-  const modifiers =
-    check.modifiers.length > 0 ? ` (${check.modifiers.map((m) => `${fmtSigned(m.value)} ${m.label}`).join(', ')})` : ''
   addStep(engine, {
-    actor: ambushers[0] ? enemyActorOf(ambushers[0]) : null,
+    actor: spotted ? null : enemyActorOf(enemies[0]),
     title: 'Surprise?',
-    intro: `The party's eyes against the dark${modifiers}.`,
-    outcome:
-      ambushers.length === 0
-        ? 'Everything was spotted in time. Combat begins on even terms.'
-        : `${ambushers.map((e) => e.name).join(', ')} ${ambushers.length === 1 ? 'was' : 'were'} not spotted and strike${ambushers.length === 1 ? 's' : ''} first.`,
-    tone: ambushers.length === 0 ? 'success' : 'failure',
+    intro: 'The party strains to see what is out there.',
+    outcome: spotted
+      ? 'Someone spotted them in time. Combat begins on even terms.'
+      : 'Nobody saw them coming. The enemies strike first!',
+    tone: spotted ? 'success' : 'failure',
   })
-  if (ambushers.length === 0) return
+  if (spotted) return
 
   addStep(engine, {
     actor: null,
     title: 'Surprise round',
     intro: 'The party is caught flat-footed.',
-    outcome: 'The unspotted enemies attack before anyone can defend.',
+    outcome: 'The enemies attack before anyone can defend.',
     tone: 'failure',
   })
-  enemyActions(engine, ambushers)
+  enemyActions(engine, enemies)
   resetRoundState(b)
 }

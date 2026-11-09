@@ -32,7 +32,6 @@ export interface PlannedAction {
 
 export type InteractionPlan = Record<string, PlannedAction>
 
-export const DARKNESS_PENALTY = 3
 export const DEFAULT_ACTION: PlannedAction = { actionId: 'watch' }
 export const TREAT_DIFFICULTY = 6
 

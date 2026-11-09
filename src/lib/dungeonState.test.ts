@@ -228,33 +228,24 @@ describe('the surprise check', () => {
     return { ...s, torch: { ...s.torch, remaining } }
   }
 
-  it('gets +1 to the party’s awareness from a bright torch', () => {
-    expect(surpriseCheckFor(fresh()).modifiers).toEqual([{ label: 'Bright torch', value: 1 }])
-  })
-
-  it('has no modifier for a steady torch, -1 for dim and -2 once it is out', () => {
-    expect(surpriseCheckFor(withTorch(4)).modifiers).toEqual([])
-    expect(surpriseCheckFor(withTorch(2)).modifiers).toEqual([{ label: 'Dim torch', value: -1 }])
-    expect(surpriseCheckFor(withTorch(0)).modifiers).toEqual([{ label: 'No torch', value: -2 }])
-  })
-
-  it('adds the watch bonus on top of the torch', () => {
-    const s = { ...fresh(), watch: STAND_WATCH }
-    expect(surpriseCheckFor(s).modifiers).toEqual([STAND_WATCH, { label: 'Bright torch', value: 1 }])
+  it('only adds watchfulness; the torch is a bonus on every test', () => {
+    expect(surpriseCheckFor(fresh()).modifiers).toEqual([])
+    expect(surpriseCheckFor({ ...fresh(), watch: STAND_WATCH }).modifiers).toEqual([STAND_WATCH])
     expect(STAND_WATCH.value).toBe(2)
   })
 
-  it('gives each player the watch and torch as bonuses to their Perception test when the patrol arrives', () => {
+  it('gives each player the torch and the watch as bonuses to their Perception test when the patrol arrives', () => {
     const s = dungeonReducer({ ...fresh(), watch: STAND_WATCH }, { type: 'startBattle', rng })
     const looks = s.battle!.opening.filter((o) => o.title === 'Look out!')
     expect(looks).toHaveLength(s.party.length)
-    expect(looks[0].test!.bonuses).toEqual([STAND_WATCH, { label: 'Bright torch', value: 1 }])
+    expect(looks[0].test!.bonuses).toEqual([{ label: 'Bright torch', value: 1 }, STAND_WATCH])
   })
 
-  it('takes away a bonus once the torch is dim and nobody is watching', () => {
-    const s = dungeonReducer(withTorch(2), { type: 'startBattle', rng })
-    const look = s.battle!.opening.find((o) => o.title === 'Look out!')!
-    expect(look.test!.bonuses).toEqual([{ label: 'Dim torch', value: -1 }])
+  it('takes the light into the whole fight', () => {
+    expect(dungeonReducer(fresh(), { type: 'startBattle', rng }).battle!.light).toEqual({ label: 'Bright torch', value: 1 })
+    const dim = dungeonReducer(withTorch(2), { type: 'startBattle', rng })
+    expect(dim.battle!.light).toEqual({ label: 'Dim torch', value: -1 })
+    expect(dim.battle!.opening.find((o) => o.title === 'Look out!')!.test!.bonuses).toEqual([{ label: 'Dim torch', value: -1 }])
   })
 
   it('forgets watching as soon as the party moves', () => {

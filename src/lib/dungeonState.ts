@@ -6,7 +6,7 @@ import type { SealedCondition } from './conditionRules'
 import type { PendingInterval } from './intervalActions/types'
 import { startBattle, type BattleState, type SurpriseCheck } from './battle'
 import type { Rng } from './drawTest'
-import { burnInterval, lightTorch, torchLevel, TORCH_LEVEL_LABEL, type TorchLevel, type TorchState } from './torch'
+import { burnInterval, lightBonus, lightTorch, torchLevel, TORCH_LEVEL_LABEL, type TorchLevel, type TorchState } from './torch'
 
 export interface PartyMember {
   key: string
@@ -56,14 +56,6 @@ export interface Watchfulness {
 
 export const STAND_WATCH: Watchfulness = { label: 'Stand Watch', value: 2 }
 export const KEEP_WATCH: Watchfulness = { label: 'Keeping watch', value: 2 }
-
-/** How the torch affects the enemies' chance to surprise the party: better light means more warning. */
-export const TORCH_AWARENESS: Record<TorchLevel, { label: string; value: number }> = {
-  bright: { label: 'Bright torch', value: 1 },
-  steady: { label: 'Steady torch', value: 0 },
-  dim: { label: 'Dim torch', value: -1 },
-  out: { label: 'No torch', value: -2 },
-}
 
 export interface DungeonState {
   dungeon: Dungeon
@@ -242,10 +234,7 @@ export function burnTorchInterval(state: DungeonState): { state: DungeonState; m
 
 /** The patrol finds the party wherever they are, and any preparations made in that room come into play. */
 export function surpriseCheckFor(state: DungeonState): SurpriseCheck {
-  const light = TORCH_AWARENESS[torchLevel(state.torch)]
-  return {
-    modifiers: [state.watch, light].flatMap((m) => (m && m.value !== 0 ? [m] : [])),
-  }
+  return { modifiers: state.watch ? [state.watch] : [] }
 }
 
 export function springPatrol(state: DungeonState, rng: Rng): DungeonState {
@@ -257,6 +246,7 @@ export function springPatrol(state: DungeonState, rng: Rng): DungeonState {
     rng,
     patrol.arrival,
     surpriseCheckFor(state),
+    { light: lightBonus(state.torch) },
   )
   return withLog({ ...state, battle, battleKind: 'patrol', patrolTriggered: true }, patrol.arrival)
 }
@@ -266,6 +256,7 @@ export function springBoss(state: DungeonState, rng: Rng): DungeonState {
   const { boss } = state.dungeon
   const battle = startBattle(state.party, state.prepared[boss.roomId] ?? [], boss.enemyIds, rng, boss.arrival, null, {
     unwarded: state.done.includes(`dispelled:${boss.roomId}`),
+    light: lightBonus(state.torch),
   })
   return withLog(
     { ...state, battle, battleKind: 'boss', bossTriggered: true, patrolTriggered: true },
@@ -283,6 +274,7 @@ export function springGuardian(state: DungeonState, room: DungeonRoom, rng: Rng)
     rng,
     guardian.arrival,
     surpriseCheckFor(state),
+    { light: lightBonus(state.torch) },
   )
   return withLog(
     { ...state, battle, battleKind: 'guardian', done: [...state.done, guardianFlag(room.id)] },

@@ -1,4 +1,5 @@
 import type { TorchSpec } from '../data/items'
+import type { TestBonus } from './skillTest'
 
 export type TorchLevel = 'bright' | 'steady' | 'dim' | 'out'
 
@@ -54,9 +55,19 @@ export function torchAdvice(level: TorchLevel, spareTorches: number): string | n
 /** What the popup says when the torch goes out, for a tutorial player who has not seen it happen before. */
 export function torchOutPopup(spareTorches: number): string[] {
   return [
-    'Uh oh... without light the party can only see its own room, and every test is harder in the dark. Anything lurking nearby is more likely to catch you by surprise, too.',
+    'Uh oh... without light the party can only see its own room, and every test is at -2, attacks and defence included. A dim torch is -1 and a bright one is +1, so the light you carry matters in a fight too.',
     spareTorches > 0
       ? 'You still have a spare. Right-click a torch in someone\u2019s pack to light it. Lighting a torch takes no time.'
       : 'Nobody is carrying a spare torch. Rooms you have not searched may hold one, so feel your way back to somewhere promising.',
   ]
 }
+
+const LIGHT_BONUS: Record<TorchLevel, { label: string; value: number } | null> = {
+  bright: { label: 'Bright torch', value: 1 },
+  steady: null,
+  dim: { label: 'Dim torch', value: -1 },
+  out: { label: 'No torch', value: -2 },
+}
+
+/** Light is a modifier on every test the party makes: Bright +1, Steady 0, Dim -1, no torch -2. */
+export const lightBonus = (torch: TorchState): TestBonus | null => LIGHT_BONUS[torchLevel(torch)]

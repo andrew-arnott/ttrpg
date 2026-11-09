@@ -10,7 +10,7 @@ import { offerPrayer } from '../reactorRules'
 import type { Ask } from '../replay'
 import { adjustBag } from '../tokenFlow'
 import { playerActor, type ResolutionStep, type StepTone } from '../resolution'
-import { performSkillTest, type SkillTestOutcome } from '../skillTest'
+import { performSkillTest, type SkillTestOutcome, type TestBonus } from '../skillTest'
 import type { ActionOption, PlannedAction } from './types'
 
 export const withArticle = (word: string) => `${/^[AEIOU]/i.test(word) ? 'an' : 'a'} ${word}`
@@ -91,7 +91,8 @@ export interface Context {
   planned: PlannedAction
   rng: Rng
   ask: Ask
-  penalty: number
+  /** What the torch does to every test the party makes. */
+  light: TestBonus | null
   /** Condition effects waiting to be added to the outcome. */
   notes: string[]
 }
@@ -141,8 +142,7 @@ export function runTestFor(
     subject.special[attribute],
     difficulty,
     ctx.rng,
-    ctx.penalty,
-    [],
+    ctx.light ? [ctx.light] : [],
     drawRulesFor(subject),
   )
   const party = ctx.state.party.map((m) => ({ ...m }))
@@ -158,7 +158,7 @@ export const runTest = (ctx: Context, attribute: SpecialKey, difficulty: number)
   runTestFor(ctx, ctx.member, attribute, difficulty)
 
 export const withDarkness = (ctx: Context, intro: string) =>
-  ctx.penalty > 0 ? `${intro} It is too dark to see well.` : intro
+  ctx.light && ctx.light.value < 0 ? `${intro} The light is poor.` : intro
 
 export function keepWatch(ctx: Context, title = 'Keep watch'): Resolution {
   return narrate(

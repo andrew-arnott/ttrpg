@@ -95,7 +95,6 @@ export function arcaneFocus(engine: Engine, caster: BattlePlayer) {
     attribute: 'intelligence',
     attributeValue: 0,
     difficulty: 0,
-    penalty: 0,
     bonuses: [],
     result: { drawn, total: 0, outcome: 'normal', complication: false },
     total: 0,
