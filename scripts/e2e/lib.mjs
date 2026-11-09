@@ -47,7 +47,7 @@ export async function skipOverlay(page) {
   const skip = page.getByRole('button', { name: 'Skip to summary' })
   const next = page.getByRole('button', { name: 'Continue' })
   await skip.or(next).first().waitFor()
-  if (await skip.count()) await skip.click()
+  if (await skip.count()) await skip.click({ timeout: 3000 }).catch(() => {})
   await next.click()
 }
 
