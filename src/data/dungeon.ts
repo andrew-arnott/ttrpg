@@ -141,7 +141,11 @@ export interface DungeonLink {
   from: string
   to: string
   /** Hidden links are not part of the map until the party discovers them. */
-  hidden?: { discovery: string }
+  hidden?: {
+    discovery: string
+    /** An Investigate result that finds it, from either end. Without one, only an ability like Find a Shortcut can. */
+    findDifficulty?: number
+  }
   /** Locked links cannot be used, or seen through, until they are unlocked. */
   lock?: Lock
 }
@@ -188,7 +192,7 @@ export const SUNKEN_CRYPT: Dungeon = {
   name: 'The Sunken Crypt',
   blurb:
     'A flooded burial complex beneath an abandoned chapel. A guided first delve for learning how light, time, tests and combat work together.',
-  width: 1000,
+  width: 1200,
   height: 640,
   startRoomId: 'entrance',
   rooms: [
@@ -313,7 +317,7 @@ export const SUNKEN_CRYPT: Dungeon = {
       h: 120,
       description: 'Crates swollen with damp. Most of the stores are ruined, a few are not.',
       lesson: 'Supplies matter: torches and rations only help if you carry enough of them.',
-      intel: 'Something has been dragging crates across the floor. Most of what is left is spoiled.',
+      intel: 'Something has been dragging crates across the floor. Most of what is left is spoiled, and a draught leaks from behind the stack.',
       secret: {
         text: 'a crate of dry torches at the back of the room',
         difficulty: 5,
@@ -347,7 +351,7 @@ export const SUNKEN_CRYPT: Dungeon = {
     {
       id: 'library',
       name: 'Reliquary Library',
-      x: 600,
+      x: 780,
       y: 25,
       w: 200,
       h: 140,
@@ -410,7 +414,7 @@ export const SUNKEN_CRYPT: Dungeon = {
     {
       id: 'shrine',
       name: 'Shrine of Embers',
-      x: 600,
+      x: 780,
       y: 250,
       w: 200,
       h: 140,
@@ -469,7 +473,7 @@ export const SUNKEN_CRYPT: Dungeon = {
     {
       id: 'cistern',
       name: 'Flooded Cistern',
-      x: 600,
+      x: 780,
       y: 465,
       w: 200,
       h: 150,
@@ -509,7 +513,7 @@ export const SUNKEN_CRYPT: Dungeon = {
     {
       id: 'ossuary',
       name: 'Ossuary',
-      x: 850,
+      x: 570,
       y: 465,
       w: 140,
       h: 150,
@@ -517,7 +521,7 @@ export const SUNKEN_CRYPT: Dungeon = {
       description:
         'Skulls are stacked to the ceiling around a hulking Bone Colossus of fused bone and rusted iron. It stands motionless in the middle of the room, its hollow sockets fixed on the doorway.',
       lesson:
-        'An optional room with one big enemy. It starts engaged with everyone and drags everyone back into reach at the end of its turn, so slipping away only saves you for a turn. Scouting ahead warns you what is inside.',
+        'The way to the cistern runs through this room, but it can be avoided. It holds one big enemy that starts engaged with everyone and drags everyone back into reach at the end of its turn, so slipping away only saves you for a turn. Scout ahead to see what is inside, and look for another way round.',
       intel: 'The colossus is bound to this room. It will not follow you out, but it will not let anyone inside walk away.',
       secret: {
         text: 'a dented strongbox beneath the skulls',
@@ -533,7 +537,7 @@ export const SUNKEN_CRYPT: Dungeon = {
     {
       id: 'crypt',
       name: 'Founders\u2019 Crypt',
-      x: 850,
+      x: 1030,
       y: 245,
       w: 140,
       h: 150,
@@ -599,9 +603,18 @@ export const SUNKEN_CRYPT: Dungeon = {
     { from: 'greatHall', to: 'shrine' },
     { from: 'barracks', to: 'library' },
     { from: 'library', to: 'shrine' },
-    { from: 'storeroom', to: 'cistern' },
+    { from: 'storeroom', to: 'ossuary' },
+    { from: 'ossuary', to: 'cistern' },
     { from: 'cistern', to: 'shrine' },
-    { from: 'cistern', to: 'ossuary' },
+    {
+      from: 'storeroom',
+      to: 'cistern',
+      hidden: {
+        discovery:
+          'a crawlspace behind a collapsed stack of crates, running from the storeroom under the ossuary to the cistern',
+        findDifficulty: 6,
+      },
+    },
     {
       from: 'shrine',
       to: 'crypt',

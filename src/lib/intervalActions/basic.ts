@@ -1,4 +1,4 @@
-import { interactionFlag, trapFlag, type DungeonRoom } from '../../data/dungeon'
+import { interactionFlag, linkKey, trapFlag, type DungeonLink, type DungeonRoom } from '../../data/dungeon'
 import { ITEMS, ITEMS_BY_ID } from '../../data/items'
 import { TOKENS } from '../../data/tokens'
 import { SPECIAL_LABELS } from '../../data/types'
@@ -6,6 +6,7 @@ import {
   breakReadySeals,
   lockedExits,
   passagesOf,
+  revealVisible,
   roomById,
   unlockLock,
   type DungeonState,
@@ -38,7 +39,13 @@ import { TREAT_DIFFICULTY, type ActionOption } from './types'
 
 /** What Investigate could still turn up in a room: its secret and any trap nobody has noticed. */
 function pendingFinds(state: DungeonState, room: DungeonRoom) {
-  const finds: { kind: 'secret' | 'trap'; difficulty: number }[] = []
+  const finds: { kind: 'secret' | 'trap' | 'passage'; difficulty: number; link?: DungeonLink }[] = []
+  for (const link of state.dungeon.links) {
+    const touches = link.from === room.id || link.to === room.id
+    if (link.hidden?.findDifficulty !== undefined && touches && !state.discovered.includes(linkKey(link))) {
+      finds.push({ kind: 'passage', difficulty: link.hidden.findDifficulty, link })
+    }
+  }
   if (!state.done.includes(`secret:${room.id}`)) finds.push({ kind: 'secret', difficulty: room.secret.difficulty })
   if (armedTrap(state, room) && !trapFound(state, room)) finds.push({ kind: 'trap', difficulty: room.trap!.findDifficulty })
   return finds
@@ -67,7 +74,8 @@ const investigate: ActionHandler = {
     const outcome = test.result.outcome
     const reaches = (difficulty: number) =>
       outcome === 'critical-success' || (outcome !== 'critical-failure' && test.total >= difficulty)
-    const found = finds.filter((f) => reaches(f.difficulty)).map((f) => f.kind)
+    const reached = finds.filter((f) => reaches(f.difficulty))
+    const found = reached.map((f) => f.kind)
     if (found.length === 0) {
       return narrate(ctx, 'Investigate', intro, `${member.name} turns up nothing this time.`, 'failure', ctx.state, test)
     }
@@ -81,6 +89,11 @@ const investigate: ActionHandler = {
     if (found.includes('trap')) {
       state = markDone(state, trapFlag(room.id, 'found'))
       lines.push(`${member.name} notices a trap: ${room.trap!.hint}`)
+    }
+    for (const { link } of reached) {
+      if (!link?.hidden) continue
+      state = revealVisible({ ...state, discovered: [...state.discovered, linkKey(link)] })
+      lines.push(`${member.name} discovers ${link.hidden.discovery}!`)
     }
     return narrate(ctx, 'Investigate', intro, lines.join(' '), 'success', state, test)
   },

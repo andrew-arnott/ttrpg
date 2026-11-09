@@ -323,7 +323,6 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
   const [darkSeen, setDarkSeen] = useState(false)
 
   const level = torchLevel(state.torch)
-  if (level !== 'out' && darkSeen) setDarkSeen(false)
   const room = roomById(state.dungeon, state.roomId)
   const passages = passagesOf(state)
   const exits = adjacentRoomIds(state.dungeon, state.roomId, passages).map((id) => roomById(state.dungeon, id))
@@ -421,7 +420,7 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
             </p>
             {room.optional && (
               <div className="tokens">
-                <span className="chip">Optional room</span>
+                <span className="chip">Can be bypassed</span>
               </div>
             )}
             {room.trap &&

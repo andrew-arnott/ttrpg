@@ -243,6 +243,32 @@ describe('resolveInterval', () => {
     })
   })
 
+  describe('the hidden way round the Ossuary', () => {
+    const storeroom = (bag: PartyMember['bag'], over: Partial<PartyMember> = {}) => ({
+      ...stateWith(testMember('a', 0, { bag, special: { ...flat, perception: 3 }, ...over })),
+      roomId: 'storeroom',
+    })
+
+    it('can be found by Investigate from either end, with a high enough result', () => {
+      const found = resolveInterval(storeroom(ALWAYS_PASS), { a: { actionId: 'investigate' } }, rng())
+      expect(found.state.discovered).toContain('storeroom>cistern')
+      expect(found.steps[0].outcome).toMatch(/crawlspace/)
+      const cistern = { ...storeroom(ALWAYS_PASS), roomId: 'cistern' }
+      expect(resolveInterval(cistern, { a: { actionId: 'investigate' } }, rng()).state.discovered).toContain('storeroom>cistern')
+    })
+
+    it('stays hidden from a weak result', () => {
+      const weak = resolveInterval(storeroom(bagOf('plus0'), { special: flat }), { a: { actionId: 'investigate' } }, rng())
+      expect(weak.state.discovered).not.toContain('storeroom>cistern')
+    })
+
+    it('can be found by Find a Shortcut too', () => {
+      const rogue = storeroom(bagOf('plus1'), { abilityIds: ['findAShortcut'], professionId: 'rogue' })
+      const { state } = resolveInterval(rogue, { a: { actionId: 'ability:findAShortcut' } }, rng())
+      expect(state.discovered).toContain('storeroom>cistern')
+    })
+  })
+
   describe('Dispel Magic', () => {
     const mage = (bag = ALWAYS_PASS) =>
       testMember('a', 0, { abilityIds: ['dispelMagic'], bag, professionId: 'wizard', special: { ...flat, intelligence: 3 } })

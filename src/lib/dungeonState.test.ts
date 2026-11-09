@@ -416,11 +416,22 @@ describe('the optional Ossuary', () => {
     expect(back.battle).toBeNull()
   })
 
-  it('is not needed to finish the dungeon', () => {
+  it('sits between the Storeroom and the Cistern, with a hidden way round', () => {
     const room = SUNKEN_CRYPT.rooms.find((r) => r.id === 'ossuary')!
     expect(room.optional).toBe(true)
-    const needed = SUNKEN_CRYPT.links.flatMap((l) => (l.lock?.kind === 'seal' ? l.lock.requires.map((r) => r.flag) : []))
-    expect(needed.some((flag) => flag.includes('ossuary'))).toBe(false)
+    const keys = SUNKEN_CRYPT.links.filter((l) => !l.hidden).map((l) => linkKey(l))
+    expect(keys).toEqual(expect.arrayContaining(['storeroom>ossuary', 'ossuary>cistern']))
+    expect(keys).not.toContain('storeroom>cistern')
+    const shortcut = SUNKEN_CRYPT.links.find((l) => l.hidden && l.from === 'storeroom' && l.to === 'cistern')!
+    expect(shortcut.hidden!.findDifficulty).toBeGreaterThan(0)
+  })
+
+  it('is passed by the shortcut: once found, the Cistern is reachable from the Storeroom without the Ossuary', () => {
+    const s = createDungeonState(SUNKEN_CRYPT, [testMember('a', 0)])
+    const found = { discovered: ['storeroom>cistern'], unlocked: [] }
+    expect(adjacentRoomIds(SUNKEN_CRYPT, 'storeroom', found)).toContain('cistern')
+    expect(adjacentRoomIds(SUNKEN_CRYPT, 'storeroom')).not.toContain('cistern')
+    expect(s.battle).toBeNull()
   })
 
   it('lets Scout Ahead say what is inside', () => {
