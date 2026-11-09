@@ -25,8 +25,8 @@ const SAMPLE_RECIPES = [
     professionId: 'warrior',
     speciesId: 'dwarf',
     backgroundId: 'soldier',
-    combatIds: ['provoke', 'intercept'],
-    explorationIds: ['fortify', 'standWatch'],
+    combatIds: ['provoke', 'disable', 'intercept'],
+    explorationIds: ['fortify'],
   },
   {
     name: 'Wren Quickfingers',

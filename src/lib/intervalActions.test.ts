@@ -24,6 +24,8 @@ const flat = { strength: 1, perception: 1, endurance: 1, charisma: 1, intelligen
 const stateWith = (...members: ReturnType<typeof testMember>[]): DungeonState =>
   createDungeonState(SUNKEN_CRYPT, members)
 
+const watchman = (key: string) => ({ ...sampleMember('warrior', key), abilityIds: ['standWatch'] })
+
 const sampleMember = (professionId: string, key = professionId) => {
   const entry = sampleRoster().find((r) => r.key === `sample:${professionId}`)!
   return createPartyMember(key, entry.draft)
@@ -419,7 +421,7 @@ describe('resolveInterval', () => {
 
 describe('watching during an Interval', () => {
   it('records Stand Watch for the surprise check', () => {
-    const s = stateWith(sampleMember('warrior', 'w'))
+    const s = stateWith(watchman('w'))
     const { state } = resolveInterval(s, { w: { actionId: 'ability:standWatch' } }, rng())
     expect(state.watch).toEqual(STAND_WATCH)
   })
@@ -431,7 +433,7 @@ describe('watching during an Interval', () => {
   })
 
   it('takes the best watch when several characters watch', () => {
-    const s = stateWith(testMember('a', 0), sampleMember('warrior', 'w'))
+    const s = stateWith(testMember('a', 0), watchman('w'))
     const { state } = resolveInterval(
       s,
       { a: { actionId: 'watch' }, w: { actionId: 'ability:standWatch' } },
