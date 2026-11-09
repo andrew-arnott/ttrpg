@@ -84,7 +84,7 @@ export interface DungeonState {
   log: string[]
   battle: BattleState | null
   /** Which encounter the current battle belongs to. */
-  battleKind: 'patrol' | 'boss' | null
+  battleKind: 'patrol' | 'boss' | 'guardian' | null
   patrolTriggered: boolean
   /** The Interval count when the first lock was opened. The patrol clock only runs from then. */
   patrolStartedAt: number | null
@@ -104,6 +104,9 @@ export type DungeonAction =
   | { type: 'replace'; state: DungeonState }
 
 /** How many doorways away the party's light reaches at each torch level. */
+/** Set when the party walks into a guardian's room, so it only wakes once. */
+export const guardianFlag = (roomId: string) => `guardian:${roomId}`
+
 export const LIGHT_REACH: Record<TorchLevel, number> = {
   bright: 2,
   steady: 1,
@@ -261,10 +264,29 @@ export function springPatrol(state: DungeonState, rng: Rng): DungeonState {
 /** The guardian rises when the party enters its room. There is no chance to surprise anyone here. */
 export function springBoss(state: DungeonState, rng: Rng): DungeonState {
   const { boss } = state.dungeon
-  const battle = startBattle(state.party, state.prepared[boss.roomId] ?? [], boss.enemyIds, rng, boss.arrival, null)
+  const battle = startBattle(state.party, state.prepared[boss.roomId] ?? [], boss.enemyIds, rng, boss.arrival, null, {
+    unwarded: state.done.includes(`dispelled:${boss.roomId}`),
+  })
   return withLog(
     { ...state, battle, battleKind: 'boss', bossTriggered: true, patrolTriggered: true },
     boss.arrival,
+  )
+}
+
+/** An optional room's guardian wakes the first time the party walks in, and the party may spot it first. */
+export function springGuardian(state: DungeonState, room: DungeonRoom, rng: Rng): DungeonState {
+  const guardian = room.guardian!
+  const battle = startBattle(
+    state.party,
+    state.prepared[room.id] ?? [],
+    guardian.enemyIds,
+    rng,
+    guardian.arrival,
+    surpriseCheckFor(state),
+  )
+  return withLog(
+    { ...state, battle, battleKind: 'guardian', done: [...state.done, guardianFlag(room.id)] },
+    guardian.arrival,
   )
 }
 
@@ -376,6 +398,7 @@ export function dungeonReducer(state: DungeonState, action: DungeonAction): Dung
       )
       const { boss } = state.dungeon
       if (room.id === boss.roomId && !moved.bossTriggered) return springBoss(moved, action.rng)
+      if (room.guardian && !moved.done.includes(guardianFlag(room.id))) return springGuardian(moved, room, action.rng)
       return springPatrolIfDue(moved, action.rng)
     }
 

@@ -14,7 +14,7 @@ import {
 } from '../dungeonState'
 import { countInBag } from '../tokenFlow'
 import { totalIntervals } from '../torch'
-import { addPrepared, keepWatch, markDone, narrate, runTest, updateMember, withArticle, withDarkness } from './context'
+import { addPrepared, defuseTrap, giveReward, keepWatch, markDone, narrate, runTest, updateMember, withArticle, withDarkness } from './context'
 import type { ActionHandler, Context, Resolution } from './context'
 import { removeConditionToken } from './conditionTreatment'
 import type { ActionOption } from './types'
@@ -146,8 +146,21 @@ const dispelMagic: AbilityAction = {
     }
     const test = runTest(ctx, 'intelligence', room.magic.dispelDifficulty)
     if (!test.passed) return narrate(ctx, ability.name, intro, 'The magic resists, and holds firm.', 'failure', ctx.state, test)
-    return narrate(ctx, ability.name, intro, room.magic.dispelled, 'success', markDone(ctx.state, flag), test)
+    const dispelled = applyDispel(ctx, room, markDone(ctx.state, flag))
+    return narrate(ctx, ability.name, intro, `${room.magic.dispelled}${dispelled.text}`, 'success', dispelled.state, test)
   },
+}
+
+/** What unravelling a room's magic does besides the story: always something that helps. */
+function applyDispel(ctx: Context, room: DungeonRoom, state: DungeonState): { state: DungeonState; text: string } {
+  const effect = room.magic?.effect
+  if (effect?.kind === 'disarmTrap' && room.trap) return { state: defuseTrap(state, room), text: ` The ${room.trap.name.toLowerCase()} is disarmed.` }
+  if (effect?.kind === 'revealSecret' && !state.done.includes(`secret:${room.id}`)) {
+    const reward = giveReward(markDone(state, `secret:${room.id}`), ctx.member.key, room.secret.reward)
+    return { state: reward.state, text: ` ${ctx.member.name} finds ${room.secret.text}!${reward.text}` }
+  }
+  if (effect?.kind === 'weakenBoss') return { state, text: ' The guardian here will no longer be able to heal itself.' }
+  return { state, text: '' }
 }
 
 /** Tend the Afflicted: treat a condition with the matching item, and the patient needs no test. */

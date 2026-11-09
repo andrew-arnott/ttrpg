@@ -193,6 +193,7 @@ export function runTriggers(engine: Engine, drawer: BattlePlayer, result: TestRe
   for (const e of livingEnemies(engine.b)) {
     for (const trigger of ENEMIES_BY_ID[e.defId]?.triggers ?? []) {
       if (engine.b.result !== 'ongoing') return
+      if (e.unwarded && trigger.effect.kind === 'heal') continue
       if (!trigger.global && groupOf(engine.b, e.id) !== groupOf(engine.b, drawer.key)) continue
       applyTrigger(engine, e, trigger, drawer)
     }

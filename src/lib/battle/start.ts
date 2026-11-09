@@ -51,6 +51,7 @@ export function startBattle(
   rng: Rng,
   arrival: string,
   surprise: SurpriseCheck | null,
+  options: { unwarded?: boolean } = {},
 ): BattleState {
   const defs = enemyIds.flatMap((id) => (ENEMIES_BY_ID[id] ? [ENEMIES_BY_ID[id]] : []))
   const b: BattleState = {
@@ -80,6 +81,7 @@ export function startBattle(
       disabled: false,
       provokedBy: null,
       empowered: 0,
+      unwarded: options.unwarded,
     })),
     groups: {},
     nextGroup: 0,
@@ -94,6 +96,12 @@ export function startBattle(
   b.players.forEach((p) => moveToGroup(b, p.key, newGroup(b)))
   const targets = livingPlayers(b)
   b.enemies.forEach((e) => moveToGroup(b, e.id, groupOf(b, pick(targets, rng).key)))
+  const sticky = b.enemies.find((e) => ENEMIES_BY_ID[e.defId]?.startsEngagedWithAll)
+  if (sticky) {
+    const shared = newGroup(b)
+    b.players.forEach((p) => moveToGroup(b, p.key, shared))
+    moveToGroup(b, sticky.id, shared)
+  }
 
   const engine = createEngine(b, rng)
   const engagements = distinctGroupIds(b).map((g) => describeGroup(b, g))

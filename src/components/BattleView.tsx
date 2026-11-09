@@ -128,7 +128,7 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
               <span className="step-index">Battle</span>
               <h2>Victory!</h2>
               <p className="hint">
-                The patrol is beaten. Anyone who fell wakes with 1 HP, and sealed tokens return to their owners.
+                The fight is won. Anyone who fell wakes with 1 HP, and sealed tokens return to their owners.
               </p>
             </div>
             <div className="review-actions">

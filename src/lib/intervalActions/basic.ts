@@ -1,4 +1,4 @@
-import { interactionFlag } from '../../data/dungeon'
+import { interactionFlag, trapFlag, type DungeonRoom } from '../../data/dungeon'
 import { ITEMS, ITEMS_BY_ID } from '../../data/items'
 import { TOKENS } from '../../data/tokens'
 import { SPECIAL_LABELS } from '../../data/types'
@@ -11,8 +11,11 @@ import {
   type DungeonState,
   type PartyMember,
 } from '../dungeonState'
-import { canRest, countInBag, recoverForRest, type TokenHolder } from '../tokenFlow'
+import { drewComplication } from '../drawTest'
+import { adjustBag, canRest, countInBag, recoverForRest, type TokenHolder } from '../tokenFlow'
 import {
+  armedTrap,
+  defuseTrap,
   giveReward,
   keepWatch,
   lowerFirst,
@@ -21,6 +24,8 @@ import {
   resourceName,
   runTest,
   runTestFor,
+  springTrap,
+  trapFound,
   updateMember,
   withArticle,
   withDarkness,
@@ -31,36 +36,81 @@ import {
 import { removeConditionToken } from './conditionTreatment'
 import { TREAT_DIFFICULTY, type ActionOption } from './types'
 
-const search: ActionHandler = {
+/** What Investigate could still turn up in a room: its secret and any trap nobody has noticed. */
+function pendingFinds(state: DungeonState, room: DungeonRoom) {
+  const finds: { kind: 'secret' | 'trap'; difficulty: number }[] = []
+  if (!state.done.includes(`secret:${room.id}`)) finds.push({ kind: 'secret', difficulty: room.secret.difficulty })
+  if (armedTrap(state, room) && !trapFound(state, room)) finds.push({ kind: 'trap', difficulty: room.trap!.findDifficulty })
+  return finds
+}
+
+const investigate: ActionHandler = {
   options: (state) => {
     const room = roomById(state.dungeon, state.roomId)
     return [
       {
-        id: 'search',
+        id: 'investigate',
         group: 'Basic',
-        label: 'Search the room',
-        description: 'Make a Perception test to look for anything hidden here.',
-        disabledReason: state.done.includes(`secret:${room.id}`) ? 'Nothing more to find here' : undefined,
+        label: 'Investigate the room',
+        description:
+          'Make a Perception test. Whatever is hidden here at or below your result turns up: secrets, treasure, clues and traps.',
+        disabledReason: pendingFinds(state, room).length === 0 ? 'Nothing more to find here' : undefined,
       },
     ]
   },
   perform: (ctx) => {
     const { member, room } = ctx
-    const intro = withDarkness(ctx, `${member.name} searches ${room.name}.`)
-    const test = runTest(ctx, 'perception', room.secret.difficulty)
-    if (!test.passed) {
-      return narrate(ctx, 'Search the room', intro, `${member.name} turns up nothing this time.`, 'failure', ctx.state, test)
+    const finds = pendingFinds(ctx.state, room)
+    if (finds.length === 0) return keepWatch(ctx)
+    const intro = withDarkness(ctx, `${member.name} investigates ${room.name}.`)
+    const test = runTest(ctx, 'perception', Math.min(...finds.map((f) => f.difficulty)))
+    const outcome = test.result.outcome
+    const reaches = (difficulty: number) =>
+      outcome === 'critical-success' || (outcome !== 'critical-failure' && test.total >= difficulty + test.penalty)
+    const found = finds.filter((f) => reaches(f.difficulty)).map((f) => f.kind)
+    if (found.length === 0) {
+      return narrate(ctx, 'Investigate', intro, `${member.name} turns up nothing this time.`, 'failure', ctx.state, test)
     }
-    const reward = giveReward(markDone(ctx.state, `secret:${room.id}`), member.key, room.secret.reward)
-    return narrate(
-      ctx,
-      'Search the room',
-      intro,
-      `${member.name} finds ${room.secret.text}!${reward.text}`,
-      'success',
-      reward.state,
-      test,
-    )
+    let state = ctx.state
+    const lines: string[] = []
+    if (found.includes('secret')) {
+      const reward = giveReward(markDone(state, `secret:${room.id}`), member.key, room.secret.reward)
+      state = reward.state
+      lines.push(`${member.name} finds ${room.secret.text}!${reward.text}`)
+    }
+    if (found.includes('trap')) {
+      state = markDone(state, trapFlag(room.id, 'found'))
+      lines.push(`${member.name} notices a trap: ${room.trap!.hint}`)
+    }
+    return narrate(ctx, 'Investigate', intro, lines.join(' '), 'success', state, test)
+  },
+}
+
+const disarm: ActionHandler = {
+  options: (state) => {
+    const room = roomById(state.dungeon, state.roomId)
+    const trap = armedTrap(state, room)
+    if (!trap || !trapFound(state, room)) return []
+    return [
+      {
+        id: 'disarm:trap',
+        group: 'Room',
+        label: `Room interaction: ${lowerFirst(trap.disarm.label)} (${trap.name})`,
+        description: `Make ${withArticle(SPECIAL_LABELS[trap.disarm.attribute])} test. If it fails, the trap goes off.`,
+      },
+    ]
+  },
+  perform: (ctx) => {
+    const { member, room } = ctx
+    const trap = armedTrap(ctx.state, room)
+    if (!trap || !trapFound(ctx.state, room)) return keepWatch(ctx)
+    const intro = withDarkness(ctx, `${member.name} sets about the ${trap.name.toLowerCase()}.`)
+    const test = runTest(ctx, trap.disarm.attribute, trap.disarm.difficulty)
+    if (test.passed) {
+      return narrate(ctx, 'Disarm', intro, trap.disarm.success, 'success', defuseTrap(ctx.state, room), test)
+    }
+    const sprung = springTrap(ctx, trap)
+    return narrate(ctx, 'Disarm', intro, `${trap.disarm.failure} ${sprung}`, 'failure', ctx.state, test)
   },
 }
 
@@ -212,7 +262,12 @@ const interact: ActionHandler = {
     const { member, room } = ctx
     const interaction = room.interactions.find((i) => i.id === interactionId)
     if (!interaction) return keepWatch(ctx)
-    const intro = withDarkness(ctx, `${member.name} tries to ${lowerFirst(interaction.label)}.`)
+    const trap = armedTrap(ctx.state, room)
+    const sprung = trap ? springTrap(ctx, trap) : ''
+    const intro = withDarkness(
+      ctx,
+      `${member.name} tries to ${lowerFirst(interaction.label)}.${sprung ? ` ${sprung}` : ''}`,
+    )
     const test = runTest(ctx, interaction.attribute, interaction.difficulty)
     if (!test.passed) {
       return narrate(ctx, 'Room interaction', intro, interaction.failure, 'failure', ctx.state, test)
@@ -237,7 +292,7 @@ const unlock: ActionHandler = {
             (o): ActionOption => ({
               id: `unlock:${lock.id}:${o.id}`,
               group: 'Room',
-              label: `${o.label} (${lock.name})`,
+              label: `Room interaction: ${lowerFirst(o.label)} (${lock.name})`,
               description: `Make ${withArticle(SPECIAL_LABELS[o.attribute])} test to get through to ${beyond.name}. If it fails you can try again, but every try takes an Interval.`,
             }),
           )
@@ -259,7 +314,23 @@ function unlockDoor(ctx: Context, lockId: string, optionId: string): Resolution 
     `${member.name} tries to ${lowerFirst(option.label)} on the ${exit.lock.name.toLowerCase()}.`,
   )
   const test = runTest(ctx, option.attribute, option.difficulty)
-  if (!test.passed) return narrate(ctx, title, intro, option.failure, 'failure', ctx.state, test)
+  if (!test.passed) {
+    const price = option.complication
+    if (price && drewComplication(test.result)) {
+      const hurt = updateMember(ctx.state, member.key, (m) => ({ ...m, bag: adjustBag(m.bag, price.condition, 1) }))
+      const name = TOKENS[price.condition]?.name ?? price.condition
+      return narrate(
+        ctx,
+        title,
+        intro,
+        `${option.failure} ${price.text} ${member.name} gains a ${name} token in their bag.`,
+        'failure',
+        hurt,
+        test,
+      )
+    }
+    return narrate(ctx, title, intro, option.failure, 'failure', ctx.state, test)
+  }
 
   const first = ctx.state.patrolStartedAt === null
   const opened = unlockLock(ctx.state, exit.lock.id)
@@ -267,4 +338,13 @@ function unlockDoor(ctx: Context, lockId: string, optionId: string): Resolution 
   return narrate(ctx, title, intro, option.success + stir, 'success', opened, test)
 }
 
-export const BASIC_HANDLERS: Record<string, ActionHandler> = { search, rest, watch, use: heal, treat, interact, unlock }
+export const BASIC_HANDLERS: Record<string, ActionHandler> = {
+  investigate,
+  rest,
+  watch,
+  use: heal,
+  treat,
+  interact,
+  disarm,
+  unlock,
+}

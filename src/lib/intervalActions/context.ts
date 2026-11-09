@@ -1,13 +1,14 @@
-import { interactionFlag, type DungeonRoom, type RoomReward } from '../../data/dungeon'
+import { interactionFlag, trapFlag, type DungeonRoom, type RoomReward, type RoomTrap } from '../../data/dungeon'
 import { ITEMS_BY_ID } from '../../data/items'
 import { TOKENS } from '../../data/tokens'
 import type { SpecialKey } from '../../data/types'
-import { settleTest } from '../characterTest'
+import { settleTest, takeDamage } from '../characterTest'
 import { drawRulesFor } from '../conditionRules'
 import { drewComplication, type Rng } from '../drawTest'
 import type { DungeonState, PartyMember } from '../dungeonState'
 import { offerPrayer } from '../reactorRules'
 import type { Ask } from '../replay'
+import { adjustBag } from '../tokenFlow'
 import { playerActor, type ResolutionStep, type StepTone } from '../resolution'
 import { performSkillTest, type SkillTestOutcome } from '../skillTest'
 import type { ActionOption, PlannedAction } from './types'
@@ -45,6 +46,34 @@ export const markDone = (state: DungeonState, flag: string): DungeonState =>
 
 export const isDone = (state: DungeonState, room: DungeonRoom, interactionId: string) =>
   state.done.includes(interactionFlag(room.id, interactionId))
+
+/** A trap in the room that nobody has disarmed or set off yet. */
+export const armedTrap = (state: DungeonState, room: DungeonRoom): RoomTrap | undefined =>
+  room.trap && !state.done.includes(trapFlag(room.id, 'spent')) ? room.trap : undefined
+
+export const trapFound = (state: DungeonState, room: DungeonRoom): boolean =>
+  state.done.includes(trapFlag(room.id, 'found'))
+
+export const defuseTrap = (state: DungeonState, room: DungeonRoom): DungeonState =>
+  markDone(markDone(state, trapFlag(room.id, 'found')), trapFlag(room.id, 'spent'))
+
+/** The trap goes off on the acting character. Returns what happens, for the step's text. */
+export function springTrap(ctx: Context, trap: RoomTrap): string {
+  const party = ctx.state.party.map((m) => ({ ...m }))
+  const victim = party.find((m) => m.key === ctx.member.key)!
+  const parts = [trap.sprung]
+  if (trap.damage) {
+    takeDamage(victim, trap.damage, false)
+    parts.push(`${victim.name} takes ${trap.damage} damage (${victim.hp}/${victim.maxHp} HP).`)
+  }
+  if (trap.condition) {
+    victim.bag = adjustBag(victim.bag, trap.condition, 1)
+    parts.push(`${victim.name} gains a ${TOKENS[trap.condition]?.name ?? trap.condition} token in their bag.`)
+  }
+  ctx.state = defuseTrap({ ...ctx.state, party }, ctx.room)
+  ctx.member = victim
+  return parts.join(' ')
+}
 
 export interface Resolution {
   state: DungeonState

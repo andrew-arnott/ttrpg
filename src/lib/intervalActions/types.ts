@@ -3,7 +3,8 @@ import type { ReactionAnswer, ReactionRequest } from '../reactionTypes'
 import type { DungeonState } from '../dungeonState'
 
 export type ActionId =
-  | 'search'
+  | 'investigate'
+  | `disarm:${string}`
   | 'rest'
   | 'watch'
   | `use:${string}`

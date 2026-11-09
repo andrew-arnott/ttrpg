@@ -24,11 +24,41 @@ export interface RoomInteraction {
   reward?: RoomReward
 }
 
+/** What dispelling a room's magic does. None of these can make the dungeon harder to finish. */
+export type DispelEffect =
+  | { kind: 'disarmTrap' }
+  | { kind: 'revealSecret' }
+  | { kind: 'weakenBoss' }
+
 export interface RoomMagic {
   detect: string
   identify: string
   dispelDifficulty: number
   dispelled: string
+  effect: DispelEffect
+}
+
+/** Something that goes off on a room interaction unless it is found and disarmed first. */
+export interface RoomTrap {
+  id: string
+  name: string
+  /** The Investigate result needed to notice it. */
+  findDifficulty: number
+  /** Shown once it has been found. */
+  hint: string
+  disarm: {
+    label: string
+    attribute: SpecialKey
+    difficulty: number
+    success: string
+    failure: string
+  }
+  sprung: string
+  damage?: number
+  /** A condition token the victim gains in their bag. */
+  condition?: string
+  /** A magical trap can also be unravelled by Dispel Magic. */
+  magical?: boolean
 }
 
 /** What goes wrong when a Complication is drawn on a test in a room, outside of combat. */
@@ -58,7 +88,12 @@ export interface DungeonRoom {
   secret: RoomSecret
   interactions: RoomInteraction[]
   magic?: RoomMagic
+  trap?: RoomTrap
   complication?: RoomComplication
+  /** Not needed to finish the dungeon. */
+  optional?: boolean
+  /** A fight that starts the first time the party walks in. */
+  guardian?: { enemyIds: string[]; arrival: string }
 }
 
 export interface LockOption {
@@ -68,6 +103,8 @@ export interface LockOption {
   difficulty: number
   success: string
   failure: string
+  /** A failed attempt that draws a Complication gives the character this condition token. */
+  complication?: { condition: string; text: string }
 }
 
 /** A door that can be forced open with tests. Failed attempts can be repeated, at the cost of time. */
@@ -142,6 +179,9 @@ export interface Dungeon {
 export const linkKey = (link: Pick<DungeonLink, 'from' | 'to'>): string => `${link.from}>${link.to}`
 
 export const interactionFlag = (roomId: string, interactionId: string) => `interaction:${roomId}:${interactionId}`
+
+/** `found`: the party knows about the trap. `spent`: it was disarmed or has gone off. */
+export const trapFlag = (roomId: string, state: 'found' | 'spent') => `trap:${state}:${roomId}`
 
 export const SUNKEN_CRYPT: Dungeon = {
   id: 'sunkenCrypt',
@@ -340,10 +380,27 @@ export const SUNKEN_CRYPT: Dungeon = {
         },
       ],
       magic: {
-        detect: 'The scrolls on the desk shimmer faintly: a lingering ward against fire.',
+        detect: 'The scrolls on the desk shimmer faintly: a lingering ward against fire. Something else is hidden behind it.',
         identify: 'The ward is a preservation spell. It has kept one shelf of scrolls dry for centuries.',
         dispelDifficulty: 5,
-        dispelled: 'The ward fades, and the preserved scrolls crumble to dust.',
+        dispelled: 'The ward fades, and the shelf it was guarding gives up what it was hiding.',
+        effect: { kind: 'revealSecret' },
+      },
+      trap: {
+        id: 'needle',
+        name: 'Poisoned needle',
+        findDifficulty: 6,
+        hint: 'A hair-thin needle is rigged inside the desk drawer.',
+        disarm: {
+          label: 'Disarm the needle trap',
+          attribute: 'agility',
+          difficulty: 5,
+          success: 'You ease the needle out and snap it off. The desk is safe to handle.',
+          failure: 'Your fingers slip and the needle jabs you.',
+        },
+        sprung: 'A poisoned needle jabs out of the desk!',
+        damage: 1,
+        condition: 'poison',
       },
       complication: {
         text: 'A loose page brushes your torch and flares.',
@@ -386,10 +443,27 @@ export const SUNKEN_CRYPT: Dungeon = {
         },
       ],
       magic: {
-        detect: 'A slow pulse of warm magic beats beneath the altar, like a banked fire.',
-        identify: 'The altar holds a blessing of rest, long dormant but not yet gone.',
+        detect: 'A slow pulse of warm magic beats beneath the altar, and a sharper, hotter mark sits in the floor before the braziers.',
+        identify: 'The altar holds a blessing of rest, long dormant. The mark in the floor is a searing glyph, set to flare at anyone who disturbs the shrine.',
         dispelDifficulty: 6,
-        dispelled: 'The pulse stills. The altar goes cold.',
+        dispelled: 'The searing glyph in the floor unravels. The altar\u2019s warmth is untouched.',
+        effect: { kind: 'disarmTrap' },
+      },
+      trap: {
+        id: 'glyph',
+        name: 'Searing glyph',
+        findDifficulty: 5,
+        hint: 'A faint glyph is scorched into the flagstones before the braziers.',
+        disarm: {
+          label: 'Scuff out the glyph',
+          attribute: 'intelligence',
+          difficulty: 6,
+          success: 'You scuff the glyph out of the stone. It sputters and goes dark.',
+          failure: 'The glyph answers your scuffing with a flash of heat.',
+        },
+        sprung: 'The glyph flares and scorches everything around it!',
+        damage: 2,
+        magical: true,
       },
     },
     {
@@ -433,6 +507,30 @@ export const SUNKEN_CRYPT: Dungeon = {
       },
     },
     {
+      id: 'ossuary',
+      name: 'Ossuary',
+      x: 850,
+      y: 465,
+      w: 140,
+      h: 150,
+      optional: true,
+      description:
+        'Skulls are stacked to the ceiling around a hulking Bone Colossus of fused bone and rusted iron. It stands motionless in the middle of the room, its hollow sockets fixed on the doorway.',
+      lesson:
+        'An optional room with one big enemy. It starts engaged with everyone and drags everyone back into reach at the end of its turn, so slipping away only saves you for a turn. Scouting ahead warns you what is inside.',
+      intel: 'The colossus is bound to this room. It will not follow you out, but it will not let anyone inside walk away.',
+      secret: {
+        text: 'a dented strongbox beneath the skulls',
+        difficulty: 5,
+        reward: { itemId: 'healingPotion', count: 2 },
+      },
+      interactions: [],
+      guardian: {
+        enemyIds: ['colossus'],
+        arrival: 'The Bone Colossus lurches to life and lumbers toward the party!',
+      },
+    },
+    {
       id: 'crypt',
       name: 'Founders\u2019 Crypt',
       x: 850,
@@ -461,7 +559,8 @@ export const SUNKEN_CRYPT: Dungeon = {
         detect: 'Wards ring the central tomb, humming with cold, old magic.',
         identify: 'The wards are binding runes meant to keep the sleepers undisturbed.',
         dispelDifficulty: 7,
-        dispelled: 'The runes flicker out, and the hum stops.',
+        dispelled: 'The binding runes flicker out. Whatever wakes here will not be able to knit itself back together.',
+        effect: { kind: 'weakenBoss' },
       },
     },
   ],
@@ -490,6 +589,7 @@ export const SUNKEN_CRYPT: Dungeon = {
             difficulty: 7,
             success: 'The door bursts off its hinges with a crash.',
             failure: 'The door shudders in its frame, but holds.',
+            complication: { condition: 'fatigue', text: 'Throwing yourself at the door leaves you winded.' },
           },
         ],
       },
@@ -501,6 +601,7 @@ export const SUNKEN_CRYPT: Dungeon = {
     { from: 'library', to: 'shrine' },
     { from: 'storeroom', to: 'cistern' },
     { from: 'cistern', to: 'shrine' },
+    { from: 'cistern', to: 'ossuary' },
     {
       from: 'shrine',
       to: 'crypt',

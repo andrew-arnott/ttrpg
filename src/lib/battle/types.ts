@@ -65,6 +65,8 @@ export interface BattleEnemy {
   provokedBy: string | null
   /** Extra attack value until the end of the round. */
   empowered: number
+  /** Its healing triggers no longer work, because its wards were dispelled. */
+  unwarded?: boolean
 }
 
 export type BattleResult = 'ongoing' | 'victory' | 'defeat'

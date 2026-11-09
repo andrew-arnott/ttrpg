@@ -41,6 +41,10 @@ export interface EnemyDef {
   defense: number
   /** The Perception Difficulty for a character to spot this enemy before it strikes. */
   noticeDifficulty: number
+  /** Starts the fight engaged with every character. */
+  startsEngagedWithAll?: boolean
+  /** At the end of its turn, every character is back in its engagement group. */
+  pullsEveryoneIn?: boolean
   /** Undead or otherwise vulnerable to divine power, which Smite hits harder. */
   supernatural?: boolean
   attacks: EnemyAttack[]
@@ -103,6 +107,25 @@ export const ENEMIES: EnemyDef[] = [
         name: 'Clatter',
         text: 'When a character engaged with it draws a Complication, its bones rattle in fury: +1 attack value until the end of the round.',
         effect: { kind: 'empower', attackBonus: 1 },
+      },
+    ],
+  },
+  {
+    id: 'colossus',
+    name: 'Bone Colossus',
+    blurb: 'A hulking guardian of fused bone and rusted iron. It never lets go of anyone it has reached.',
+    hp: 10,
+    defense: 6,
+    noticeDifficulty: 2,
+    supernatural: true,
+    startsEngagedWithAll: true,
+    pullsEveryoneIn: true,
+    attacks: [{ name: 'Crushing Fist', attackValue: 7, damage: 2 }],
+    triggers: [
+      {
+        name: 'Grinding Rage',
+        text: 'When a character engaged with it draws a Complication, its joints grind and it hits harder: +2 attack value until the end of the round.',
+        effect: { kind: 'empower', attackBonus: 2 },
       },
     ],
   },

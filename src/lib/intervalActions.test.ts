@@ -9,6 +9,7 @@ import {
   passagesOf,
   STAND_WATCH,
   unlockLock,
+  springBoss,
   type DungeonState,
   type PartyMember,
 } from './dungeonState'
@@ -32,10 +33,10 @@ const sampleMember = (professionId: string, key = professionId) => {
 }
 
 describe('availableActions', () => {
-  it('always offers search, rest, keep watch and the room interaction', () => {
+  it('always offers investigate, rest, keep watch and the room interaction', () => {
     const s = stateWith(testMember('a', 1))
     const options = availableActions(s, s.party[0])
-    expect(options.map((o) => o.id).slice(0, 4)).toEqual(['search', 'rest', 'watch', 'interact:inscription'])
+    expect(options.map((o) => o.id).slice(0, 4)).toEqual(['investigate', 'rest', 'watch', 'interact:inscription'])
     expect(options.find((o) => o.id === 'interact:inscription')!.label).toBe(
       'Room interaction: read the worn inscription over the door',
     )
@@ -83,14 +84,14 @@ describe('resolveInterval', () => {
   it('does not mutate the state it was given', () => {
     const s = stateWith(testMember('a', 1, { bag: ALWAYS_PASS }))
     const snapshot = JSON.stringify(s)
-    resolveInterval(s, { a: { actionId: 'search' } }, rng())
+    resolveInterval(s, { a: { actionId: 'investigate' } }, rng())
     expect(JSON.stringify(s)).toBe(snapshot)
   })
 
-  describe('searching', () => {
+  describe('investigating', () => {
     it('finds the secret on a passed test and adds the reward to that character', () => {
       const s = stateWith(testMember('a', 0, { bag: ALWAYS_PASS }), testMember('b', 0))
-      const { state, steps } = resolveInterval(s, { a: { actionId: 'search' } }, rng())
+      const { state, steps } = resolveInterval(s, { a: { actionId: 'investigate' } }, rng())
       expect(steps[0].test?.passed).toBe(true)
       expect(steps[0].tone).toBe('success')
       expect(steps[0].outcome).toMatch(/satchel/)
@@ -101,30 +102,30 @@ describe('resolveInterval', () => {
 
     it('leaves the secret to find on a failed test', () => {
       const s = stateWith(testMember('a', 0, { bag: ALWAYS_FAIL }))
-      const { state, steps } = resolveInterval(s, { a: { actionId: 'search' } }, rng())
+      const { state, steps } = resolveInterval(s, { a: { actionId: 'investigate' } }, rng())
       expect(steps[0].test?.passed).toBe(false)
       expect(steps[0].tone).toBe('failure')
       expect(state.done).not.toContain('secret:entrance')
-      expect(availableActions(state, state.party[0]).find((o) => o.id === 'search')!.disabledReason).toBeUndefined()
+      expect(availableActions(state, state.party[0]).find((o) => o.id === 'investigate')!.disabledReason).toBeUndefined()
     })
 
     it('stops offering a search once the room has been searched', () => {
       const s = stateWith(testMember('a', 0, { bag: ALWAYS_PASS }))
-      const { state } = resolveInterval(s, { a: { actionId: 'search' } }, rng())
-      expect(availableActions(state, state.party[0]).find((o) => o.id === 'search')!.disabledReason).toBeTruthy()
+      const { state } = resolveInterval(s, { a: { actionId: 'investigate' } }, rng())
+      expect(availableActions(state, state.party[0]).find((o) => o.id === 'investigate')!.disabledReason).toBeTruthy()
     })
 
     it('uses Perception plus the token total against the Difficulty', () => {
       const bag = bagOf('plus3')
       const pass = resolveInterval(
         stateWith(testMember('a', 0, { bag, special: { ...flat, perception: 1 } })),
-        { a: { actionId: 'search' } },
+        { a: { actionId: 'investigate' } },
         rng(),
       )
       expect(pass.steps[0].test).toMatchObject({ attribute: 'perception', total: 4, difficulty: 4, passed: true })
       const fail = resolveInterval(
         stateWith(testMember('a', 0, { bag: bagOf('plus1'), special: { ...flat, perception: 1 } })),
-        { a: { actionId: 'search' } },
+        { a: { actionId: 'investigate' } },
         rng(),
       )
       expect(fail.steps[0].test).toMatchObject({ total: 2, passed: false })
@@ -134,7 +135,7 @@ describe('resolveInterval', () => {
       const lit = stateWith(testMember('a', 0, { bag: bagOf('plus3'), special: flat }))
       const dark = { ...lit, torch: { ...lit.torch, remaining: 0 } }
       expect(torchLevel(dark.torch)).toBe('out')
-      const plan: InteractionPlan = { a: { actionId: 'search' } }
+      const plan: InteractionPlan = { a: { actionId: 'investigate' } }
       expect(resolveInterval(lit, plan, rng()).steps[0].test?.passed).toBe(true)
       const darkStep = resolveInterval(dark, plan, rng()).steps[0]
       expect(darkStep.test?.passed).toBe(false)
@@ -172,10 +173,140 @@ describe('resolveInterval', () => {
     })
   })
 
+  describe('traps', () => {
+    const inRoom = (roomId: string, ...members: ReturnType<typeof testMember>[]) => ({
+      ...stateWith(...members),
+      roomId,
+    })
+    const sharp = { ...flat, perception: 3, agility: 3, intelligence: 3 }
+    const reader = (bag: PartyMember['bag'], over: Partial<PartyMember> = {}) =>
+      testMember('a', 0, { bag, special: sharp, hp: 8, ...over })
+    const investigate: InteractionPlan = { a: { actionId: 'investigate' } }
+
+    it('Investigate reveals what is at or below the result: the trap but not a harder secret', () => {
+      const s = inRoom('library', reader(bagOf('plus3')))
+      const { state, steps } = resolveInterval(s, investigate, rng())
+      expect(steps[0].test?.total).toBe(6)
+      expect(steps[0].outcome).toMatch(/healing potion/)
+      expect(state.done).toEqual(expect.arrayContaining(['secret:library', 'trap:found:library']))
+
+      const shrine = inRoom('shrine', reader(bagOf('plus1'), { special: { ...flat, perception: 1 } }))
+      const partial = resolveInterval(shrine, investigate, rng())
+      expect(partial.steps[0].test?.total).toBe(2)
+      expect(partial.steps[0].tone).toBe('failure')
+
+      const mid = inRoom('shrine', reader(bagOf('plus1'), { special: { ...flat, perception: 4 } }))
+      const found = resolveInterval(mid, investigate, rng())
+      expect(found.state.done).toContain('trap:found:shrine')
+      expect(found.state.done).toContain('secret:shrine')
+    })
+
+    it('keeps offering Investigate while a trap is still hidden, and stops when everything is found', () => {
+      const s = inRoom('library', reader(ALWAYS_PASS))
+      const { state } = resolveInterval({ ...s, done: ['secret:library'] }, investigate, rng())
+      expect(state.done).toContain('trap:found:library')
+      const option = availableActions(state, state.party[0]).find((o) => o.id === 'investigate')!
+      expect(option.disabledReason).toBeTruthy()
+    })
+
+    it('springs on a room interaction unless it was disarmed, once', () => {
+      const s = inRoom('library', reader(bagOf('plus3')))
+      const first = resolveInterval(s, { a: { actionId: 'interact:desk' } }, rng())
+      expect(first.steps[0].intro).toMatch(/poisoned needle jabs/i)
+      expect(first.state.party[0].hp).toBe(7)
+      expect(first.state.party[0].bag.find((t) => t.tokenId === 'poison')?.count).toBe(1)
+      const second = resolveInterval(first.state, { a: { actionId: 'interact:scrolls' } }, rng())
+      expect(second.steps[0].intro).not.toMatch(/needle/i)
+      expect(second.state.party[0].hp).toBe(7)
+    })
+
+    it('offers Disarm only once the trap is found, and a success makes room interactions safe', () => {
+      const s = inRoom('library', reader(ALWAYS_PASS))
+      expect(availableActions(s, s.party[0]).some((o) => o.id === 'disarm:trap')).toBe(false)
+      const found = resolveInterval(s, investigate, rng()).state
+      const option = availableActions(found, found.party[0]).find((o) => o.id === 'disarm:trap')!
+      expect(option.label).toMatch(/^Room interaction: disarm the needle trap/)
+      const disarmed = resolveInterval(found, { a: { actionId: 'disarm:trap' } }, rng()).state
+      expect(disarmed.done).toContain('trap:spent:library')
+      const safe = resolveInterval(disarmed, { a: { actionId: 'interact:desk' } }, rng())
+      expect(safe.state.party[0].hp).toBe(8)
+    })
+
+    it('sets the trap off when the disarm fails', () => {
+      const s = inRoom('library', reader(ALWAYS_FAIL))
+      const found = { ...s, done: ['trap:found:library'] }
+      const { state, steps } = resolveInterval(found, { a: { actionId: 'disarm:trap' } }, rng())
+      expect(steps[0].outcome).toMatch(/jabs you/)
+      expect(steps[0].outcome).toMatch(/Poison token/)
+      expect(state.done).toContain('trap:spent:library')
+    })
+  })
+
+  describe('Dispel Magic', () => {
+    const mage = (bag = ALWAYS_PASS) =>
+      testMember('a', 0, { abilityIds: ['dispelMagic'], bag, professionId: 'wizard', special: { ...flat, intelligence: 3 } })
+    const dispel: InteractionPlan = { a: { actionId: 'ability:dispelMagic' } }
+
+    it('disarms the magical trap in the shrine', () => {
+      const s = { ...stateWith(mage()), roomId: 'shrine' }
+      const { state, steps } = resolveInterval(s, dispel, rng())
+      expect(state.done).toContain('trap:spent:shrine')
+      expect(steps[0].outcome).toMatch(/disarmed/)
+    })
+
+    it('reveals what the library ward was hiding, instead of destroying anything', () => {
+      const s = { ...stateWith(mage()), roomId: 'library' }
+      const { state, steps } = resolveInterval(s, dispel, rng())
+      expect(state.done).toContain('secret:library')
+      expect(steps[0].outcome).not.toMatch(/dust/)
+      expect(state.party[0].inventory.healingPotion).toBeGreaterThan(0)
+    })
+
+    it('weakens the boss: the Warden loses its healing', () => {
+      const s = { ...stateWith(mage()), roomId: 'crypt' }
+      const { state } = resolveInterval(s, dispel, rng())
+      expect(state.done).toContain('dispelled:crypt')
+      const fight = springBoss(state, rng())
+      expect(fight.battle!.enemies.every((e) => e.unwarded)).toBe(true)
+    })
+
+    it('never takes away a way to finish the dungeon', () => {
+      for (const room of SUNKEN_CRYPT.rooms) {
+        const effect = room.magic?.effect.kind
+        expect(['disarmTrap', 'revealSecret', 'weakenBoss', undefined], room.id).toContain(effect)
+      }
+    })
+  })
+
+  describe('breaking down the door', () => {
+    const door = (bag: PartyMember['bag']) =>
+      stateWith(testMember('a', 0, { bag, special: flat }), testMember('b', 0))
+
+    it('is listed as a room interaction', () => {
+      const s = door(bagOf('plus1'))
+      const labels = availableActions(s, s.party[0]).filter((o) => o.id.startsWith('unlock:')).map((o) => o.label)
+      expect(labels.every((l) => l.startsWith('Room interaction: '))).toBe(true)
+    })
+
+    it('gives Fatigue when a failed attempt draws a Complication', () => {
+      const s = door([{ tokenId: 'complication', count: 1 }])
+      const { state, steps } = resolveInterval(s, { a: { actionId: 'unlock:entranceDoor:break' } }, rng())
+      expect(steps[0].outcome).toMatch(/winded/)
+      expect(state.party[0].bag.find((t) => t.tokenId === 'fatigue')?.count).toBe(1)
+    })
+
+    it('does not for picking the lock, or when no Complication is drawn', () => {
+      const pick = resolveInterval(door([{ tokenId: 'complication', count: 1 }]), { a: { actionId: 'unlock:entranceDoor:pick' } }, rng())
+      expect(pick.state.party[0].bag.find((t) => t.tokenId === 'fatigue')).toBeUndefined()
+      const plain = resolveInterval(door(bagOf('plus1')), { a: { actionId: 'unlock:entranceDoor:break' } }, rng())
+      expect(plain.state.party[0].bag.find((t) => t.tokenId === 'fatigue')).toBeUndefined()
+    })
+  })
+
   describe('after a test', () => {
     const searcher = (bag: PartyMember['bag'], extra: Partial<PartyMember> = {}) =>
       testMember('a', 0, { special: { strength: 1, perception: 1, endurance: 1, charisma: 1, intelligence: 1, agility: 1, luck: 1 }, bag, ...extra })
-    const search: InteractionPlan = { a: { actionId: 'search' } }
+    const search: InteractionPlan = { a: { actionId: 'investigate' } }
 
     it('puts drawn resource tokens in play', () => {
       const s = stateWith(searcher([{ tokenId: 'expertise', count: 10 }, { tokenId: 'critSuccess', count: 1 }]))
@@ -211,7 +342,7 @@ describe('resolveInterval', () => {
       const tester = testMember('a', 0, { bag: bagOf('plus0') })
       return stateWith(tester, priest)
     }
-    const search: InteractionPlan = { a: { actionId: 'search' } }
+    const search: InteractionPlan = { a: { actionId: 'investigate' } }
 
     it('stops the Interval to ask whether the priest prays for a failed test', () => {
       const first = resolveInterval(party(), search, rng())
@@ -410,7 +541,7 @@ describe('resolveInterval', () => {
     )
     const { steps, state } = resolveInterval(
       s,
-      { a: { actionId: 'search' }, b: { actionId: 'search' } },
+      { a: { actionId: 'investigate' }, b: { actionId: 'investigate' } },
       rng(),
     )
     expect(steps[0].tone).toBe('success')
@@ -444,14 +575,14 @@ describe('watching during an Interval', () => {
 
   it('records nothing when everyone is busy with something else', () => {
     const s = stateWith(testMember('a', 0, { bag: ALWAYS_FAIL }))
-    expect(resolveInterval(s, { a: { actionId: 'search' } }, rng()).state.watch).toBeNull()
+    expect(resolveInterval(s, { a: { actionId: 'investigate' } }, rng()).state.watch).toBeNull()
   })
 
   it('warns watchers one Interval before the patrol, but not anyone else', () => {
     const base = { ...stateWith(testMember('a', 0)), intervals: 2, patrolStartedAt: 0 }
     const watched = resolveInterval(base, { a: { actionId: 'watch' } }, rng())
     expect(watched.steps[watched.steps.length - 1].outcome).toMatch(/patrol is close/)
-    const busy = resolveInterval(base, { a: { actionId: 'search' } }, rng())
+    const busy = resolveInterval(base, { a: { actionId: 'investigate' } }, rng())
     expect(busy.steps[busy.steps.length - 1].outcome).not.toMatch(/patrol is close/)
   })
 })
@@ -575,7 +706,7 @@ describe('complications outside combat', () => {
     ...stateWith(testMember('a', 2, { bag: bagOf('complication'), ...over })),
     roomId,
   })
-  const search = { a: { actionId: 'search' as const } }
+  const search = { a: { actionId: 'investigate' as const } }
 
   it('add a consequence step after the test, using the room’s own trigger', () => {
     const { steps } = resolveInterval(clumsy('greatHall'), search, rng())

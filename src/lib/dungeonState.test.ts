@@ -69,7 +69,7 @@ describe('dungeon layout', () => {
   it('gives every room something to find and something to try', () => {
     for (const room of SUNKEN_CRYPT.rooms) {
       expect(room.secret.text, room.id).toBeTruthy()
-      expect(room.interactions.length, room.id).toBeGreaterThan(0)
+      expect(room.interactions.length > 0 || Boolean(room.guardian), room.id).toBe(true)
       expect(room.intel, room.id).toBeTruthy()
     }
   })

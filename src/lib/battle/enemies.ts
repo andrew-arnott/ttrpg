@@ -1,6 +1,6 @@
 import { ENEMIES_BY_ID } from '../../data/enemies'
 import { strikePlayer } from './effects'
-import { groupOf, livingEnemies, livingPlayers, moveToGroup, pick, playerByKey, playersInGroup, shuffled, type Engine } from './state'
+import { addStep, enemyActorOf, groupOf, livingEnemies, livingPlayers, moveToGroup, pick, playerByKey, playersInGroup, shuffled, type Engine } from './state'
 import type { BattleEnemy, BattlePlayer, BattleState } from './types'
 
 export function ensureEngaged(engine: Engine, e: BattleEnemy): { target: BattlePlayer; closedIn: boolean } | null {
@@ -15,6 +15,23 @@ export function ensureEngaged(engine: Engine, e: BattleEnemy): { target: BattleP
 }
 
 export function enemyTurn(engine: Engine, e: BattleEnemy) {
+  makeAttacks(engine, e)
+  const { b } = engine
+  if (!ENEMIES_BY_ID[e.defId]?.pullsEveryoneIn || e.hp <= 0 || b.result !== 'ongoing') return
+  const group = groupOf(b, e.id)
+  const dragged = livingPlayers(b).filter((p) => groupOf(b, p.key) !== group)
+  if (dragged.length === 0) return
+  dragged.forEach((p) => moveToGroup(b, p.key, group))
+  addStep(engine, {
+    actor: enemyActorOf(e),
+    title: 'Inescapable',
+    intro: `${e.name} reaches out with a grinding arm.`,
+    outcome: `${dragged.map((p) => p.name).join(', ')} ${dragged.length === 1 ? 'is' : 'are'} dragged back into its reach.`,
+    tone: 'failure',
+  })
+}
+
+function makeAttacks(engine: Engine, e: BattleEnemy) {
   const { b } = engine
   const def = ENEMIES_BY_ID[e.defId]
   for (const attack of def?.attacks ?? []) {
