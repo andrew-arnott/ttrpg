@@ -14,13 +14,15 @@ import {
   sealStatuses,
   type DungeonState,
 } from '../lib/dungeonState'
-import { resolveInterval, type InteractionPlan } from '../lib/intervalActions'
+import { resolveInterval, respondToIntervalReaction, type InteractionPlan } from '../lib/intervalActions'
+import type { ReactionAnswer } from '../lib/reactionTypes'
 import { AVATAR_COLORS } from '../lib/partyColors'
 import { createPartyMember } from '../lib/partyMember'
 import type { ResolutionStep } from '../lib/resolution'
 import type { RosterEntry } from '../lib/roster'
 import { torchAdvice, torchLevel, TORCH_LEVEL_LABEL, totalIntervals, type TorchState } from '../lib/torch'
 import { BattleView } from './BattleView'
+import { ReactionPrompt } from './ReactionPrompt'
 import { DungeonMap } from './DungeonMap'
 import { IntervalPlanner } from './IntervalPlanner'
 import { ResolutionOverlay } from './ResolutionOverlay'
@@ -261,6 +263,12 @@ function GoalCard({ state }: { state: DungeonState }) {
   )
 }
 
+function reactorOf(state: DungeonState, key: string) {
+  const index = state.party.findIndex((m) => m.key === key)
+  const member = state.party[index]
+  return member ? { name: member.name, professionId: member.professionId, colorIndex: index } : undefined
+}
+
 interface PendingResolution {
   next: DungeonState
   steps: ResolutionStep[]
@@ -281,9 +289,19 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
   const preparations = state.prepared[state.roomId] ?? []
   const move = (roomId: string) => dispatch({ type: 'moveTo', roomId, rng: Math.random })
 
+  const play = (next: DungeonState, steps: ResolutionStep[]) => {
+    if (steps.length === 0) dispatch({ type: 'replace', state: next })
+    else setPending({ next, steps })
+  }
+
   const resolve = () => {
-    const { state: next, steps } = resolveInterval(state, plan, Math.random)
-    setPending({ next, steps })
+    const result = resolveInterval(state, plan, Math.random)
+    play(result.state, result.steps)
+  }
+
+  const answerReaction = (answer: ReactionAnswer) => {
+    const result = respondToIntervalReaction(state, answer, Math.random)
+    play(result.state, result.steps)
   }
 
   const finishResolution = () => {
@@ -335,7 +353,17 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
             <DungeonMap state={state} onMove={move} />
           </section>
 
-          <IntervalPlanner state={state} plan={plan} onChange={setPlan} onResolve={resolve} />
+          {state.pending ? (
+            !pending && (
+              <ReactionPrompt
+                request={state.pending.request}
+                reactor={reactorOf(state, state.pending.request.reactorKey)}
+                onAnswer={answerReaction}
+              />
+            )
+          ) : (
+            <IntervalPlanner state={state} plan={plan} onChange={setPlan} onResolve={resolve} />
+          )}
 
           <section className="card">
             <div className="card-head">

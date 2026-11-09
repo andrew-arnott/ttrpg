@@ -95,7 +95,13 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
           />
         )}
 
-        {battle.pending && !playback && !opening && <ReactionPrompt battle={battle} onAnswer={answerReaction} />}
+        {battle.pending && !playback && !opening && (
+          <ReactionPrompt
+            request={battle.pending.request}
+            reactor={battle.players.find((p) => p.key === battle.pending!.request.reactorKey)}
+            onAnswer={answerReaction}
+          />
+        )}
 
         {battle.result === 'victory' && state.battleKind === 'boss' && (
           <section className="card completion">

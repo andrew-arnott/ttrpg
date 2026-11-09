@@ -348,7 +348,7 @@ export function dungeonReducer(state: DungeonState, action: DungeonAction): Dung
       return action.state
 
     case 'startBattle':
-      return state.battle || state.patrolTriggered ? state : springPatrol(state, action.rng)
+      return state.battle || state.pending || state.patrolTriggered ? state : springPatrol(state, action.rng)
 
     case 'moveTo': {
       if (state.battle || state.pending) return state

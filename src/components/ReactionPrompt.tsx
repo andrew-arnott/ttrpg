@@ -1,17 +1,16 @@
 import { useState } from 'react'
-import type { BattleState, ReactionAnswer } from '../lib/battle'
+import type { ReactionAnswer, ReactionRequest } from '../lib/reactionTypes'
 import { AVATAR_COLORS } from '../lib/partyColors'
 import { Portrait } from './Portrait'
 
 interface Props {
-  battle: BattleState
+  request: ReactionRequest
+  reactor?: { name: string; professionId: string; colorIndex: number }
   onAnswer: (answer: ReactionAnswer) => void
 }
 
 /** Asks whether a character wants to use a Triggered ability that has just come up. */
-export function ReactionPrompt({ battle, onAnswer }: Props) {
-  const request = battle.pending!.request
-  const reactor = battle.players.find((p) => p.key === request.reactorKey)
+export function ReactionPrompt({ request, reactor, onAnswer }: Props) {
   const [targetId, setTargetId] = useState(request.targets?.[0]?.id)
 
   return (
