@@ -4,14 +4,14 @@ import { drawTest, drewComplication, type TestResult } from '../drawTest'
 import { performSkillTest, type SkillTestOutcome, type TestBonus } from '../skillTest'
 import { recoverToken } from '../tokenFlow'
 import { engageBreakdown, engageDifficulty } from './engagement'
+import { settleTest, takeDamage } from '../characterTest'
 import { drawRulesFor } from './conditionRules'
-import { gainCondition, resolveConditions } from './conditions'
+import { gainCondition } from './conditions'
 import { INTERCEPT_DEFENSE, offerIntercept, offerPrayer } from './reactions'
-import { putDrawnResourcesInPlay, releaseCommitment, type Commitment } from './tokens'
+import { releaseCommitment, type Commitment } from './tokens'
 import {
   adjustBag,
   addStep,
-  dealDamageToPlayer,
   describeGroup,
   enemiesInGroup,
   enemyActorOf,
@@ -32,20 +32,10 @@ import {
 import { ATTACK_ATTRIBUTE, DEFEND_ATTRIBUTE, ENGAGE_ATTRIBUTE, HEAL_AMOUNT, NEW_GROUP } from './types'
 import type { BattleEnemy, BattlePlayer, BattleState } from './types'
 
-/**
- * Shields wait in play for the next damage, Bless tokens are used up once drawn, and drawn
- * resource tokens go into play. Conditions drawn in a failed test are sealed.
- */
+/** What a finished test does to the tokens, and the notes about it for the step that follows. */
 export function afterTest(engine: Engine, p: BattlePlayer, result: TestResult, succeeded: boolean) {
-  const shields = result.drawn.filter((d) => d.tokenId === 'shield').length
-  if (shields > 0) {
-    p.shieldsInPlay += shields
-    p.bag = adjustBag(p.bag, 'shield', -shields)
-  }
-  const blessed = result.drawn.filter((d) => d.tokenId === 'bless').length
-  if (blessed > 0) p.bag = adjustBag(p.bag, 'bless', -blessed)
-  putDrawnResourcesInPlay(p, result, succeeded)
-  resolveConditions(engine, p, result, succeeded)
+  engine.notes.push(...settleTest(p, result, succeeded, { round: engine.b.round, lethal: true }))
+  updateResult(engine.b)
 }
 
 export function releaseSealedTokens(b: BattleState, e: BattleEnemy) {
@@ -122,7 +112,7 @@ export function strikePlayer(
   }
 
   const reduction = e.disabled ? sealedCount(e, 'resolve') : 0
-  const { dealt, absorbed } = dealDamageToPlayer(target, Math.max(0, attack.damage - reduction))
+  const { dealt, absorbed } = takeDamage(target, Math.max(0, attack.damage - reduction), true)
   const notes = [
     reduction > 0 ? `Disabled: damage reduced by ${reduction}.` : '',
     absorbed > 0 ? `${absorbed} absorbed by Shield.` : '',
@@ -453,7 +443,7 @@ export function fireball(engine: Engine, caster: BattlePlayer, groupId: string, 
   const burned = allies.filter((a) => a.hp > 0)
   if (burned.length > 0 || fatigue > 0) {
     const lines = burned.map((a) => {
-      dealDamageToPlayer(a, mana)
+      takeDamage(a, mana, true)
       return `${a.name} takes ${mana} (${a.hp}/${a.maxHp} HP)${a.hp === 0 ? ', and falls' : ''}`
     })
     if (fatigue > 0) caster.bag = adjustBag(caster.bag, 'fatigue', fatigue)

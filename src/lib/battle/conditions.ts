@@ -1,49 +1,11 @@
 import { TOKENS } from '../../data/tokens'
-import type { TestResult } from '../drawTest'
 import { adjustBag } from '../tokenFlow'
-import { countSealed, hasSealed, isCondition, sealedOf } from './conditionRules'
+import { releaseAllConditions, releaseCondition } from '../characterTest'
+import { sealedOf } from './conditionRules'
 import { canReact, payForReaction } from './reactions'
-import { addStep, dealDamageToPlayer, playerActorOf, tokenName, updateResult, type Engine } from './state'
+import { addStep, playerActorOf, tokenName, type Engine } from './state'
 import { releaseCommitment } from './tokens'
-import type { BattlePlayer, ReactionRequest, SealedCondition } from './types'
-
-function release(p: BattlePlayer, condition: SealedCondition) {
-  const list = sealedOf(p)
-  const index = list.indexOf(condition)
-  if (index < 0) return
-  p.sealedConditions = list.filter((_, i) => i !== index)
-  p.bag = adjustBag(p.bag, condition.tokenId, 1)
-}
-
-/** Returns every sealed condition to the bag, for when the fight is over. */
-export function releaseAllConditions(p: BattlePlayer) {
-  for (const condition of [...sealedOf(p)]) release(p, condition)
-}
-
-/**
- * Condition tokens drawn in a failed test are sealed on the character and take effect. In a test
- * that succeeded they go back in the bag, and a Curse that started the draw stops being sealed.
- */
-export function resolveConditions(engine: Engine, p: BattlePlayer, result: TestResult, succeeded: boolean) {
-  const startedWithCurse = hasSealed(p, 'curse')
-  const drawn = result.drawn.map((d) => d.tokenId).filter(isCondition)
-  if (succeeded) {
-    if (startedWithCurse) release(p, sealedOf(p).find((c) => c.tokenId === 'curse')!)
-    return
-  }
-  const fromBag = startedWithCurse ? drawn.slice(1) : drawn
-  for (const tokenId of fromBag) {
-    p.bag = adjustBag(p.bag, tokenId, -1)
-    p.sealedConditions = [...sealedOf(p), { tokenId, round: engine.b.round }]
-    engine.notes.push(`${tokenName(tokenId)} is sealed on ${p.name}.`)
-    if (tokenId === 'poison') {
-      const damage = countSealed(p, 'poison')
-      dealDamageToPlayer(p, damage)
-      engine.notes.push(`${p.name} takes ${damage} poison damage (${p.hp}/${p.maxHp} HP).${p.hp === 0 ? ` ${p.name} falls!` : ''}`)
-      updateResult(engine.b)
-    }
-  }
-}
+import type { BattlePlayer, ReactionRequest } from './types'
 
 /**
  * An enemy hit gives its condition token. An ally with Divine Intervention may prevent it.
@@ -98,7 +60,7 @@ export function releaseAtRoundEnd(engine: Engine) {
       })
       chosen = eligible[Number(answer.targetId)] ?? eligible[0]
     }
-    release(p, chosen)
+    releaseCondition(p, chosen)
     addStep(engine, {
       actor: playerActorOf(p),
       title: 'Condition released',

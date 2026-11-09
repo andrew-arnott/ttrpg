@@ -1,6 +1,4 @@
 import { PROFESSIONS } from '../../data/professions'
-import { TOKENS } from '../../data/tokens'
-import type { TestResult } from '../drawTest'
 import { adjustBag } from './state'
 import type { BattlePlayer, BoostOption } from './types'
 
@@ -55,16 +53,6 @@ export function commitResource(p: BattlePlayer, resourceId: string, amount: numb
 /** Unsealed committed tokens return to the bag. */
 export function releaseCommitment(p: BattlePlayer, c: Commitment) {
   for (const t of c.tokens) if (!t.sealed) p.bag = adjustBag(p.bag, t.tokenId, 1)
-}
-
-/** Resource tokens drawn in a test go into play afterwards. Mana only counts if the test succeeded. */
-export function putDrawnResourcesInPlay(p: BattlePlayer, result: TestResult, succeeded: boolean) {
-  for (const drawn of result.drawn) {
-    if (!TOKENS[drawn.tokenId]?.keywords.includes('resource')) continue
-    if (drawn.tokenId === 'mana' && !succeeded) continue
-    p.bag = adjustBag(p.bag, drawn.tokenId, -1)
-    p.resources[drawn.tokenId] = inPlay(p, drawn.tokenId) + 1
-  }
 }
 
 /** Armor or Power the player can add to a test, if their profession uses it and they have any to spend. */

@@ -7,7 +7,6 @@ import {
   actionsThisTurn,
   enemyDefense,
   engageBreakdown,
-  releaseAllConditions,
   respondToReaction,
   engageDifficulty,
   runEnemyPhase,
@@ -19,6 +18,7 @@ import {
   type BattleState,
   type PlannedCombat,
 } from './battle'
+import { releaseAllConditions } from './characterTest'
 import { mulberry32 } from './drawTest'
 import { countInBag } from './tokenFlow'
 import {

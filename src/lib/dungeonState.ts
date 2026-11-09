@@ -1,7 +1,8 @@
 import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
 import { linkKey, type Dungeon, type DungeonLink, type DungeonRoom, type Lock } from '../data/dungeon'
 import type { SpecialSpread, TokenStack } from '../data/types'
-import { releaseAllConditions, startBattle, type BattleState, type SurpriseCheck } from './battle'
+import { releaseAllConditions } from './characterTest'
+import { startBattle, type BattleState, type SurpriseCheck } from './battle'
 import type { Rng } from './drawTest'
 import { burnInterval, lightTorch, torchLevel, TORCH_LEVEL_LABEL, type TorchLevel, type TorchState } from './torch'
 

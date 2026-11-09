@@ -124,18 +124,6 @@ export function addStep(engine: Engine, original: ResolutionStep) {
   engine.b.log = [`${step.intro} ${step.outcome}`, ...engine.b.log].slice(0, LOG_LIMIT)
 }
 
-export function dealDamageToPlayer(p: BattlePlayer, amount: number): { dealt: number; absorbed: number } {
-  if (amount <= 0) return { dealt: 0, absorbed: 0 }
-  const absorbed = Math.min(p.shieldsInPlay, amount)
-  if (p.shieldsInPlay > 0) {
-    p.bag = adjustBag(p.bag, 'shield', p.shieldsInPlay)
-    p.shieldsInPlay = 0
-  }
-  const dealt = amount - absorbed
-  p.hp = Math.max(0, p.hp - dealt)
-  return { dealt, absorbed }
-}
-
 export function updateResult(b: BattleState) {
   if (livingEnemies(b).length === 0) b.result = 'victory'
   else if (livingPlayers(b).length === 0) b.result = 'defeat'

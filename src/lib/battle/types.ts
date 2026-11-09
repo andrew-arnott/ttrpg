@@ -1,8 +1,9 @@
 import type { SpecialKey, SpecialSpread, TokenStack } from '../../data/types'
+import type { SealedCondition } from '../conditionRules'
 import type { ReactionAnswer, ReactionRequest, TargetChoice } from '../reactionTypes'
 import type { ResolutionStep } from '../resolution'
 
-export type { ReactionAnswer, ReactionRequest, TargetChoice }
+export type { ReactionAnswer, ReactionRequest, SealedCondition, TargetChoice }
 
 export const ACTIONS_PER_TURN = 2
 export const ATTACK_ATTRIBUTE: SpecialKey = 'strength'
@@ -40,11 +41,6 @@ export interface BattlePlayer {
   sealedConditions?: SealedCondition[]
 }
 
-export interface SealedCondition {
-  tokenId: string
-  /** The round it was sealed in. A condition cannot be released in the round it was sealed. */
-  round: number
-}
 
 export interface SealedToken {
   /** The token that was sealed. */
