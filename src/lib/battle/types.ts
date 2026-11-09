@@ -1,5 +1,8 @@
 import type { SpecialKey, SpecialSpread, TokenStack } from '../../data/types'
+import type { ReactionAnswer, ReactionRequest, TargetChoice } from '../reactionTypes'
 import type { ResolutionStep } from '../resolution'
+
+export type { ReactionAnswer, ReactionRequest, TargetChoice }
 
 export const ACTIONS_PER_TURN = 2
 export const ATTACK_ATTRIBUTE: SpecialKey = 'strength'
@@ -90,24 +93,6 @@ export interface BattleState {
   pending?: PendingReaction | null
 }
 
-/** A Triggered ability a player may use right now. */
-export interface ReactionRequest {
-  abilityId: string
-  reactorKey: string
-  title: string
-  prompt: string
-  /** What using it costs, for display. */
-  cost: string
-  /** Choices to pick between, such as the enemy for another attack or the condition to release. */
-  targets?: TargetChoice[]
-  /** The question must be answered with a choice; there is no declining. */
-  required?: boolean
-}
-
-export interface ReactionAnswer {
-  use: boolean
-  targetId?: string
-}
 
 export type BattleFlow = { kind: 'action'; planned: PlannedCombat | null } | { kind: 'enemies' }
 
@@ -136,11 +121,6 @@ export interface PlannedCombat {
 export interface SurpriseCheck {
   perception: number
   modifiers: { label: string; value: number }[]
-}
-
-export interface TargetChoice {
-  id: string
-  label: string
 }
 
 /** Armor or Power that can be committed to a test for +1 each. */

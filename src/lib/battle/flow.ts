@@ -6,8 +6,9 @@ import { releaseAtRoundEnd } from './conditions'
 import { enemyActions, resetRoundState } from './enemies'
 import { offerFollowUps } from './followUps'
 import { addStep, createEngine, finalStep, type Engine } from './state'
+import { runReplayable } from '../replay'
 import { ACTIONS_PER_TURN } from './types'
-import type { BattleFlow, BattlePlayer, BattleState, PlannedCombat, ReactionAnswer, ReactionRequest } from './types'
+import type { BattleFlow, BattlePlayer, BattleState, PlannedCombat, ReactionAnswer } from './types'
 
 /** The player who is choosing an action right now, if any. */
 export function currentPlayer(b: BattleState): BattlePlayer | null {
@@ -25,16 +26,6 @@ function advanceTurn(b: BattleState) {
     b.phase = 'enemies'
   } else {
     b.turnIndex = next
-  }
-}
-
-/** Thrown out of an action when a player has to decide something before it can finish. */
-class NeedsAnswer extends Error {
-  request: ReactionRequest
-
-  constructor(request: ReactionRequest) {
-    super('A player has to decide whether to react')
-    this.request = request
   }
 }
 
@@ -92,10 +83,8 @@ function enemyPhaseFlow(engine: Engine) {
 
 /**
  * Runs an action or the enemy phase from `snapshot`. Each time a Triggered ability could be
- * used the player's answer is looked up in `answers`; when there is none yet the run stops,
- * the battle is returned with `pending` set, and only the steps not yet played are returned.
- * Answering runs the same flow again from the snapshot, replaying the recorded dice, so the
- * outcome up to the question is identical.
+ * used the player's answer is looked up in `answers`; when there is none yet the run stops
+ * and the battle is returned with `pending` set (see `runReplayable`).
  */
 function runFlow(
   snapshot: BattleState,
@@ -105,30 +94,26 @@ function runFlow(
   answers: ReactionAnswer[],
   stepsShown: number,
 ): Outcome {
-  const recorded = [...tape]
-  let diceUsed = 0
-  let asked = 0
-  const engine = createEngine(structuredClone(snapshot), () => {
-    if (diceUsed >= recorded.length) recorded.push(rng())
-    return recorded[diceUsed++]
+  const initial = createEngine(structuredClone(snapshot), rng)
+  const replayed = runReplayable<BattleState>({
+    rng,
+    tape,
+    answers,
+    stepsShown,
+    initial: { state: initial.b, steps: initial.steps },
+    run: ({ rng: dice, ask, progress }) => {
+      const engine = createEngine(structuredClone(snapshot), dice)
+      engine.ask = ask
+      progress.state = engine.b
+      progress.steps = engine.steps
+      if (flow.kind === 'action') playerActionFlow(engine, flow.planned)
+      else enemyPhaseFlow(engine)
+      return { state: engine.b, steps: engine.steps }
+    },
   })
-  engine.ask = (request) => {
-    const answer = answers[asked]
-    if (!answer) throw new NeedsAnswer(request)
-    asked += 1
-    return answer
-  }
-
-  try {
-    if (flow.kind === 'action') playerActionFlow(engine, flow.planned)
-    else enemyPhaseFlow(engine)
-  } catch (error) {
-    if (!(error instanceof NeedsAnswer)) throw error
-    const pending = { request: error.request, snapshot, flow, tape: recorded, answers, stepsShown: engine.steps.length }
-    return { battle: { ...engine.b, pending }, steps: engine.steps.slice(stepsShown) }
-  }
-  engine.b.pending = null
-  return { battle: engine.b, steps: engine.steps.slice(stepsShown) }
+  const { pause } = replayed
+  replayed.state.pending = pause ? { ...pause, snapshot, flow, answers } : null
+  return { battle: replayed.state, steps: replayed.steps }
 }
 
 /**
