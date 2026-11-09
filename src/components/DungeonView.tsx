@@ -329,7 +329,7 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
   const locked = lockedExits(state.dungeon, state.roomId, passages)
   const spareTorches = state.party.reduce((n, m) => n + (m.inventory.torch ?? 0), 0)
   const advice = torchAdvice(level, spareTorches)
-  const darkPopup = level === 'out' && !darkSeen && !pending
+  const darkPopup = level === 'out' && !darkSeen && !pending && !state.battle
   const preparations = state.prepared[state.roomId] ?? []
   const move = (roomId: string) => dispatch({ type: 'moveTo', roomId, rng: Math.random })
 

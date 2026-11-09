@@ -36,7 +36,7 @@ Two other sources feed the code:
 | Engagement | Groups of players and enemies. You can usually only attack within your group. Enemies engage randomly for now. An action changes group; some abilities (Provoke) force it |
 | Triggers | Enemy triggered abilities usually fire when a Complication is drawn |
 | End | The fight ends when all of one side is at 0 HP |
-| Surprise | Owner ruling: each player makes a Perception test against the enemies, and every enemy has its own notice Difficulty (Goblin Scout 6, Cave Troll 3, Skeleton Guard 6, Barrow Warden 5, all invented). An enemy is spotted if any one player's result meets it. Bright torch +1, Steady 0, Dim -1, no torch -2, and Stand Watch or Keep watch +2 (the better one) are bonuses to those tests |
+| Surprise | Owner ruling: each player makes one Perception test against the median notice Difficulty of the enemies (Goblin Scout 6, Cave Troll 3, Skeleton Guard 6, Barrow Warden 5, Bone Colossus 2, all invented; with an even number the middle two are averaged and rounded up). If anyone passes the party sees the danger coming; if nobody does every enemy gets a surprise round. Stand Watch and Keep watch add +2 | `medianNoticeDifficulty` in `battle/start.ts` |
 | Patrol | No patrol until the first door is unlocked |
 | Locked doors | Entrance door can be picked (Agility) or broken (Strength). Retrying is intended, to make torches a constraint |
 | Final room | Sealed by a lock that only opens through actions in other rooms; guarded by a boss |
@@ -53,10 +53,10 @@ Two other sources feed the code:
 | Equipment | Prices Torch 1, Ration 1, Bandage 2, Antidote 3, Smoke Bomb 3, Healing Potion 5; effects as described in the item text | `src/data/items.ts` |
 | Healing items | Used as an Interval action; heals the most wounded party member (Bandage 2 HP, Potion 4 HP) | `src/lib/intervalActions.ts` (`healWithItem`) |
 | Light | Bright shows rooms two doorways away, Steady one, Dim and Out only your own room; light does not pass a locked door | `LIGHT_REACH` in `src/lib/dungeonState.ts` |
-| Darkness | Tests made with the torch out get +3 Difficulty | `DARKNESS_PENALTY` in `intervalActions.ts` |
+| Light | Owner ruling: the torch is a modifier on every test the party makes, in the dungeon and in a fight, attacks and Defend included: Bright +1, Steady 0, Dim -1, no torch -2. It replaces the old +3 Difficulty in the dark | `lightBonus` in `torch.ts` |
 | Skill tests | Token total + attribute must be at least the Difficulty. Critical Success always passes, Critical Failure always fails | `src/lib/skillTest.ts` |
 | Rest | Regain 1 of the profession's main resource, up to 2 above the starting amount | `REST_BONUS_LIMIT` |
-| Surprise round | Enemies nobody spotted take their turn before the players act; spotted enemies hold back. A hit on someone with no Defense lands | `surpriseCheck` in `battle/start.ts` |
+| Surprise round | When nobody passes, every enemy takes its turn before the players act. A hit on someone with no Defense lands | `surpriseCheck` in `battle/start.ts` |
 | Patrol timing | Arrives 4 Intervals after the first lock opens; a Complication-driven noise brings it one Interval sooner | `patrol.delayAfterUnlock` |
 | Room Difficulties | Search 4 to 6, interactions 4 to 6, lockpicking 6, breaking the door 7; rewards are items | `src/data/dungeon.ts` |
 | Room complications | Damage (never below 1 HP), an extra step of torch burn, noise (patrol sooner), or a lost spare torch, per room | `room.complication` in `dungeon.ts` |
@@ -88,7 +88,7 @@ Two other sources feed the code:
 | Traps | The Library has a poisoned needle (find 6, Agility 5 to disarm) and the Shrine a searing glyph (find 5, Intelligence 6 to disarm, magical). A room interaction sets off an armed trap once; a failed disarm sets it off too. Found traps are listed on the room card | `trap` in `data/dungeon.ts` |
 | Dispel Magic | Owner ruling: it must never block the dungeon. Shrine: disarms the glyph. Library: reveals the secret the ward hid. Crypt: the Barrow Warden loses Undying | `magic.effect` in `data/dungeon.ts` |
 | Breaking the door | A failed attempt that draws a Complication gives the character a Fatigue token | `complication` on the door's lock option |
-| Ossuary | An optional room off the Cistern with one Bone Colossus. It starts engaged with everyone and drags everyone back into its group at the end of its turn. Scout Ahead shows what is inside. Its art is a Skeleton Guard stand-in | `data/dungeon.ts`, `data/enemies.ts` |
+| Ossuary | An optional room between the Storeroom and the Cistern with one Bone Colossus. It starts engaged with everyone and drags everyone back into its group at the end of its turn. Scout Ahead shows what is inside, and a hidden crawlspace from the Storeroom to the Cistern (found by Investigate at 6 or Find a Shortcut) goes round it | `data/dungeon.ts`, `data/enemies.ts` |
 | Fortify | Owner ruling: everyone in the party, not just the warrior, begins combat with +2 Defense | `FORTIFY_DEFENSE` |
 | Set an Ambush | A free attack on a random enemy at the start of the fight | `startBattle` |
 
@@ -99,8 +99,8 @@ them settled yet. Rows marked "owner ruling" were decided in conversation and wi
 
 | Area | Guide | Implementation |
 | --- | --- | --- |
-| Surprise check | Concealment levels against light, with a single check | Owner's per-player Perception tests against each enemy's notice Difficulty (see the owner rulings). The guide's table is not used |
-| Surprise round | Each combatant on the surprising side takes 1 action; the surprised side does not act | Unspotted enemies take their whole turn (all their attacks) |
+| Surprise check | Concealment levels against light, with a single check | Owner's per-player Perception test against the median notice Difficulty. The guide's table is not used |
+| Surprise round | Each combatant on the surprising side takes 1 action; the surprised side does not act | Every enemy takes its whole turn (all its attacks) |
 | Engage and disengage | Agility test, Difficulty 6. Engage pulls an enemy into your group. Disengage leaves your group and may join another or form a new one | Agility, Difficulty from the formula in the assumptions table (4 base, up with enemies, down with allies). Owner is still workshopping it. A popup explains it the first time a player picks Change engagement |
 | Consumables | Torch, Bandage (treats Wounds), Antivenom, Laudanum, Holy Water, Stimulant, Liquid Courage, Health Potion (restores 1 HP), Rations; stack sizes 2 or 3; using one in combat costs 1 action | The treatments are in, but Bandage also heals 2 HP, Healing Potion heals 4 HP, Smoke Bomb is not in the guide, and prices are invented. Items cannot be used in combat. The new treatments reuse existing icons |
 | Inventory | 6 inventory slots, stacking, and four equipment slots (Main Hand, Off Hand, Body, Accessory), plus tools such as Rope and Thieves' Tools | No slot limit, no equipment slots, no tools |

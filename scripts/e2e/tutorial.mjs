@@ -28,16 +28,18 @@ const ROOM_NAMES = {
   storeroom: 'Storeroom',
   library: 'Reliquary Library',
   shrine: 'Shrine of Embers',
+  ossuary: 'Ossuary',
   cistern: 'Flooded Cistern',
   crypt: 'Founders\u2019 Crypt',
 }
+/** The bot stays out of the Ossuary and never looks for the hidden shortcut round it. */
 const EXITS = {
   entrance: ['greatHall'],
   greatHall: ['entrance', 'barracks', 'storeroom', 'shrine'],
   barracks: ['greatHall', 'library'],
-  storeroom: ['greatHall', 'cistern'],
+  storeroom: ['greatHall'],
   library: ['barracks', 'shrine'],
-  cistern: ['storeroom', 'shrine'],
+  cistern: ['shrine'],
   shrine: ['greatHall', 'library', 'cistern', 'crypt'],
   crypt: ['shrine'],
 }
