@@ -76,7 +76,7 @@ export interface StrikeOptions {
 export function strikePlayer(
   engine: Engine,
   e: BattleEnemy,
-  attack: Pick<EnemyAttack, 'name' | 'attackValue' | 'damage' | 'condition'>,
+  attack: EnemyAttack,
   target: BattlePlayer,
   intro: string,
   options: StrikeOptions = {},
@@ -173,10 +173,22 @@ export function applyTrigger(engine: Engine, e: BattleEnemy, trigger: EnemyTrigg
     return
   }
   if (drawer.hp <= 0) return
+  if (effect.kind === 'condition') {
+    const outcome = gainCondition(engine, drawer, effect.conditionId)
+    addStep(engine, {
+      actor: enemyActorOf(e),
+      title: trigger.name,
+      intro: `${e.name} reacts to the Complication.`,
+      outcome,
+      tone: 'failure',
+    })
+    return
+  }
+  const { kind: _kind, ...stats } = effect
   strikePlayer(
     engine,
     e,
-    { name: trigger.name, attackValue: effect.attackValue, damage: effect.damage },
+    { name: trigger.name, ...stats },
     drawer,
     `${e.name} seizes the opening and lunges at ${drawer.name}.`,
     { interceptable: true },
@@ -189,6 +201,7 @@ export function runTriggers(engine: Engine, drawer: BattlePlayer, result: TestRe
   for (const e of livingEnemies(engine.b)) {
     for (const trigger of ENEMIES_BY_ID[e.defId]?.triggers ?? []) {
       if (engine.b.result !== 'ongoing') return
+      if (trigger.engagedOnly && groupOf(engine.b, e.id) !== groupOf(engine.b, drawer.key)) continue
       applyTrigger(engine, e, trigger, drawer)
     }
   }

@@ -866,6 +866,22 @@ describe('conditions', () => {
       expect(steps.find((s) => s.title === 'Club Smash')!.outcome).toMatch(/gains a Wound token/)
     })
 
+    it('comes from a trigger, but only for someone engaged with the enemy', () => {
+      const complicated = { bag: [{ tokenId: 'complication', count: 1 }], hp: 20 }
+      const engaged = duel(complicated, { hp: 9 })
+      const near = playRound(engaged, { p: turn(attack('e')) }, rng())
+      expect(countInBag(near.battle.players[0].bag, 'poison')).toBe(1)
+
+      const apart = battleOf([player('p', complicated), player('q')], [enemy('goblin', 'e', { hp: 9 })], {
+        p: 'g1',
+        q: 'g2',
+        e: 'g2',
+      })
+      const far = playRound(apart, { p: turn({ actionId: 'engage', targetId: 'g2' }) }, rng())
+      expect(far.steps[0].test?.result.complication).toBe(true)
+      expect(countInBag(far.battle.players[0].bag, 'poison')).toBe(0)
+    })
+
     it('can be prevented by Divine Intervention, which costs 1 Faith', () => {
       const { battle } = playRound(smashed(), endAll, rng(), acceptAll)
       expect(countInBag(battle.players[0].bag, 'wound')).toBe(0)

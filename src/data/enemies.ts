@@ -4,26 +4,33 @@
  * abilities that usually fire when a Complication is drawn.
  */
 
-export interface EnemyAttack {
-  name: string
+/** One blow, whether it is an attack made after the players act or a lunge set off by a trigger. */
+export interface StrikeStats {
   /** Subtracted from the target's Defense score. Damage lands only if it exceeds the score. */
   attackValue: number
   damage: number
   /** Hits every player in the room, unless the enemy is Provoked. */
   area?: boolean
-  /** A condition token the target gains in their bag when the attack hits. */
+  /** A condition token the target gains in their bag when the blow hits. */
   condition?: string
 }
 
+export interface EnemyAttack extends StrikeStats {
+  name: string
+}
+
 export type TriggerEffect =
-  | { kind: 'strike'; attackValue: number; damage: number }
+  | ({ kind: 'strike' } & StrikeStats)
   | { kind: 'empower'; attackBonus: number }
   | { kind: 'heal'; amount: number }
+  | { kind: 'condition'; conditionId: string }
 
 export interface EnemyTrigger {
   name: string
   text: string
   effect: TriggerEffect
+  /** Only fires when the character who drew the Complication is in the enemy's engagement group. */
+  engagedOnly?: boolean
 }
 
 export interface EnemyDef {
@@ -50,6 +57,12 @@ export const ENEMIES: EnemyDef[] = [
         name: 'Opportunist',
         text: 'When a Complication is drawn, lunges at the character who drew it.',
         effect: { kind: 'strike', attackValue: 4, damage: 1 },
+      },
+      {
+        name: 'Poisoned Blade',
+        text: 'When an engaged character draws a Complication, they gain 1 Poison token.',
+        effect: { kind: 'condition', conditionId: 'poison' },
+        engagedOnly: true,
       },
     ],
   },
