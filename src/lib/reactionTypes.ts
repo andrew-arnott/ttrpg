@@ -1,6 +1,8 @@
 export interface TargetChoice {
   id: string
   label: string
+  /** Why this choice cannot be picked right now. It is still listed so the player can see why. */
+  disabledReason?: string
 }
 
 /** A Triggered ability a player may use right now, or a choice they must make. */

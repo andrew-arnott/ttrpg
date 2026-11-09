@@ -244,7 +244,9 @@ describe('player attacks', () => {
   it('only reach enemies in the same engagement group', () => {
     const b = battleOf([player('p')], [enemy('goblin', 'e')], { p: 'g1', e: 'g2' })
     const options = availableCombatActions(b, b.players[0])
-    expect(options.find((o) => o.id === 'attack')!.targets![0].label).toMatch(/not engaged/)
+    const attackOption = options.find((o) => o.id === 'attack')!
+    expect(attackOption.targets![0].disabledReason).toBe('Not engaged')
+    expect(attackOption.disabledReason).toBe('No enemy you are engaged with')
     const { steps } = playRound(b, { p: turn(attack('e')) }, rng())
     expect(steps[0].title).toBe('No move')
   })
@@ -530,6 +532,46 @@ describe('Power and Armor', () => {
     expect(steps[0].outcome).toMatch(/hits/)
     expect(battle.enemies[0].sealed).toHaveLength(1)
     expect(bagCount(battle.players[0], 'power')).toBe(1)
+  })
+})
+
+describe('picking targets', () => {
+  const split = (abilityIds: string[]) =>
+    battleOf(
+      [player('p', { abilityIds }), player('q')],
+      [enemy('goblin', 'near', { hp: 9 }), enemy('goblin', 'far', { hp: 9 })],
+      { p: 'g1', q: 'g2', near: 'g1', far: 'g2' },
+    )
+  const optionOf = (b: BattleState, id: string) => availableCombatActions(b, b.players[0]).find((o) => o.id === id)!
+
+  it('lists every enemy but disables the ones an engaged-only ability cannot reach', () => {
+    const disable = optionOf(split(['disable']), 'ability:disable')
+    expect(disable.targets!.map((t) => [t.id, t.disabledReason])).toEqual([
+      ['near', undefined],
+      ['far', 'Not engaged'],
+    ])
+    expect(disable.disabledReason).toBeUndefined()
+  })
+
+  it('disables the ability itself when nobody can be reached', () => {
+    const b = split(['disable', 'cheapShot'])
+    b.groups.near = 'g2'
+    expect(optionOf(b, 'ability:disable').disabledReason).toBe('No enemy you are engaged with')
+    expect(optionOf(b, 'ability:cheapShot').disabledReason).toBe('No enemy you are engaged with')
+  })
+
+  it('lets Provoke pick any enemy in the room, and pulls it into the Provoker’s group', () => {
+    const b = split(['provoke'])
+    b.players[0].bag = ALWAYS_PASS
+    expect(optionOf(b, 'ability:provoke').targets!.every((t) => !t.disabledReason)).toBe(true)
+    const { battle } = playRound(b, { p: turn({ actionId: 'ability:provoke', targetId: 'far' }) }, rng())
+    expect(battle.groups.far).toBe(battle.groups.p)
+    expect(battle.enemies.find((e) => e.id === 'far')!.provokedBy).toBe('p')
+  })
+
+  it('will not resolve a plan aimed at a disabled target', () => {
+    const { steps } = playRound(split(['disable']), { p: turn({ actionId: 'ability:disable', targetId: 'far' }) }, rng())
+    expect(steps[0].title).toBe('No move')
   })
 })
 
@@ -1226,7 +1268,11 @@ describe('class abilities', () => {
       { p: 'g1', e: 'g1', f: 'g2' },
     )
     const options = availableCombatActions(b, b.players[0])
-    expect(options.find((o) => o.id === 'ability:magicMissile')!.targets!.map((t) => t.id)).toEqual(['f'])
+    const missile = options.find((o) => o.id === 'ability:magicMissile')!
+    expect(missile.targets!.map((t) => [t.id, t.disabledReason])).toEqual([
+      ['e', 'Engaged with you'],
+      ['f', undefined],
+    ])
     const { battle } = playRound(b, { p: turn({ actionId: 'ability:magicMissile', targetId: 'f' }) }, rng())
     expect(battle.enemies[1].hp).toBe(2)
     expect(battle.players[0].resources.mana).toBe(2)

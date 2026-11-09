@@ -14,7 +14,7 @@ import {
 } from './state'
 import { engageTargetLabel } from './engagement'
 import { boostOption, commitResource, resourceAvailable, commitmentValue, noCommitment, releaseCommitment, type Commitment } from './tokens'
-import { enemyTargets, groupTargets, resourceGate } from './targets'
+import { enemyTargets, groupTargets, noUsableTarget, onlyEngaged, resourceGate } from './targets'
 import type { BattlePlayer, BattleState, CombatOption, PlannedCombat } from './types'
 
 const FEAR_REASON = 'Fear: you cannot attack'
@@ -52,8 +52,17 @@ function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
     })
 }
 
+/** An option with targets cannot be used when none of them can be picked. */
+const withTargetGate = (o: CombatOption): CombatOption => ({
+  ...o,
+  disabledReason: o.disabledReason ?? noUsableTarget(o.targets),
+})
+
 export function availableCombatActions(b: BattleState, p: BattlePlayer): CombatOption[] {
-  const engaged = engagedEnemies(b, p)
+  return listCombatActions(b, p).map(withTargetGate)
+}
+
+function listCombatActions(b: BattleState, p: BattlePlayer): CombatOption[] {
   const groups = groupTargets(b, p, false)
   return [
     {
@@ -61,8 +70,7 @@ export function availableCombatActions(b: BattleState, p: BattlePlayer): CombatO
       slot: 'action',
       label: 'Attack',
       description: `Make a Strength test against an enemy you are engaged with, using its Defense. A hit deals 1 damage.`,
-      targets: enemyTargets(livingEnemies(b), engaged),
-      requiresEngaged: true,
+      targets: enemyTargets(livingEnemies(b), onlyEngaged(b, p)),
       boost: boostOption(p, 'power'),
       disabledReason: !canAttack(p) ? FEAR_REASON : livingEnemies(b).length === 0 ? 'No enemy to target' : undefined,
     },
@@ -89,8 +97,7 @@ export function availableCombatActions(b: BattleState, p: BattlePlayer): CombatO
 function isValid(b: BattleState, p: BattlePlayer, planned: PlannedCombat): CombatOption | undefined {
   const option = availableCombatActions(b, p).find((o) => o.id === planned.actionId)
   if (!option || option.disabledReason) return undefined
-  if (option.targets && !option.targets.some((t) => t.id === planned.targetId)) return undefined
-  if (option.requiresEngaged && !engagedEnemies(b, p).some((e) => e.id === planned.targetId)) return undefined
+  if (option.targets && !option.targets.some((t) => t.id === planned.targetId && !t.disabledReason)) return undefined
   return option
 }
 

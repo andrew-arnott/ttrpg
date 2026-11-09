@@ -17,6 +17,8 @@ import { TOKENS } from '../data/tokens'
 import { Portrait } from './Portrait'
 import { RuleHelpDialog } from './RuleHelpDialog'
 
+const firstUsable = (option: CombatOption | undefined) => option?.targets?.find((t) => !t.disabledReason)?.id
+
 const BASIC = ['attack', 'defend', 'engage']
 
 interface Props {
@@ -37,13 +39,14 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
   const [helpOpen, setHelpOpen] = useState(false)
 
   const selected = options.find((o) => o.id === choice.actionId)
-  const targetId = selected?.targets?.find((t) => t.id === choice.targetId)?.id ?? selected?.targets?.[0]?.id
+  const targetId =
+    selected?.targets?.find((t) => t.id === choice.targetId && !t.disabledReason)?.id ?? firstUsable(selected)
   const canConfirm = Boolean(selected) && !selected?.disabledReason
 
   const boost = Math.min(choice.boost ?? 0, selected?.boost?.max ?? 0)
 
   const pick = (option: CombatOption) => {
-    setChoice({ actionId: option.id, targetId: option.targets?.[0]?.id })
+    setChoice({ actionId: option.id, targetId: firstUsable(option) })
     if (option.id === 'engage' && !engageHelpSeen) setHelpOpen(true)
   }
 
@@ -119,8 +122,9 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
             onChange={(e) => setChoice({ actionId: selected.id, targetId: e.target.value, boost })}
           >
             {selected.targets.map((t) => (
-              <option key={t.id} value={t.id}>
+              <option key={t.id} value={t.id} disabled={Boolean(t.disabledReason)}>
                 {t.label}
+                {t.disabledReason ? ` (${t.disabledReason})` : ''}
               </option>
             ))}
           </select>

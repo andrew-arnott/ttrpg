@@ -135,11 +135,6 @@ export interface CombatOption {
   label: string
   description: string
   targets?: TargetChoice[]
-  /**
-   * The target must be in the player's own engagement group when the action resolves,
-   * not when it is planned, so an earlier action can move the player into position.
-   */
-  requiresEngaged?: boolean
   boost?: BoostOption
   disabledReason?: string
 }

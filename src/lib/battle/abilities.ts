@@ -19,7 +19,7 @@ import {
 } from './state'
 import { resourceAvailable, type Commitment } from './tokens'
 import { cleanse } from './conditions'
-import { allyTargets, enemyTargets, groupTargets } from './targets'
+import { allyTargets, ENGAGED, enemyTargets, groupTargets, onlyEngaged } from './targets'
 
 const UNSUPPORTED = 'Not in the sample battle yet'
 const NO_ENEMY = 'No enemy to target'
@@ -56,18 +56,20 @@ export interface AbilityHandler {
   costOf?(extra: string | undefined): { tokenId: string; amount: number }
 }
 
-const enemyFightOptions = ({ b, p, id, base, gate }: OptionContext): CombatOption[] => {
-  const living = livingEnemies(b)
-  return [
-    {
-      ...base,
-      id,
-      targets: enemyTargets(living, engagedEnemies(b, p)),
-      requiresEngaged: true,
-      disabledReason: gate ?? (living.length === 0 ? NO_ENEMY : undefined),
-    },
-  ]
-}
+/** A Fight option against enemies. Most can only reach the enemies the player is engaged with. */
+const enemyFightOptions =
+  (reach: 'engaged' | 'room') =>
+  ({ b, p, id, base, gate }: OptionContext): CombatOption[] => {
+    const living = livingEnemies(b)
+    return [
+      {
+        ...base,
+        id,
+        targets: enemyTargets(living, reach === 'engaged' ? onlyEngaged(b, p) : undefined),
+        disabledReason: gate ?? (living.length === 0 ? NO_ENEMY : undefined),
+      },
+    ]
+  }
 
 const allyOptions = ({ b, id, base, gate }: OptionContext): CombatOption[] => [
   { ...base, id, targets: allyTargets(b), disabledReason: gate },
@@ -80,7 +82,7 @@ export const unsupportedAbility: AbilityHandler = {
 
 export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
   provoke: {
-    options: enemyFightOptions,
+    options: enemyFightOptions('room'),
     perform: ({ engine, p, enemy, commit, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {
@@ -95,7 +97,7 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     },
   },
   disable: {
-    options: enemyFightOptions,
+    options: enemyFightOptions('engaged'),
     perform: ({ engine, p, enemy, commit, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {
@@ -109,7 +111,7 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     },
   },
   cheapShot: {
-    options: enemyFightOptions,
+    options: enemyFightOptions('engaged'),
     perform: ({ engine, p, enemy, commit, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {
@@ -120,7 +122,7 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     },
   },
   smite: {
-    options: enemyFightOptions,
+    options: enemyFightOptions('engaged'),
     perform: ({ engine, p, enemy, boost }) => {
       if (!enemy) return
       const smitten = ENEMIES_BY_ID[enemy.defId]?.supernatural
@@ -228,13 +230,13 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
   magicMissile: {
     options: ({ b, p, id, base, gate }) => {
       const engaged = engagedEnemies(b, p)
-      const outside = livingEnemies(b).filter((e) => !engaged.includes(e))
+      const living = livingEnemies(b)
       return [
         {
           ...base,
           id,
-          targets: enemyTargets(outside),
-          disabledReason: gate ?? (outside.length === 0 ? 'No enemy outside your engagement group' : undefined),
+          targets: enemyTargets(living, (e) => (engaged.includes(e) ? ENGAGED : undefined)),
+          disabledReason: gate ?? (living.length === 0 ? NO_ENEMY : undefined),
         },
       ]
     },
