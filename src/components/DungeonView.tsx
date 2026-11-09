@@ -1,5 +1,5 @@
 import { useMemo, useReducer, useState } from 'react'
-import { SUNKEN_CRYPT } from '../data/dungeon'
+import { SUNKEN_CRYPT, trapFlag } from '../data/dungeon'
 import { ITEMS, ITEMS_BY_ID } from '../data/items'
 import { TUTORIAL_GOAL, TUTORIAL_INTRO, TUTORIAL_OUTRO } from '../data/tutorial'
 import { TOKENS } from '../data/tokens'
@@ -419,6 +419,18 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
             <p className="trait">
               <b>Tip.</b> {room.lesson}
             </p>
+            {room.optional && (
+              <div className="tokens">
+                <span className="chip">Optional room</span>
+              </div>
+            )}
+            {room.trap &&
+              state.done.includes(trapFlag(room.id, 'found')) &&
+              !state.done.includes(trapFlag(room.id, 'spent')) && (
+                <p className="trait">
+                  <b>Trap: {room.trap.name}.</b> {room.trap.hint}
+                </p>
+              )}
             {preparations.length > 0 && (
               <div className="tokens">
                 {preparations.map((p) => (

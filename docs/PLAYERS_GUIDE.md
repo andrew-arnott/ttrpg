@@ -124,7 +124,7 @@ Leave previously drawn tokens outside the bag until the test is resolved. Contin
 
 #### Resource
 
-A Resource token is put **in play** after being drawn during a test. Resources can be spent on abilities.
+A Resource token is put **in play** after being drawn during a **successful** test. Resources can be spent on abilities. Profession tokens only come back into play from a successful test or by resting.
 
 #### In Play
 
@@ -171,6 +171,8 @@ A Critical Success token must be spent or sealed as a single token. It cannot be
 ### Complications
 
 Complications represent additional dangers or consequences.
+
+By default, when you draw a Complication on a failed test you must return a token in play to your bag. Conditions are sealed rather than in play, so they cannot be returned this way.
 
 Some enemies and environmental hazards have passive abilities that activate when a player draws a Complication.
 
@@ -418,15 +420,17 @@ Move to an adjacent room or dungeon location.
 
 Entering a room reveals its obvious features and occupants. Hidden features must be discovered through searching or other means.
 
-#### Search
+#### Investigate
 
 **Interval — Perception Test**
 
-Search a room or area for hidden objects, traps, treasure, clues, or secret passages.
+Investigate a room or area for hidden objects, traps, treasure, clues, or secret passages.
 
 The GM determines the Difficulty of hidden discoveries. A successful test reveals anything your search could reasonably discover at or below your result.
 
-You may search the same area repeatedly, spending another Interval for each attempt.
+You may investigate the same area repeatedly, spending another Interval for each attempt.
+
+Room interactions can set off a trap in the room unless it was found and disarmed first.
 
 #### Room Interaction
 

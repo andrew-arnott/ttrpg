@@ -77,7 +77,7 @@ Still open:
 2. **Inventory** with 6 slots, stack sizes and the four equipment slots; weapons (Attack uses the held weapon's attribute).
 3. **Healing items**: decide whether to follow the guide (Health Potion 1 HP, Bandage treats Wounds only).
 4. **Smaller gaps**: Scry beyond a neighbouring room, Secure Area and Barricade in a fight, species traits that are not bag
-   changes (Catfolk Foresight, Jann Exchange, Verdant Accumulated Knowledge), art for the new treatment items.
+   changes (Catfolk Foresight, Jann Exchange, Verdant Accumulated Knowledge), art for the new treatment items and the Bone Colossus (it borrows the Skeleton Guard's).
 5. **More content**: a second dungeon, more enemies (use the `add-game-content` skill), Ranger and Berserker once the
    guide defines them.
 6. **Smarter enemies**: engagement behaviour beyond random; let players choose the order enemies resolve in.
