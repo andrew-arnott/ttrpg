@@ -3,6 +3,9 @@ import { SPECIES } from '../data/species'
 import { STANDARD_BAG, TOKENS } from '../data/tokens'
 import { SPECIAL_ARRAY } from '../data/types'
 import { PROFESSIONS } from '../data/professions'
+import { normalizeHands } from '../data/weapons'
+import { parseDraft } from './draftIO'
+import { sampleRoster } from './roster'
 import {
   allAbilities,
   applyBagMods,
@@ -10,6 +13,7 @@ import {
   buildCharacter,
   emptyDraft,
   STEP_IDS,
+  type CharacterDraft,
   suggestedSpecialAssignment,
 } from './buildCharacter'
 
@@ -286,5 +290,45 @@ describe('suggestedSpecialAssignment', () => {
     for (const key of warrior.importantSpecial) {
       expect(SPECIAL_ARRAY[assignment[key]!]).toBe(3)
     }
+  })
+})
+
+describe('hands', () => {
+  const base = (): CharacterDraft => ({ ...sampleRoster()[0].draft, hands: { main: null, off: null } })
+  const shieldsIn = (draft: CharacterDraft) => buildCharacter(draft).bag.find((s) => s.tokenId === 'shield')?.count ?? 0
+
+  it('adds 2 Shield tokens to the bag for a shield, on top of any the species gives', () => {
+    const plain = base()
+    const shielded = { ...base(), hands: { main: 'sword', off: 'shield' } }
+    expect(shieldsIn(shielded) - shieldsIn(plain)).toBe(2)
+  })
+
+  it('does not change the bag for a weapon', () => {
+    const sword = { ...base(), hands: { main: 'sword', off: null } }
+    expect(buildCharacter(sword).bag).toEqual(buildCharacter(base()).bag)
+  })
+
+  it('lists what is held', () => {
+    const built = buildCharacter({ ...base(), hands: { main: 'sword', off: 'shield' } })
+    expect(built.held.map((i) => i.id)).toEqual(['sword', 'shield'])
+  })
+
+  it('needs both hands for a two-handed item', () => {
+    const bad = buildCharacter({ ...base(), hands: { main: 'greataxe', off: 'shield' } })
+    expect(bad.issuesFor('equipment').join(' ')).toMatch(/both hands/)
+    expect(buildCharacter({ ...base(), hands: { main: 'greataxe', off: null } }).issuesFor('equipment')).toEqual([])
+  })
+
+  it('tidies a choice of hands', () => {
+    expect(normalizeHands({ main: 'greataxe', off: 'shield' })).toEqual({ main: 'greataxe', off: null })
+    expect(normalizeHands({ main: 'nope', off: 'dagger' })).toEqual({ main: null, off: 'dagger' })
+    expect(normalizeHands(undefined)).toEqual({ main: null, off: null })
+  })
+
+  it('survives export and import, and old files without hands load with empty hands', () => {
+    const draft = { ...base(), hands: { main: 'dagger', off: 'dagger' } }
+    expect(parseDraft(JSON.parse(JSON.stringify(draft)))).toEqual(draft)
+    const { hands: _hands, ...old } = draft
+    expect((parseDraft(old) as CharacterDraft).hands).toEqual({ main: null, off: null })
   })
 })

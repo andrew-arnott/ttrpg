@@ -485,6 +485,84 @@ describe('drawn resource tokens', () => {
   })
 })
 
+describe('weapons', () => {
+  const armed = (main: string | null, off: string | null = null, over: Partial<BattlePlayer> = {}) =>
+    duel({ hands: { main, off }, bag: ALWAYS_PASS, ...over }, { hp: 20 })
+  const near = (b: BattleState) => availableCombatActions(b, b.players[0]).find((o) => o.id === 'attack')!
+
+  it('tests the attribute of the weapon held', () => {
+    const attribute = (main: string | null) => takeAction(armed(main), attack('e'), rng()).steps[0].test!.attribute
+    expect(attribute(null)).toBe('strength')
+    expect(attribute('sword')).toBe('strength')
+    expect(attribute('dagger')).toBe('agility')
+    expect(attribute('shortbow')).toBe('perception')
+    expect(attribute('magicStaff')).toBe('intelligence')
+  })
+
+  it('uses the first weapon held, even in the off hand, and ignores a shield', () => {
+    const attribute = (b: BattleState) => takeAction(b, attack('e'), rng()).steps[0].test!.attribute
+    expect(attribute(armed('shield', 'dagger'))).toBe('agility')
+    expect(attribute(armed('shield', null))).toBe('strength')
+  })
+
+  it('does 1 extra damage with a two-handed weapon', () => {
+    const damage = (main: string) => {
+      const b = armed(main)
+      const result = takeAction(b, attack('e'), rng())
+      return 20 - result.battle.enemies[0].hp
+    }
+    expect(damage('sword')).toBe(1)
+    expect(damage('greataxe')).toBe(2)
+    expect(damage('magicStaff')).toBe(2)
+  })
+
+  it('lets a ranged weapon attack enemies it is not engaged with', () => {
+    const b = battleOf([player('p', { hands: { main: 'shortbow', off: null }, bag: ALWAYS_PASS })], [enemy('goblin', 'far', { hp: 20 })], {
+      p: 'g1',
+      far: 'g2',
+    })
+    expect(near(b).targets![0].disabledReason).toBeUndefined()
+    expect(near(b).disabledReason).toBeUndefined()
+    const { steps } = takeAction(b, attack('far'), rng())
+    expect(steps[0].test?.bonuses).toEqual([])
+    expect(steps[0].outcome).toMatch(/hits far/)
+  })
+
+  it('is at -2 against an enemy it is engaged with', () => {
+    const { steps } = takeAction(armed('shortbow'), attack('e'), rng())
+    expect(steps[0].test?.bonuses).toEqual([{ label: 'shortbow', value: -2 }])
+    expect(steps[0].test?.total).toBe(steps[0].test!.result.total + 1 - 2)
+  })
+
+  it('keeps melee weapons to engaged enemies, and describes the attack', () => {
+    const b = battleOf([player('p', { hands: { main: 'sword', off: null } })], [enemy('goblin', 'far')], { p: 'g1', far: 'g2' })
+    expect(near(b).disabledReason).toBe('No enemy you are engaged with')
+    expect(near(b).description).toMatch(/Strength test with your sword/)
+    const bow = battleOf([player('p', { hands: { main: 'shortbow', off: null } })], [enemy('goblin', 'far')], { p: 'g1', far: 'g2' })
+    expect(near(bow).description).toMatch(/Perception test with your shortbow.*2 damage.*-2/)
+  })
+
+  it('does not change spell attacks, which name their own attribute', () => {
+    const b = battleOf(
+      [player('p', { abilityIds: ['chainLightning'], hands: { main: 'greataxe', off: null }, bag: ALWAYS_PASS })],
+      [enemy('goblin', 'a', { hp: 20 })],
+      { p: 'g1', a: 'g1' },
+    )
+    const { steps, battle } = takeAction(b, { actionId: 'ability:chainLightning', targetId: 'a' }, rng())
+    expect(steps[0].test?.attribute).toBe('intelligence')
+    expect(20 - battle.enemies[0].hp).toBe(2)
+  })
+
+  it('suggests a ranged attacker shoots something it is not engaged with', () => {
+    const b = battleOf([player('p', { hands: { main: 'shortbow', off: null } })], [enemy('goblin', 'near'), enemy('goblin', 'far')], {
+      p: 'g1',
+      near: 'g1',
+      far: 'g2',
+    })
+    expect(suggestedAction(b, b.players[0])).toEqual({ actionId: 'attack', targetId: 'far' })
+  })
+})
+
 describe('the light', () => {
   const lit = (value: number, label: string) => ({ ...duel({}, { hp: 99 }), light: { label, value } })
 

@@ -10,7 +10,7 @@ const select = (name) => page.getByLabel(`Action for ${name}`)
 const usePrayer = page.getByRole('button', { name: 'Use Prayer' })
 
 let asked = false
-for (let dungeon = 0; dungeon < 8 && !asked; dungeon++) {
+for (let dungeon = 0; dungeon < 16 && !asked; dungeon++) {
   if (dungeon > 0) {
     await page.getByRole('button', { name: 'Leave dungeon' }).click()
     await enterDungeon(page)
@@ -21,14 +21,24 @@ for (let dungeon = 0; dungeon < 8 && !asked; dungeon++) {
     for (const name of ['Wren Quickfingers', 'Sister Maren', 'Ilvara Dawnleaf']) await select(name).selectOption('watch')
     await page.getByRole('button', { name: 'Resolve Interval' }).click()
 
-    const first = await Promise.race([
-      usePrayer.waitFor({ timeout: 30000 }).then(() => 'prompt', () => 'none'),
-      page.waitForSelector('.resolution', { timeout: 30000 }).then(() => 'overlay', () => 'none'),
-    ])
-    if (first === 'overlay') {
-      await skipOverlay(page)
+    for (let guard = 0; guard < 6 && !asked; guard++) {
+      const returnIt = page.getByRole('button', { name: 'Return it' })
+      const first = await Promise.race([
+        usePrayer.waitFor({ timeout: 30000 }).then(() => 'prompt', () => 'none'),
+        returnIt.waitFor({ timeout: 30000 }).then(() => 'return', () => 'none'),
+        page.waitForSelector('.resolution', { timeout: 30000 }).then(() => 'overlay', () => 'none'),
+      ])
+      if (first === 'return') await returnIt.click()
+      else if (first === 'overlay') {
+        await skipOverlay(page)
+        asked = (await usePrayer.count()) > 0
+        break
+      } else {
+        asked = first === 'prompt'
+        break
+      }
       asked = (await usePrayer.count()) > 0
-    } else asked = true
+    }
   }
 }
 

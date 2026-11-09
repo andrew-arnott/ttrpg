@@ -26,6 +26,7 @@ const SAMPLE_RECIPES = [
     speciesId: 'dwarf',
     backgroundId: 'soldier',
     equipment: { torch: 1, bandage: 1, healingPotion: 1 },
+    hands: { main: 'sword', off: 'shield' },
     combatIds: ['provoke', 'disable', 'intercept'],
     explorationIds: ['fortify'],
   },
@@ -35,6 +36,7 @@ const SAMPLE_RECIPES = [
     speciesId: 'halfling',
     backgroundId: 'urchin',
     equipment: { torch: 1, antivenom: 1, healingPotion: 1 },
+    hands: { main: 'dagger', off: null },
     combatIds: ['backstab', 'flanking'],
     explorationIds: ['scoutAhead', 'findAShortcut'],
   },
@@ -44,6 +46,7 @@ const SAMPLE_RECIPES = [
     speciesId: 'human',
     backgroundId: 'scholar',
     equipment: { torch: 1, bandage: 1, healingPotion: 1 },
+    hands: { main: 'mace', off: null },
     combatIds: ['heal', 'prayer'],
     explorationIds: ['holyLight', 'groupHeal'],
   },
@@ -53,6 +56,7 @@ const SAMPLE_RECIPES = [
     speciesId: 'elf',
     backgroundId: 'scholar',
     equipment: { healingPotion: 1, antivenom: 1, bandage: 1 },
+    hands: { main: 'magicStaff', off: null },
     combatIds: ['magicMissile', 'fireball'],
     explorationIds: ['detectMagic', 'dispelMagic'],
   },
@@ -82,6 +86,7 @@ function sampleDraft(recipe: (typeof SAMPLE_RECIPES)[number]): CharacterDraft {
     tokenChoices,
     abilityIds: [...recipe.combatIds, ...recipe.explorationIds],
     equipment: recipe.equipment,
+    hands: recipe.hands,
   }
 }
 

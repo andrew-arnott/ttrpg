@@ -115,6 +115,14 @@ describe('roster', () => {
     }
   })
 
+  it('puts a weapon in every sample character’s hands, and a shield with the warrior', () => {
+    const hands = Object.fromEntries(sampleRoster().map((s) => [s.label, buildCharacter(s.draft).held.map((i) => i.id)]))
+    expect(hands['Brann Ironhold']).toEqual(['sword', 'shield'])
+    expect(hands['Wren Quickfingers']).toEqual(['dagger'])
+    expect(hands['Sister Maren']).toEqual(['mace'])
+    expect(hands['Ilvara Dawnleaf']).toEqual(['magicStaff'])
+  })
+
   it('gives the sample party three torches between them', () => {
     const torches = sampleRoster().map((s) => buildCharacter(s.draft).inventory.find((e) => e.item.id === 'torch')?.count ?? 0)
     expect(torches.reduce((a, b) => a + b, 0)).toBe(3)

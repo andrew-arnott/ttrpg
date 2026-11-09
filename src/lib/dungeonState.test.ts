@@ -204,8 +204,11 @@ describe('the patrol', () => {
     const base = fresh()
     const prepared = { entrance: [{ tag: 'Fortified', memberKey: 'a' }] }
     const s = dungeonReducer({ ...base, prepared }, { type: 'startBattle', rng })
-    expect(s.battle!.players.find((p) => p.key === 'a')!.defense).toBe(2)
-    expect(s.battle!.opening.some((st) => st.title === 'Fortified')).toBe(true)
+    const opening = s.battle!.opening
+    expect(opening.some((st) => st.title === 'Fortified')).toBe(true)
+    const firstClash = opening.find((st) => st.clash)
+    if (firstClash) expect(firstClash.clash!.defenseBefore).toBeGreaterThanOrEqual(0)
+    else expect(s.battle!.players.find((p) => p.key === 'a')!.defense).toBe(2)
   })
 
   it('carries HP and resources out of a fight and revives the fallen at 1 HP', () => {

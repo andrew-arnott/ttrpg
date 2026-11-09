@@ -1169,3 +1169,6 @@ table.tokens-table td.num { text-align: right; }
 
 .drawn.still { animation: none; }
 .bag-felt { max-height: 46vh; overflow: visible; justify-content: flex-start; }
+
+.hands { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 8px; }
+.hands .prompt-target { margin-top: 0; min-width: 220px; }

@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { TOKENS } from '../data/tokens'
+import { HAND_ITEMS_BY_ID } from '../data/weapons'
 import { SPECIAL_KEYS, SPECIAL_LABELS } from '../data/types'
 import { buildCharacter, type BuiltCharacter, type CharacterDraft } from '../lib/buildCharacter'
 import type { SavedCharacter } from '../lib/savedCharacters'
 import { groupOf, GROUP_META } from '../lib/tokenGroups'
 import { Portrait } from './Portrait'
+
+const handName = (id: string | null) => (id ? (HAND_ITEMS_BY_ID[id]?.name ?? 'empty') : 'empty')
 
 const fmtMod = (m: number | null) => (m === null ? '—' : m > 0 ? `+${m}` : `${m}`)
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`
@@ -123,6 +126,11 @@ function SheetPaper({ built }: { built: BuiltCharacter }) {
               </tbody>
             </table>
           )}
+
+          <h3 className="sheet-gap">Hands</h3>
+          <p className="sheet-note">
+            Main hand: {handName(built.hands.main)}. Off hand: {handName(built.hands.off)}.
+          </p>
 
           <h3 className="sheet-gap">Equipment</h3>
           {built.inventory.length === 0 ? (

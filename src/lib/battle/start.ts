@@ -67,6 +67,7 @@ export function startBattle(
       resources: { ...m.resources },
       abilityIds: m.abilityIds,
       shieldsInPlay: m.shieldsInPlay,
+      hands: m.hands,
       defense: 0,
       colorIndex: i,
     })),

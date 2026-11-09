@@ -1,3 +1,4 @@
+import { heldItems, HAND_ITEMS_BY_ID, normalizeHands, NO_HANDS, type HandItem, type Hands } from '../data/weapons'
 import { BACKGROUNDS } from '../data/backgrounds'
 import { ITEMS_BY_ID, STARTING_COINS, type Item } from '../data/items'
 import { PROFESSIONS } from '../data/professions'
@@ -29,6 +30,8 @@ export interface CharacterDraft {
   abilityIds: string[]
   /** Item id -> quantity bought with starting coins. */
   equipment: Record<string, number>
+  /** What is held in each hand. Free starting gear, not bought with coins. */
+  hands: Hands
 }
 
 export function emptyDraft(): CharacterDraft {
@@ -41,6 +44,7 @@ export function emptyDraft(): CharacterDraft {
     tokenChoices: {},
     abilityIds: [],
     equipment: {},
+    hands: NO_HANDS,
   }
 }
 
@@ -179,6 +183,10 @@ export interface BuiltCharacter {
   stats: BagStats
   chosenAbilities: Ability[]
   inventory: InventoryEntry[]
+  /** What is held in each hand. */
+  hands: Hands
+  /** The items held, main hand first. */
+  held: HandItem[]
   coinsSpent: number
   coinsLeft: number
   complete: boolean
@@ -215,6 +223,10 @@ export function buildCharacter(draft: CharacterDraft): BuiltCharacter {
   // Standard bag, then species modifications. Profession resources start in play.
   let bag = STANDARD_BAG.map((s) => ({ ...s }))
   if (species) bag = applyBagMods(bag, species.bagMods)
+  const hands = normalizeHands(draft.hands)
+  const held = heldItems(hands)
+  const shieldTokens = held.reduce((n, item) => n + (item.shieldTokens ?? 0), 0)
+  if (shieldTokens > 0) bag = applyBagMods(bag, [{ kind: 'add', tokenId: 'shield', count: shieldTokens }])
 
   const inPlayMap = new Map<string, number>()
   if (profession) {
@@ -250,6 +262,8 @@ export function buildCharacter(draft: CharacterDraft): BuiltCharacter {
     stats: bagStats(bag),
     chosenAbilities,
     inventory,
+    hands,
+    held,
     coinsSpent,
     coinsLeft: STARTING_COINS - coinsSpent,
     complete: issues.length === 0,
@@ -301,6 +315,12 @@ export function validate(draft: CharacterDraft, profession: Profession | null): 
         `Choose ${profession.abilityPicks} abilities (${draft.abilityIds.length} of ${profession.abilityPicks} chosen).`,
       )
     }
+  }
+
+  const main = draft.hands?.main ? HAND_ITEMS_BY_ID[draft.hands.main] : undefined
+  const off = draft.hands?.off ? HAND_ITEMS_BY_ID[draft.hands.off] : undefined
+  if ((main?.hands === 2 && draft.hands.off) || (off?.hands === 2 && draft.hands.main)) {
+    add('equipment', 'A two-handed item needs both hands free.')
   }
 
   const spent = ownedItems(draft).reduce((a, e) => a + e.item.cost * e.count, 0)

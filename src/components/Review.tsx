@@ -98,6 +98,19 @@ export function Review({
         </>
       )}
 
+      <h3 className="section-title">Hands</h3>
+      {built.held.length === 0 ? (
+        <p className="hint">Empty hands: attacks test Strength.</p>
+      ) : (
+        <div className="tokens" style={{ marginTop: 0 }}>
+          {built.held.map((item, i) => (
+            <span className="chip" key={`${item.id}-${i}`} title={item.description}>
+              {item.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       <h3 className="section-title">Equipment</h3>
       {built.inventory.length === 0 ? (
         <p className="hint">Nothing bought.</p>

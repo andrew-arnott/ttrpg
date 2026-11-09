@@ -11,6 +11,7 @@ import {
   type SpecialKey,
 } from '../data/types'
 import { ITEMS, STARTING_COINS } from '../data/items'
+import { HAND_ITEMS, HAND_ITEMS_BY_ID, type Hands } from '../data/weapons'
 import {
   allAbilities,
   suggestedSpecialAssignment,
@@ -373,6 +374,13 @@ export function StepProfessionDetail({ draft, built, update }: StepProps) {
 
 // --- Step 6: Equipment -------------------------------------------------
 
+/** Puts an item in a hand. A two-handed item goes in the main hand and empties the other. */
+function setHand(hands: Hands, slot: 'main' | 'off', id: string | null): Hands {
+  if (id && HAND_ITEMS_BY_ID[id]?.hands === 2) return { main: id, off: null }
+  if (slot === 'off' && hands.main && HAND_ITEMS_BY_ID[hands.main]?.hands === 2) return { main: null, off: id }
+  return { ...hands, [slot]: id }
+}
+
 export function StepEquipment({ draft, built, update }: StepProps) {
   const setCount = (itemId: string, delta: number) => {
     const current = draft.equipment[itemId] ?? 0
@@ -387,9 +395,47 @@ export function StepEquipment({ draft, built, update }: StepProps) {
       <CardHead
         step="Step 6"
         title="Buy equipment"
-        hint="Spend your starting coins on basic supplies. Weapons and armor are not available yet. Unspent coins are kept."
+        hint="Choose what to hold, then spend your starting coins on basic supplies. Armor is not available yet. Unspent coins are kept."
       />
 
+      <h3 className="section-title">Hands</h3>
+      <p className="hint">
+        Two hand slots, free to fill. Your weapon decides what an attack tests. A two-handed weapon takes both hands
+        and does 1 extra damage. A ranged weapon can attack enemies you are not engaged with, but is at -2 against
+        ones you are. A shield adds 2 Shield tokens to your bag.
+      </p>
+      <div className="hands">
+        {(['main', 'off'] as const).map((slot) => {
+          const blocked = slot === 'off' && Boolean(draft.hands.main && HAND_ITEMS_BY_ID[draft.hands.main]?.hands === 2)
+          return (
+            <label className="prompt-target" key={slot}>
+              <span className="step-index">{slot === 'main' ? 'Main hand' : 'Off hand'}</span>
+              <select
+                value={blocked ? '' : (draft.hands[slot] ?? '')}
+                disabled={blocked}
+                onChange={(e) => update({ hands: setHand(draft.hands, slot, e.target.value || null) })}
+              >
+                <option value="">{blocked ? 'Held by a two-handed weapon' : 'Empty'}</option>
+                {HAND_ITEMS.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                    {item.hands === 2 ? ' (two-handed)' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )
+        })}
+      </div>
+      <ul className="notes">
+        {built.held.map((item) => (
+          <li key={item.id}>
+            <b>{item.name}.</b> {item.description}
+          </li>
+        ))}
+      </ul>
+
+      <h3 className="section-title">Supplies</h3>
       <div className="coin-purse" aria-live="polite">
         <span className="coin" aria-hidden="true" />
         <span>

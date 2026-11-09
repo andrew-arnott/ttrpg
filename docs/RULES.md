@@ -42,7 +42,7 @@ Two other sources feed the code:
 | Final room | Sealed by a lock that only opens through actions in other rooms; guarded by a boss |
 | Lighting a torch | Free, at the start of an Interval. The tutorial warns when the torch goes Dim and says to right-click a torch in a pack |
 | Keep watch | The basic Interval action adds +2 to the surprise check, the same as Stand Watch. (The guide words it as "treat the light as one level brighter"; see the table below.) |
-| Attack | A test of the held weapon's attribute. Weapons are not modelled yet, so Strength is used for every attack |
+| Hands and weapons | Owner ruling: each character has two hand slots. A weapon sets the attribute an ordinary attack tests (sword and mace Strength, dagger Agility, shortbow Perception, magic staff Intelligence, bare hands Strength). A two-handed weapon takes both hands and does +1 damage. A ranged weapon can attack enemies you are not engaged with and is -2 against ones you are. A shield adds 2 Shield (+2) tokens to the bag. The first weapon held (main hand first) is used; a second weapon is a spare. Hand items are free starting gear, not bought with coins. Spell attacks keep their own attribute and ignore weapon damage | `src/data/weapons.ts`, `attackEnemy` |
 | After a fight | Characters who were down wake with 1 HP |
 | Tutorial framing | Intro and outro explain that real play is more flexible than this guided dungeon |
 

@@ -1,3 +1,4 @@
+import { normalizeHands, type Hands } from '../data/weapons'
 import { emptyDraft, type CharacterDraft } from './buildCharacter'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -41,5 +42,6 @@ export function parseDraft(raw: unknown): CharacterDraft | string {
       ? draft.abilityIds.filter((a): a is string => typeof a === 'string')
       : [],
     equipment: numberMap(draft.equipment),
+    hands: normalizeHands(isRecord(draft.hands) ? (draft.hands as Partial<Hands>) : undefined),
   }
 }

@@ -4,6 +4,7 @@ import { drawTest, drewComplication, type TestResult } from '../drawTest'
 import { performSkillTest, type SkillTestOutcome, type TestBonus } from '../skillTest'
 import { recoverToken } from '../tokenFlow'
 import { engageBreakdown, engageDifficulty } from './engagement'
+import { attackProfile, RANGED_CLOSE_PENALTY, TWO_HANDED_DAMAGE } from '../../data/weapons'
 import { settleTest, takeDamage } from '../characterTest'
 import { drawRulesFor } from './conditionRules'
 import { gainCondition } from './conditions'
@@ -30,7 +31,7 @@ import {
   updateResult,
   type Engine,
 } from './state'
-import { ATTACK_ATTRIBUTE, DEFEND_ATTRIBUTE, ENGAGE_ATTRIBUTE, HEAL_AMOUNT, NEW_GROUP } from './types'
+import { DEFEND_ATTRIBUTE, ENGAGE_ATTRIBUTE, HEAL_AMOUNT, NEW_GROUP } from './types'
 import type { BattleEnemy, BattlePlayer, BattleState } from './types'
 
 /** What a finished test does to the tokens, and the notes about it for the step that follows. */
@@ -229,9 +230,16 @@ export interface AttackOptions {
 
 export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, options: AttackOptions = {}): boolean {
   const { b } = engine
-  const attribute = options.attribute ?? ATTACK_ATTRIBUTE
+  const weaponAttack = options.attribute === undefined
+  const weapon = attackProfile(p.hands)
+  const attribute = options.attribute ?? weapon.attribute
   const defense = enemyDefense(e)
-  const test = playerTest(engine, p, attribute, defense, options.power ? [{ label: 'Power', value: options.power }] : [])
+  const closeRange = groupOf(b, e.id) === groupOf(b, p.key)
+  const modifiers: TestBonus[] = [
+    ...(options.power ? [{ label: 'Power', value: options.power }] : []),
+    ...(weaponAttack && weapon.ranged && closeRange ? [{ label: weapon.name, value: RANGED_CLOSE_PENALTY }] : []),
+  ]
+  const test = playerTest(engine, p, attribute, defense, modifiers)
   const title = options.title ?? 'Attack'
   const intro = options.intro ?? `${p.name} attacks ${e.name}.`
   const might = test.result.drawn.filter((d) => d.tokenId === 'might').length
@@ -250,7 +258,8 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
     return false
   }
 
-  const damage = (options.damage ?? 1) + might + (options.bonusDamage ?? 0)
+  const handed = weaponAttack && weapon.twoHanded ? TWO_HANDED_DAMAGE : 0
+  const damage = (options.damage ?? 1) + handed + might + (options.bonusDamage ?? 0)
   const extra = options.onHit?.(e) ?? ''
   const groupId = groupOf(b, e.id)
   const defeated = damageEnemy(b, e, damage)

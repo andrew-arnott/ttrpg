@@ -1,3 +1,4 @@
+import { normalizeHands } from '../data/weapons'
 import { buildCharacter, type CharacterDraft } from './buildCharacter'
 import type { PartyMember } from './dungeonState'
 
@@ -19,6 +20,7 @@ export function createPartyMember(key: string, draft: CharacterDraft): PartyMemb
     resources,
     restResourceId,
     shieldsInPlay: 0,
+    hands: normalizeHands(draft.hands),
     abilityIds: built.chosenAbilities.map((a) => a.id),
   }
 }

@@ -3,6 +3,7 @@ import { SUNKEN_CRYPT, trapFlag } from '../data/dungeon'
 import { ITEMS, ITEMS_BY_ID } from '../data/items'
 import { TUTORIAL_GOAL, TUTORIAL_INTRO, TUTORIAL_OUTRO } from '../data/tutorial'
 import { TOKENS } from '../data/tokens'
+import { heldItems, type Hands } from '../data/weapons'
 import { buildCharacter } from '../lib/buildCharacter'
 import {
   adjacentRoomIds,
@@ -140,6 +141,11 @@ function PartySetup({ roster, onStart }: { roster: RosterEntry[]; onStart: (chos
   )
 }
 
+const heldNames = (hands: Hands) => {
+  const names = heldItems(hands).map((i) => i.name)
+  return names.length > 0 ? names.join(' and ') : 'nothing'
+}
+
 function PartyPanel({
   state,
   onLightTorch,
@@ -189,6 +195,9 @@ function PartyPanel({
                   Bag
                 </button>
               </div>
+              <p className="hint" style={{ marginTop: 4 }}>
+                Holding: {heldNames(member.hands)}
+              </p>
               {owned.length === 0 ? (
                 <p className="hint">Empty pack.</p>
               ) : (

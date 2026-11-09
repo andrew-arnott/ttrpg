@@ -1,3 +1,4 @@
+import type { Hands } from '../../data/weapons'
 import type { SpecialKey, SpecialSpread, TokenStack } from '../../data/types'
 import type { TestBonus } from '../skillTest'
 import type { SealedCondition } from '../conditionRules'
@@ -7,7 +8,6 @@ import type { ResolutionStep } from '../resolution'
 export type { ReactionAnswer, ReactionRequest, SealedCondition, TargetChoice }
 
 export const ACTIONS_PER_TURN = 2
-export const ATTACK_ATTRIBUTE: SpecialKey = 'strength'
 export const DEFEND_ATTRIBUTE: SpecialKey = 'agility'
 export const ENGAGE_ATTRIBUTE: SpecialKey = 'agility'
 export const ENGAGE_BASE_DIFFICULTY = 4
@@ -30,6 +30,8 @@ export interface BattlePlayer {
   bag: TokenStack[]
   resources: Record<string, number>
   abilityIds: string[]
+  /** What is held in each hand; the weapon decides what an ordinary attack tests. */
+  hands?: Hands
   /** Shield tokens drawn and waiting to absorb the next damage taken. */
   shieldsInPlay: number
   /** Defense score for this round. Resets at the end of the round. */

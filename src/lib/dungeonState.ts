@@ -1,3 +1,4 @@
+import { type Hands } from '../data/weapons'
 import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
 import { linkKey, type Dungeon, type DungeonLink, type DungeonRoom, type Lock } from '../data/dungeon'
 import type { SpecialSpread, TokenStack } from '../data/types'
@@ -25,6 +26,8 @@ export interface PartyMember {
   abilityIds: string[]
   /** Shield tokens drawn and waiting to absorb the next damage taken. */
   shieldsInPlay: number
+  /** What is held in each hand. */
+  hands: Hands
   /** Conditions sealed on the character until the end of the Interval or fight. */
   sealedConditions?: SealedCondition[]
 }

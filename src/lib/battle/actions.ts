@@ -1,3 +1,5 @@
+import { attackProfile, RANGED_CLOSE_PENALTY } from '../../data/weapons'
+import { SPECIAL_LABELS } from '../../data/types'
 import { ABILITY_HANDLERS, unsupportedAbility } from './abilities'
 import { canAttack, canUseFastOrTriggered } from './conditionRules'
 import { attackEnemy, changeEngagement, defend } from './effects'
@@ -52,6 +54,17 @@ function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
     })
 }
 
+const withArticle = (word: string) => `${/^[AEIOU]/i.test(word) ? 'an' : 'a'} ${word}`
+
+function attackDescription(p: BattlePlayer): string {
+  const weapon = attackProfile(p.hands)
+  const damage = weapon.twoHanded ? '2 damage' : '1 damage'
+  const reach = weapon.ranged
+    ? `You can attack any enemy, but it is ${RANGED_CLOSE_PENALTY} against one you are engaged with.`
+    : 'You can only attack an enemy you are engaged with.'
+  return `Make ${withArticle(SPECIAL_LABELS[weapon.attribute])} test with your ${weapon.name} against an enemy's Defense. A hit deals ${damage}. ${reach}`
+}
+
 /** An option with targets cannot be used when none of them can be picked. */
 const withTargetGate = (o: CombatOption): CombatOption => ({
   ...o,
@@ -63,14 +76,15 @@ export function availableCombatActions(b: BattleState, p: BattlePlayer): CombatO
 }
 
 function listCombatActions(b: BattleState, p: BattlePlayer): CombatOption[] {
+  const weapon = attackProfile(p.hands)
   const groups = groupTargets(b, p, false)
   return [
     {
       id: 'attack',
       slot: 'action',
       label: 'Attack',
-      description: `Make a Strength test against an enemy you are engaged with, using its Defense. A hit deals 1 damage.`,
-      targets: enemyTargets(livingEnemies(b), onlyEngaged(b, p)),
+      description: attackDescription(p),
+      targets: enemyTargets(livingEnemies(b), weapon.ranged ? undefined : onlyEngaged(b, p)),
       boost: boostOption(p, 'power'),
       disabledReason: !canAttack(p) ? FEAR_REASON : livingEnemies(b).length === 0 ? 'No enemy to target' : undefined,
     },
@@ -150,8 +164,12 @@ export function performAction(engine: Engine, p: BattlePlayer, planned: PlannedC
   releaseCommitment(p, boostCommit)
 }
 
-/** What to pre-select for a player: attack an engaged enemy if they can, otherwise defend. */
+/** What to pre-select for a player: attack if they can, otherwise defend. A ranged weapon prefers an enemy it is not at close quarters with. */
 export function suggestedAction(b: BattleState, p: BattlePlayer): PlannedCombat {
-  const target = engagedEnemies(b, p)[0]
-  return target && canAttack(p) ? { actionId: 'attack', targetId: target.id } : { actionId: 'defend' }
+  if (!canAttack(p)) return { actionId: 'defend' }
+  const engaged = engagedEnemies(b, p)
+  const target = attackProfile(p.hands).ranged
+    ? (livingEnemies(b).find((e) => !engaged.includes(e)) ?? engaged[0])
+    : engaged[0]
+  return target ? { actionId: 'attack', targetId: target.id } : { actionId: 'defend' }
 }
