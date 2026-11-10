@@ -1205,9 +1205,9 @@ table.tokens-table td.num { text-align: right; }
 .rules-toc-list a { display: block; padding: 6px 8px; color: var(--text-secondary); text-decoration: none; border-left: 3px solid transparent; }
 .rules-toc-list a:hover { color: var(--accent); }
 .rules-toc-list a.current { color: var(--accent); border-left-color: var(--accent); background: var(--surface-inset); }
-.rules-content h3 { font-size: 16px; margin: 22px 0 8px; }
-.rules-content h4 { font-size: 13px; margin: 18px 0 6px; color: var(--accent); }
-.rules-content h5, .rules-content h6 { font-size: 11px; margin: 14px 0 4px; color: var(--text-secondary); }
+.rules-content h3 { font-size: 22px; margin: 22px 0 8px; }
+.rules-content h4 { font-size: 18px; margin: 18px 0 6px; color: var(--accent); }
+.rules-content h5, .rules-content h6 { font-family: var(--font-pixel); font-weight: 400; line-height: 1.5; font-size: 15px; margin: 16px 0 4px; color: var(--text); }
 .rules-content p, .rules-content li { font-size: 22px; line-height: 1.35; }
 .rules-content p { margin: 0 0 10px; }
 .rules-content ul, .rules-content ol { margin: 0 0 12px; padding-left: 26px; }
