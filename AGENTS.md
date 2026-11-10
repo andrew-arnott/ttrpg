@@ -1,12 +1,12 @@
 # Agent guide
 
 A character creator and rules tutorial for a fantasy tabletop RPG. Static React + TypeScript + Vite site, deployed to
-GitHub Pages at https://andrew-arnott.github.io/ttrpg/. The rules come from the Player's Guide (a Google Doc the
-owner holds; agents usually cannot open it from a sandbox, so ask for text rather than guessing). Where a rule had to
-be invented, it is listed in `docs/RULES.md`.
+GitHub Pages at https://andrew-arnott.github.io/ttrpg/. The rules are `docs/RULES.md`: the owner's text, which the
+Rules tab renders and the app follows. The app is canonical. Where something had to be invented, it is listed in
+`docs/IMPLEMENTATION.md`.
 
-Read next: `docs/PLAYERS_GUIDE.md` (the rules text itself), `docs/ARCHITECTURE.md` (how the code fits together), `docs/RULES.md` (rules and assumptions),
-`docs/HANDOFF.md` (current status and backlog).
+Read next: `docs/RULES.md` (the rules), `docs/IMPLEMENTATION.md` (where each rule lives, and the guesses),
+`docs/ARCHITECTURE.md` (how the code fits together), `docs/HANDOFF.md` (current status and backlog).
 
 ## Commands
 
@@ -16,6 +16,7 @@ npm run dev            # http://localhost:5173
 npm test               # vitest, run once
 npm run lint           # oxlint
 npm run build          # tsc -b && vite build
+npm run rules:sync     # regenerate the Reference section of docs/RULES.md from src/data
 npm run preview:e2e    # serve the built app on :4817 at /ttrpg/ for the browser checks
 ```
 
@@ -59,8 +60,10 @@ screen looks right.
   `ALWAYS_FAIL`, `bagOf`, `playRound`) so outcomes are certain instead of lucky.
 - **Rules content is data.** Species, professions, items, enemies, rooms, locks and tutorial text are in `src/data`.
   Prefer changing data over adding conditionals.
-- **Document invented rules.** If you have to make a rule up, add it to the assumptions table in `docs/RULES.md` and
-  say so in your summary. Never present an invented rule as the guide's.
+- **Keep the rules in step with the code.** A change to a rule goes into `docs/RULES.md` in the same commit. After
+  changing items, weapons, torches or enemies, run `npm run rules:sync`; a test fails if the Reference section is stale
+  or an ability is missing from the rules. If you have to make something up, add it to the guesses table in
+  `docs/IMPLEMENTATION.md` and say so in your summary. Never present a guess as the owner's ruling.
 - **Comments** explain non-obvious intent or constraints only. Do not narrate what code does, mention tasks or
   plans, or label your own edits. Change rationale belongs in commit messages.
 - **Player-facing text** has no emoji. The pixel fonts lack those glyphs; use CSS shapes or text.
@@ -82,7 +85,8 @@ screen looks right.
 - **A Critical Success always passes a skill test and a Critical Failure always fails**, even against a Difficulty
   that arithmetic says is impossible. A Critical Failure also counts as drawing a Complication.
 - **Local `main` can be stale.** Fetch `origin/main` before branching or pushing, and check the command succeeded.
-- **The Google Doc cannot be fetched from a sandbox.** `docs/PLAYERS_GUIDE.md` is a copy pasted by the owner; for anything it does not cover, ask.
+- **Ask when the rules are silent.** `docs/RULES.md` is the source; the original Google Doc cannot be fetched from a
+  sandbox and is no longer needed.
 
 ## Git and deploys
 

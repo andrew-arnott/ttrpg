@@ -5,22 +5,21 @@ detail it points to.
 
 ## Where things stand
 
-The app is feature-complete for a first full tutorial. It is deployed from `main`.
+The app is feature-complete for a first full tutorial and is deployed from `main`.
 
 | Area | State |
 | --- | --- |
-| Character creator | Seven-step wizard (Profession, Species, Background, SPECIAL, Abilities, Equipment, Review), live summary, JSON import and export |
+| Character creator | Seven-step wizard (Profession, Species, Background, SPECIAL, Abilities, Equipment, Review) with portraits (three per profession or an upload), starting weapons and shields, live summary, JSON import and export |
 | Saved characters | Saved to `localStorage`, listed, loaded, updated, deleted |
-| Character sheet | Printable parchment-style sheet with a print stylesheet |
-| Art | 39 generated pixel-art portraits and icons (professions, species, backgrounds, items, enemies) |
+| Character sheet | Printable parchment-style sheet with the character portrait |
+| Rules | A Rules tab renders `docs/RULES.md` with contents and search. The tutorial links to sections in popups |
 | Token bag simulator | Animated draws using the real rule, plus a "run 5,000 tests" check against the exact odds |
-| Dungeon (exploration) | Interval planner: each character chooses an action, resolved in order with animation; torch burns; light reach by torch level; hidden passage; locked door; Founders' Seal; room secrets and interactions; room complication consequences; healing items |
-| Combat | Triggered abilities (Cleave, Opportunist, Intercept, Prayer, Flanking, Shield Wall, Divine Intervention) ask the player mid-action, in battle and in the dungeon; Armor, Power and Expertise can be spent; engage Difficulty scales with the groups; conditions from enemy attacks are sealed on failed tests; Treat Conditions is an Interval action. Step-by-step turns ("Brann's action 1: what should they do?"), engagement groups, Defense scores, animated enemy attacks, enemy stat cards, surprise check, boss fight |
-| Rules | A Rules tab shows the whole Player's Guide with contents and search, plus a page of where this app plays it differently. The tutorial links to sections in popups |
-| Tutorial framing | Intro on the setup screen, goal checklist, Congratulations and "real game is more flexible" outro |
+| Dungeon (exploration) | Interval planner; torch burns and is a modifier on every test; Investigate finds secrets and traps; locked doors; Founders' Seal; room interactions and complications; hidden passage; optional Ossuary with a Bone Colossus; patrol clock |
+| Combat | Step-by-step turns, engagement groups, Defense scores, surprise, Triggered abilities that pause to ask the player, conditions, hands and weapons, a boss fight. Warrior, Rogue, Priest and Wizard abilities are implemented |
+| Tutorial framing | Intro on the setup screen, goal checklist, outro explaining the real game is more flexible |
 
-Tests: 311 passing (`npm test`). Lint clean. CI (`deploy.yml`) runs `npm test` and `npm run build` (which runs `tsc -b`)
-but does not run `npm run lint`.
+Tests: run `npm test` (about 450). Lint clean. CI (`deploy.yml`) runs `npm test` and `npm run build` (which runs
+`tsc -b`) but not `npm run lint`.
 
 ## How it was built (so you can read the history)
 
@@ -33,8 +32,7 @@ art, bag simulator, dungeon), Interval planning, sample battle, battle wizard an
 This work was done by a Cursor cloud agent. To run in the same environment:
 
 - Linux, Node 22 (`v22.23.4`), npm 10, Git. Google Chrome 156 at `/usr/local/bin/google-chrome` for the browser checks.
-- Network is restricted: GitHub and the npm registry work; Google Docs does not. The Player's Guide cannot be opened from
-  the sandbox.
+- Network is restricted: GitHub and the npm registry work; Google Docs does not.
 - A secret named `GH_TOKEN` is available as an environment variable and is what pushes to GitHub use. Never print it.
   See `.cursor/skills/push-to-github/SKILL.md`.
 - The agent had an image generation tool (used for all the art) and Playwright via `scripts/`. If you have no image
@@ -55,32 +53,30 @@ npm run build && npm run preview:e2e &
 ## Owner and working style
 
 - Direct, collaborative, happy for agents to make reasonable calls, and wants assumptions flagged clearly. Say what you
-  invented. `docs/RULES.md` is where assumptions live.
+  invented. `docs/IMPLEMENTATION.md` is where guesses live.
+- The app is canonical. `docs/RULES.md` is the rules text, the site renders it, and the owner's rulings go straight into
+  it. Section 15 is generated: run `npm run rules:sync` after changing `src/data`.
 - Has allowed pushing straight to `main` for this toy project. Otherwise: draft PRs, and post the link on updates.
-- Asked for a note on any refactoring opportunity spotted but not taken, so they can choose.
+- Asks for a note on any refactoring opportunity spotted but not taken, so they can choose.
 - Wants things verified in the real UI, with screenshots checked, not only unit tests.
-- Rules come from the Player's Guide; for anything uncertain, ask for the text.
+- Abilities cost class resources (Resolve, Cunning, Faith, Mana) or a consumable; there are no "once per combat" limits.
 
 ## Open questions for the owner
 
-Answered on 8 Nov 2026 (now owner rulings in `docs/RULES.md`): bright light makes surprise harder; Keep watch gives +2;
-lighting a torch is free; attacks use Strength until weapons exist; fallen characters wake with 1 HP.
-
-Still open:
-
-1. Engage and disengage: how should Difficulty scale with enemies engaged and allies engaged? (Needs workshopping.)
-2. Skill-test rule: token total + attribute at least the Difficulty. Difficulties per room are guesses.
-3. Should healing items follow the guide (Health Potion 1 HP, Bandage treats Wounds)? That makes the tutorial harder.
+1. Class design target: every class starts with a core passive (Rogue: Flanking), 4 combat abilities and 2 utility
+   abilities. Character creation still picks 4 abilities from one pool, and only the Rogue has a passive.
+2. Warrior passive: Combat Challenge, Stand Firm or Armored Instinct (all unbuilt).
+3. Should healing items follow the guide (Health Potion 1 HP, Bandage treats Wounds only)? That makes the tutorial harder.
+4. Engage Difficulty scaling is agreed as a starting point and still being workshopped.
 
 ## Backlog, roughly in order of value
 
-1. **Surprise** follow-ups: a 1-action surprise round (unspotted enemies currently take their whole turn), and enemies that are hidden by more than a number.
-2. **Inventory** with 6 slots, stack sizes, and the Body and Accessory slots (hands and weapons are done). Weapon and shield art, more portraits (three per profession today), damage types, and a way to swap hands mid-delve.
-3. **Healing items**: decide whether to follow the guide (Health Potion 1 HP, Bandage treats Wounds only).
-4. **Smaller gaps**: Scry beyond a neighbouring room, species traits that are not bag
-   changes (Catfolk Foresight, Jann Exchange, Verdant Accumulated Knowledge), art for the new treatment items.
-5. **More content**: a second dungeon, more enemies (use the `add-game-content` skill), Ranger and Berserker once the
-   guide defines them.
+1. **Class design**: separate combat and utility picks, add passives, widen the Rogue, Priest and Wizard pools (ideas for
+   each are in the conversation history: shoves, stances, riders, Turn Undead, Ice Shackles, Counterspell).
+2. **Surprise round**: a 1-action surprise round (unspotted enemies currently take their whole turn), and enemies hidden by more than a number.
+3. **Inventory** with 6 slots, stack sizes, Armor, and the Body and Accessory slots. Weapon and shield art, more portraits, damage types, and swapping hands mid-delve.
+4. **Smaller gaps**: Scry beyond a neighbouring room, species traits that are not bag changes, items in combat, art for the treatment items.
+5. **More content**: a second dungeon, more enemies (use the `add-game-content` skill), Ranger and Berserker once defined.
 6. **Smarter enemies**: engagement behaviour beyond random; let players choose the order enemies resolve in.
 7. **Quality**:
    - Add `npm run lint` to the deploy workflow. The agent token has no `workflow` scope, so the owner has to edit `deploy.yml`.
@@ -90,9 +86,8 @@ Still open:
 8. **Refactors worth considering** (none urgent):
    - `ResolutionStep` carries several optional display fields; they could be grouped by kind of step.
    - The "species · background · profession" summary line is built in several components.
-   - `battle/effects.ts` is still the biggest battle file; strikes and triggers could move to their own module.
-   - `BattlePlayer` and `PartyMember` overlap a lot; a shared `Adventurer` base would remove the field-by-field copy in
-     `startBattle` and `endBattle`.
+   - `battle/effects.ts` is the biggest battle file; strikes and triggers could move to their own module.
+   - Interval ability costs are parsed from the cost text (`parseCost`); a structured cost field would be safer.
 
 ## Known quirks
 
@@ -113,15 +108,14 @@ https://andrew-arnott.github.io/ttrpg/. Repo: https://github.com/andrew-arnott/t
 START HERE
 1. Clone it fresh (your starting directory may be an unrelated empty repo): git clone
    https://github.com/andrew-arnott/ttrpg && cd ttrpg && npm ci
-2. Read AGENTS.md, then docs/ARCHITECTURE.md, docs/RULES.md and docs/HANDOFF.md. Project skills are in
+2. Read AGENTS.md, then docs/ARCHITECTURE.md, docs/RULES.md, docs/IMPLEMENTATION.md and docs/HANDOFF.md. Project skills are in
    .cursor/skills (verify-in-browser, generate-art, add-game-content, push-to-github); read the one you need.
 3. Confirm the baseline: set -o pipefail; npx tsc -b && npm run lint && npm test && npm run build
-   (311 tests should pass).
+   (all tests should pass).
 
 ENVIRONMENT (same as the previous agent)
 - Linux, Node 22, npm 10, Chrome at /usr/local/bin/google-chrome. Network is restricted: GitHub and npm work, Google
-  Docs does not. The Player's Guide (the rules source of truth) is a Google Doc you probably cannot open, so ask the
-  owner for text instead of guessing.
+  Docs does not. The original Google Doc is not needed: docs/RULES.md is the rules, so ask the owner when it is silent.
 - GH_TOKEN is in the environment for pushing. Never print it. Pushing is done with a token header; follow the
   push-to-github skill, and fetch origin/main with the token before branching (local main goes stale).
 - Browser checks: cd scripts && npm install, then with the built app served by "npm run preview:e2e":
@@ -142,8 +136,8 @@ a surprise check. The architecture is pure engines returning { state, steps }, p
 HOW TO WORK
 - Match the existing patterns. Rules logic is pure and tested in src/lib (use testFixtures.ts); content is data in
   src/data; the engines take rng as a parameter.
-- If you must invent a rule, add it to the assumptions table in docs/RULES.md and flag it in your summary. Never
-  present it as the guide's.
+- The rules are docs/RULES.md and the app is canonical. If you must invent something, add it to the guesses table in
+  docs/IMPLEMENTATION.md and flag it in your summary. After changing src/data, run npm run rules:sync.
 - Verify in the real UI, not only with unit tests. Keep commits small and logical.
 - Comments only for non-obvious intent. No emoji in player-facing text. No personal data in fixtures.
 - Git: the owner allows pushing straight to main for this toy project (each push deploys; keep main green). If told to
@@ -152,10 +146,9 @@ HOW TO WORK
   did not do.
 
 NEXT STEPS (pick with the owner; see the backlog in docs/HANDOFF.md)
-1. Ask the owner for the actual rules text and reconcile docs/RULES.md.
-2. Resolve the open questions listed in docs/HANDOFF.md (engage scaling, healing items).
-3. Implement Triggered abilities (needs an interrupt/react prompt in the battle engine), then the remaining combat
-   abilities, Armor/Power spending and condition tokens.
+1. Class design: core passives and a 4 combat plus 2 utility pick structure for every class.
+2. Resolve the open questions listed in docs/HANDOFF.md.
+3. Inventory, Armor and the remaining equipment slots.
 4. Add npm run lint to the deploy workflow; consider component tests or running scripts/e2e in CI.
 
 First, tell me you have read the docs and confirm the baseline passes, then propose which next step you will take.

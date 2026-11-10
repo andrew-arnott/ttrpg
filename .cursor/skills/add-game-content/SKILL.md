@@ -5,8 +5,9 @@ description: Checklists for adding rules content to the ttrpg app: species, back
 
 # Add game content
 
-Read `docs/ARCHITECTURE.md` and `docs/RULES.md` first. Content is data; mechanics are pure functions in `src/lib`.
-Always update `docs/RULES.md` when you add or change an assumption.
+Read `docs/ARCHITECTURE.md`, `docs/RULES.md` (the canonical rules) and `docs/IMPLEMENTATION.md` first. Content is data;
+mechanics are pure functions in `src/lib`. Update `docs/RULES.md` when a rule changes, run `npm run rules:sync` after
+changing items, weapons, torches or enemies, and add anything you had to guess to `docs/IMPLEMENTATION.md`.
 
 ## Species, background, profession
 
@@ -19,18 +20,21 @@ Always update `docs/RULES.md` when you add or change an assumption.
 
 ## An ability
 
-- Ability text lives in the profession file. Types: Fight, Defend, Engage, Fast, Triggered, Action, Interval.
-- **Interval ability** (explore): add a case in `performAbility` in `src/lib/intervalActions.ts`, and an entry in
-  `TARGETED_ABILITIES` if it needs a target room. Add tests in `intervalActions.test.ts`.
-- **Combat ability**: add it to `abilityOptions` (options and targets) and `performAction` (effect) in
-  `src/lib/battle.ts`. Anything not handled shows as "Not in the sample battle yet". Triggered abilities are hidden
-  until the engine can interrupt a resolution.
+- Ability text lives in the profession file, and the same ability needs a heading in `docs/RULES.md` whose next line is
+  `**Type + Type — cost**` (just the type when the cost is `—`). A test fails if they disagree. Types: Fight, Defend,
+  Engage, Fast, Triggered, Action, Interval. Costs are `N Resource` (parsed by `parseCost`) or the name of a consumable.
+- **Interval ability** (explore): add an entry to `ABILITY_ACTIONS` in `src/lib/intervalActions/abilities.ts`
+  (`targeted`, `unavailable`, `options` and `perform`). A resource cost in the ability's `cost` is checked and paid
+  automatically. Add tests in `intervalActions.test.ts`.
+- **Combat ability**: add a handler to `ABILITY_HANDLERS` in `src/lib/battle/abilities.ts` (`options` and `perform`),
+  with the effect in `battle/effects.ts`. Anything not handled shows as "Not in the sample battle yet". A Triggered
+  ability is offered through `engine.ask` (see `battle/reactions.ts`).
 - If the sample characters should have it, change `SAMPLE_RECIPES` in `src/lib/roster.ts`.
 
 ## An item
 
 `src/data/items.ts`: add to `ITEMS` (cost, description, optional `healing`). Add an art key to `ITEM_ART_ID` if the id
-and file name differ. Equipment prices are assumptions, so note changes in `docs/RULES.md`.
+and file name differ. Equipment prices are guesses, so note changes in `docs/IMPLEMENTATION.md`, and run `npm run rules:sync`.
 
 ## An enemy
 

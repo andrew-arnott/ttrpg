@@ -75,8 +75,8 @@ describe('the Player’s Guide as browsed', () => {
     for (const slug of Object.values(RULES_LINKS)) expect(slugs.has(slug), `link ${slug}`).toBe(true)
   })
 
-  it('has fourteen top-level sections, with tables and lists kept intact', () => {
-    expect(GUIDE_BLOCKS.filter((b) => b.kind === 'heading' && b.level === 2)).toHaveLength(14)
+  it('has fifteen top-level sections, with tables and lists kept intact', () => {
+    expect(GUIDE_BLOCKS.filter((b) => b.kind === 'heading' && b.level === 2)).toHaveLength(15)
     expect(GUIDE_BLOCKS.some((b) => b.kind === 'table' && b.header[0] === 'Attribute')).toBe(true)
     const combat = sectionOf(GUIDE_BLOCKS, 'combat')
     expect(combat.some((b) => b.kind === 'list')).toBe(true)

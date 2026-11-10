@@ -37,7 +37,7 @@ export function parseMarkdown(source: string): Block[] {
 
   while (i < lines.length) {
     const line = lines[i]
-    if (line.trim() === '') {
+    if (line.trim() === '' || /^\s*<!--.*-->\s*$/.test(line)) {
       i++
       continue
     }

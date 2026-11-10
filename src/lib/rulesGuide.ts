@@ -1,4 +1,4 @@
-import guide from '../../docs/PLAYERS_GUIDE.md?raw'
+import guide from '../../docs/RULES.md?raw'
 import { parseMarkdown, type Block } from './markdown'
 
 /** The Player's Guide, ready to browse. */

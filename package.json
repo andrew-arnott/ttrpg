@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "rules:sync": "UPDATE_RULES=1 vitest run tools/syncRules.test.ts",
     "preview:e2e": "vite preview --port 4817 --base /ttrpg/"
   },
   "dependencies": {

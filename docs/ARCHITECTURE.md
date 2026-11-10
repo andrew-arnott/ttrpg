@@ -2,19 +2,20 @@
 
 ## Shape of the app
 
-One page, no router library. `src/App.tsx` owns the character being edited and switches between four sections using
-the URL hash (`#/creator`, `#/sheet`, `#/bag`, `#/dungeon`, see `src/lib/useView.ts`). The dungeon section keeps its
+One page, no router library. `src/App.tsx` owns the character being edited and switches between five sections using
+the URL hash (`#/creator`, `#/sheet`, `#/bag`, `#/dungeon`, `#/rules`, see `src/lib/useView.ts`). The dungeon section keeps its
 own state.
 
 ```
 src/
-  data/        Transcribed rules and content. Plain objects, no behaviour.
+  data/        Rules content: species, professions, items, enemies, rooms. Plain objects, no behaviour.
   lib/         Pure game logic, state machines and hooks. Unit-tested.
   components/  React UI. Calls into lib and plays results back.
   assets/art/  Generated pixel art (WebP, 256px), looked up by name.
   index.css    The whole stylesheet (SNES Final Fantasy menu look).
+tools/         The generator and checks for docs/RULES.md.
 scripts/       Dev tooling with its own package.json: art conversion and browser checks.
-docs/          This file, RULES.md, HANDOFF.md.
+docs/          RULES.md (canonical rules), IMPLEMENTATION.md, this file, HANDOFF.md.
 ```
 
 ## The pattern that repeats everywhere
@@ -22,8 +23,8 @@ docs/          This file, RULES.md, HANDOFF.md.
 Every game engine is a pure function over plain data that returns the **new state plus a list of playback steps**:
 
 ```
-resolveInterval(state, plan, rng)  ->  { state, steps }      src/lib/intervalActions.ts
-takeAction(battle, planned, rng)   ->  { battle, steps }     src/lib/battle.ts
+resolveInterval(state, plan, rng)  ->  { state, steps }      src/lib/intervalActions/
+takeAction(battle, planned, rng)   ->  { battle, steps }     src/lib/battle/
 runEnemyPhase(battle, rng)         ->  { battle, steps }
 startBattle(...)                   ->  battle (steps in battle.opening)
 ```
@@ -131,26 +132,17 @@ Armor or Power picker and the Engage helper), `ReactionPrompt.tsx` (the Triggere
 `RuleHelpDialog.tsx`, `BattleBoard.tsx` (engagement groups), `EnemyStatCard.tsx` (hover card),
 `ResolutionOverlay.tsx`.
 
-## The rules browser
+## The rules browser and the rules file
 
-`docs/PLAYERS_GUIDE.md` is imported as raw text (`lib/rulesGuide.ts`) and read by `lib/markdown.ts`, a small parser for the
-headings, paragraphs, lists and tables the guide uses. So editing the guide changes the Rules tab; there is no second copy.
-Heading slugs drop their numbers (`1. Core Rules` is `core-rules`) so links survive renumbering.
+`docs/RULES.md` is imported as raw text (`lib/rulesGuide.ts`) and read by `lib/markdown.ts`, a small parser for the
+headings, paragraphs, lists and tables it uses (HTML comments are skipped). So editing the file changes the Rules tab;
+there is no second copy. Heading slugs drop their numbers (`1. Core Rules` is `core-rules`) so links survive renumbering.
 
 - `RulesView` is the Rules tab: contents, search, and `#/rules/<slug>` links.
-- The guide is canonical: when a ruling changes, edit `docs/PLAYERS_GUIDE.md` itself.
 - `RulesLink` opens a section in a popup (`RulesDialog`) without leaving the page, which matters in the dungeon because
   leaving it loses the delve. `data/rulesLinks.ts` lists the sections the tutorial links to; a test checks they exist.
-
-## Presentation
-
-- `Portrait.tsx` and `lib/art.ts`: `import.meta.glob` over `src/assets/art/*.webp`; the name is `<kind>-<id>.webp`.
-- `ResolutionOverlay.tsx`: a small stage machine (intro, drawing, clash, outcome) with `Typewriter` text. Timers call
-  the latest callbacks through a ref.
-- `index.css`: CSS variables at the top define the window gradient, frame and colours. Sections are labelled by
-  comments.
-
-## Tests
-
-`npm test` runs Vitest over `src/**/*.test.ts` (environment: node, no DOM). There are no component tests; UI is
-covered by the browser scripts in `scripts/e2e`. Shared fixtures live in `src/lib/testFixtures.ts`.
+- The rules are canonical: when a ruling changes, edit `docs/RULES.md` itself.
+- Section 15 of the file is generated. `tools/rulesReference.ts` renders hand items, consumables, torches and the
+  bestiary from `src/data`, between `<!-- reference:start -->` and `<!-- reference:end -->`. `npm run rules:sync` rewrites
+  it; `tools/syncRules.test.ts` fails when it is stale and also checks that every ability in `data/professions.ts` has a
+  heading in the file with the same type and cost line.

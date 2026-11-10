@@ -375,7 +375,7 @@ export const PROFESSIONS: Profession[] = [
         id: 'dispelMagic',
         name: 'Dispel Magic',
         types: ['Interval'],
-        cost: '—',
+        cost: 'Intelligence Test',
         text: 'Attempt to suppress or remove a magical effect in the current room with an Intelligence test. The GM sets the Difficulty.',
       },
       {
