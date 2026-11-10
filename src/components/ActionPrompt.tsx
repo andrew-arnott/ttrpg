@@ -5,6 +5,7 @@ import {
   describeGroup,
   engageBreakdown,
   engageDifficulty,
+  needsEngageTest,
   suggestedAction,
   type BattlePlayer,
   type BattleState,
@@ -55,7 +56,10 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
     onEngageHelpSeen()
   }
   const engagePreview =
-    selected?.id === 'engage' && targetId ? engageBreakdown(engageDifficulty(battle, player, targetId)) : null
+    selected?.id === 'engage' && targetId && needsEngageTest(battle, player)
+      ? engageBreakdown(engageDifficulty(battle, player, targetId))
+      : null
+  const freeMove = selected?.id === 'engage' && !needsEngageTest(battle, player)
 
   const groups: { title: string; options: CombatOption[] }[] = [
     { title: 'Actions', options: options.filter((o) => o.slot === 'action' && BASIC.includes(o.id)) },
@@ -147,6 +151,15 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
             ))}
           </select>
         </label>
+      )}
+
+      {freeMove && (
+        <p className="hint prompt-rule">
+          You are not engaged with anyone, so no test is needed.{' '}
+          <button className="link-button" onClick={() => setHelpOpen(true)}>
+            How does this work?
+          </button>
+        </p>
       )}
 
       {engagePreview && (

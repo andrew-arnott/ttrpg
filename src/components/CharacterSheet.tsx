@@ -23,9 +23,7 @@ function SheetPaper({ built }: { built: BuiltCharacter }) {
     <article className="sheet">
       <header className="sheet-head">
         <div className="sheet-portraits">
-          <Portrait kind="species" id={species?.id} size="lg" />
           <CharacterPortrait professionId={profession?.id} portrait={built.portrait} size="lg" />
-          <Portrait kind="bg" id={background?.id} size="lg" />
         </div>
         <div className="sheet-title">
           <h2>{built.name.trim() || 'Unnamed adventurer'}</h2>

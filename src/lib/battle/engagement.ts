@@ -2,6 +2,10 @@ import { enemiesInGroup, groupOf, playersInGroup } from './state'
 import { ENGAGE_BASE_DIFFICULTY, ENGAGE_MIN_DIFFICULTY, NEW_GROUP } from './types'
 import type { BattlePlayer, BattleState } from './types'
 
+/** Moving is only a test when something is holding you: an enemy in your own group. */
+export const needsEngageTest = (b: BattleState, p: BattlePlayer): boolean =>
+  enemiesInGroup(b, groupOf(b, p.key)).length > 0
+
 export interface EngageDifficulty {
   base: number
   /** Enemies in the group being left. They hold the character in place. */
@@ -44,5 +48,5 @@ export function engageBreakdown(d: EngageDifficulty): string[] {
 }
 
 export function engageTargetLabel(b: BattleState, p: BattlePlayer, targetGroup: string, name: string): string {
-  return `${name} (Difficulty ${engageDifficulty(b, p, targetGroup).total})`
+  return needsEngageTest(b, p) ? `${name} (Difficulty ${engageDifficulty(b, p, targetGroup).total})` : `${name} (no test)`
 }

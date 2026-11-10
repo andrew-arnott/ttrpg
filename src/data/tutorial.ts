@@ -17,7 +17,7 @@ export const ENGAGE_HELP = {
   title: 'Changing engagement',
   paragraphs: [
     'Fighters and enemies stand in engagement groups. You can only attack enemies in your own group, and enemies mostly attack whoever is in theirs.',
-    'Changing engagement costs one action and an Agility test. You can join another group, or break away to stand alone.',
+    'Changing engagement costs one action. You can join another group, or break away to stand alone. If no enemy is engaged with you, you simply move. If one is, it takes an Agility test.',
     'Enemies in the group you are leaving try to hold you in place, and any enemies in the group you are joining make the move harder. Allies who stay behind cover your escape and make it easier.',
     'The Difficulty starts at 4, goes up by 1 for each enemy you are leaving or joining, and goes down by 1 for each ally in the group you leave. It is never lower than 2.',
   ],

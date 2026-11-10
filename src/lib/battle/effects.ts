@@ -3,7 +3,7 @@ import type { SpecialKey } from '../../data/types'
 import { drawTest, drewComplication, type TestResult } from '../drawTest'
 import { performSkillTest, type SkillTestOutcome, type TestBonus } from '../skillTest'
 import { recoverToken } from '../tokenFlow'
-import { engageBreakdown, engageDifficulty } from './engagement'
+import { engageBreakdown, engageDifficulty, needsEngageTest } from './engagement'
 import { planAttack } from './attackPlan'
 import { settleTest, takeDamage, testBonuses } from '../characterTest'
 import { drawRulesFor } from './conditionRules'
@@ -345,6 +345,17 @@ export function changeEngagement(engine: Engine, p: BattlePlayer, targetGroup: s
       actor: playerActorOf(p),
       title: 'Slip Away',
       intro: `${p.name} slips away through the chaos.`,
+      outcome: `${p.name} moves to ${destination}.`,
+      tone: 'success',
+    })
+    return
+  }
+  if (!needsEngageTest(b, p)) {
+    move()
+    addStep(engine, {
+      actor: playerActorOf(p),
+      title: 'Change engagement',
+      intro: `${p.name} is not engaged with anyone, so nothing holds them back.`,
       outcome: `${p.name} moves to ${destination}.`,
       tone: 'success',
     })

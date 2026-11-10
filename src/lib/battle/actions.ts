@@ -89,7 +89,7 @@ function listCombatActions(b: BattleState, p: BattlePlayer): CombatOption[] {
       slot: 'action',
       label: 'Change engagement',
       description:
-        'Make an Agility test to move to another engagement group. The Difficulty depends on who is in the groups.',
+        'Move to another engagement group. If an enemy has you engaged this takes an Agility test, with a Difficulty that depends on who is in the groups. If nothing is engaged with you, you just move.',
       targets: groups.map((g) => ({ ...g, label: engageTargetLabel(b, p, g.id, g.label) })),
       disabledReason: groups.length === 0 ? 'Nowhere to go' : undefined,
     },

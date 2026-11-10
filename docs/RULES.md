@@ -66,7 +66,7 @@ Two other sources feed the code:
 | Boss | Barrow Warden (HP 7, Defense 5, Greatsword 6 attack for 2, Grave Chill 3 area) with two Skeleton Guards; arrives with no surprise check | `src/data/enemies.ts`, `dungeon.boss` |
 | Enemy stats | Goblin HP 3 Defense 3 attack 4; Troll HP 4 Defense 5, Club 6 for 2, Slam 3 area | `src/data/enemies.ts` |
 | Attack damage | 1 damage per hit; Backstab +2 | `battle.ts` |
-| Engaging | Changing engagement is an Agility test. Difficulty = 4 + enemies in the group you leave + enemies in the group you join - allies who stay behind, never below 2. Agreed with the owner as a starting point to workshop; the guide's flat 6 is the fallback | `engageDifficulty` in `src/lib/battle/engagement.ts` |
+| Engaging | Owner ruling: changing engagement only takes a test if you are engaged (an enemy is in your own group); otherwise you just move. With a test it is Agility, Difficulty = 4 + enemies in the group you leave + enemies in the group you join - allies who stay behind, never below 2. Agreed with the owner as a starting point to workshop; the guide's flat 6 is the fallback | `engageDifficulty`, `needsEngageTest` in `src/lib/battle/engagement.ts` |
 | Starting engagement | Each player starts in their own group; each enemy joins a random player | `startBattle` |
 | Sealed tokens | Resolve and Cunning sealed on an enemy return to their owner when it is defeated | `releaseSealedTokens` |
 | Resource tokens | Owner ruling: resource tokens drawn in a test only go into play if the test succeeded, and otherwise come back only by Rest. Spending one moves it to the bag. Tokens sealed on an enemy return to their owner's bag when it is defeated. The same settling happens after dungeon tests | `src/lib/characterTest.ts`, `afterTest` |

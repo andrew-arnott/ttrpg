@@ -11,6 +11,7 @@ import {
   engagementGroups,
   respondToReaction,
   engageDifficulty,
+  needsEngageTest,
   runEnemyPhase,
   startBattle,
   suggestedAction,
@@ -95,6 +96,9 @@ const turn = (...actions: (PlannedCombat | null)[]): BattlePlan[string] => ({
   actions: [actions[0] ?? null, actions[1] ?? null],
   fast: null,
 })
+
+/** An enemy that keeps a player engaged without being worth attacking. */
+const holder = () => enemy('skeleton', 'holder', { hp: 99 })
 
 const attack = (targetId: string): PlannedCombat => ({ actionId: 'attack', targetId })
 const defend: PlannedCombat = { actionId: 'defend' }
@@ -264,7 +268,7 @@ describe('player attacks', () => {
   })
 
   it('fall through to no move if the change of engagement failed', () => {
-    const b = battleOf([player('p', { bag: ALWAYS_FAIL })], [enemy('goblin', 'e')], { p: 'g1', e: 'g2' })
+    const b = battleOf([player('p', { bag: ALWAYS_FAIL })], [enemy('goblin', 'e'), holder()], { p: 'g1', e: 'g2', holder: 'g1' })
     const { steps } = playRound(
       b,
       { p: turn({ actionId: 'engage', targetId: 'g2' }, attack('e')) },
@@ -365,10 +369,11 @@ describe('shields and bless', () => {
 
 describe('engagement', () => {
   const split = () =>
-    battleOf([player('p1'), player('p2')], [enemy('goblin', 'e', { hp: 99 })], {
+    battleOf([player('p1'), player('p2')], [enemy('goblin', 'e', { hp: 99 }), holder()], {
       p1: 'g1',
       p2: 'g2',
       e: 'g2',
+      holder: 'g1',
     })
 
   it('lets a player move to another group with a passed Agility test', () => {
@@ -721,8 +726,8 @@ describe('Complications and engagement', () => {
   it('lets a global trigger fire for a Complication drawn anywhere', () => {
     const b = battleOf(
       [player('p', { bag: complication, hp: 20 }), player('q')],
-      [enemy('warden', 'w', { hp: 3 })],
-      { p: 'g1', q: 'g2', w: 'g2' },
+      [enemy('warden', 'w', { hp: 3 }), holder()],
+      { p: 'g1', q: 'g2', w: 'g2', holder: 'g1' },
     )
     const { steps } = playRound(b, drawComplication, rng())
     expect(steps.some((s) => s.title === 'Undying')).toBe(true)
@@ -1157,10 +1162,11 @@ describe('conditions', () => {
       const near = playRound(engaged, { p: turn(attack('e')) }, rng())
       expect(countInBag(near.battle.players[0].bag, 'poison')).toBe(1)
 
-      const apart = battleOf([player('p', complicated), player('q')], [enemy('goblin', 'e', { hp: 9 })], {
+      const apart = battleOf([player('p', complicated), player('q')], [enemy('goblin', 'e', { hp: 9 }), holder()], {
         p: 'g1',
         q: 'g2',
         e: 'g2',
+        holder: 'g1',
       })
       const far = playRound(apart, { p: turn({ actionId: 'engage', targetId: 'g2' }) }, rng())
       expect(far.steps[0].test?.result.complication).toBe(true)
@@ -1379,6 +1385,42 @@ describe('Smite', () => {
     expect(smite('skeleton').outcome).toMatch(/hits e for 3 damage/)
     expect(smite('skeleton').outcome).toMatch(/Divine power/)
     expect(smite('goblin').outcome).toMatch(/hits e for 1 damage/)
+  })
+})
+
+describe('changing engagement without being engaged', () => {
+  const free = () =>
+    battleOf([player('p'), player('q')], [enemy('goblin', 'e', { hp: 99 })], { p: 'g1', q: 'g2', e: 'g2' })
+
+  it('needs no test when nothing is engaged with you', () => {
+    const b = free()
+    expect(needsEngageTest(b, b.players[0])).toBe(false)
+    const { battle, steps } = takeAction(b, { actionId: 'engage', targetId: 'g2' }, rng())
+    expect(steps[0].test).toBeUndefined()
+    expect(steps[0].title).toBe('Change engagement')
+    expect(battle.groups.p).toBe('g2')
+  })
+
+  it('works even with a bag that would fail every test', () => {
+    const b = free()
+    b.players[0].bag = ALWAYS_FAIL
+    expect(takeAction(b, { actionId: 'engage', targetId: 'g2' }, rng()).battle.groups.p).toBe('g2')
+  })
+
+  it('still needs a test, and shows its Difficulty, when an enemy is engaged with you', () => {
+    const b = free()
+    b.groups.holder = 'g1'
+    b.enemies.push(holder())
+    expect(needsEngageTest(b, b.players[0])).toBe(true)
+    const option = availableCombatActions(b, b.players[0]).find((o) => o.id === 'engage')!
+    expect(option.targets![0].label).toMatch(/Difficulty/)
+    expect(takeAction(b, { actionId: 'engage', targetId: 'g2' }, rng()).steps[0].test?.attribute).toBe('agility')
+  })
+
+  it('labels each destination "no test" when free', () => {
+    const b = free()
+    const label = availableCombatActions(b, b.players[0]).find((o) => o.id === 'engage')!.targets![0].label
+    expect(label).toMatch(/\(no test\)/)
   })
 })
 

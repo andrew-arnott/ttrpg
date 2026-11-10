@@ -18,7 +18,7 @@ await shot('popup')
 await page.getByRole('button', { name: 'Got it' }).click()
 await dialog.waitFor({ state: 'detached' })
 
-assert.match(await page.locator('.prompt-rule').innerText(), /Difficulty: 4 base/)
+assert.match(await page.locator('.prompt-rule').innerText(), /Difficulty: 4 base|no test is needed/)
 await shot('preview', true)
 
 await page.locator('.option', { hasText: 'Defend' }).first().click()
