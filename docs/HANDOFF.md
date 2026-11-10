@@ -74,7 +74,7 @@ Still open:
 ## Backlog, roughly in order of value
 
 1. **Surprise** follow-ups: a 1-action surprise round (unspotted enemies currently take their whole turn), and enemies that are hidden by more than a number.
-2. **Inventory** with 6 slots, stack sizes, and the Body and Accessory slots (hands and weapons are done). Weapon and shield art, damage types, and a way to swap hands mid-delve.
+2. **Inventory** with 6 slots, stack sizes, and the Body and Accessory slots (hands and weapons are done). Weapon and shield art, more portraits (three per profession today), damage types, and a way to swap hands mid-delve.
 3. **Healing items**: decide whether to follow the guide (Health Potion 1 HP, Bandage treats Wounds only).
 4. **Smaller gaps**: Scry beyond a neighbouring room, Secure Area and Barricade in a fight, species traits that are not bag
    changes (Catfolk Foresight, Jann Exchange, Verdant Accumulated Knowledge), art for the new treatment items.

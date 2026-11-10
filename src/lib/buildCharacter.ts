@@ -30,8 +30,10 @@ export interface CharacterDraft {
   abilityIds: string[]
   /** Item id -> quantity bought with starting coins. */
   equipment: Record<string, number>
-  /** What is held in each hand. Free starting gear, not bought with coins. */
+  /** What is held in each hand, bought with starting coins. */
   hands: Hands
+  /** A built-in portrait id such as `warrior-2`, an uploaded image as a data URL, or none for the profession's first. */
+  portrait: string | null
 }
 
 export function emptyDraft(): CharacterDraft {
@@ -45,6 +47,7 @@ export function emptyDraft(): CharacterDraft {
     abilityIds: [],
     equipment: {},
     hands: NO_HANDS,
+    portrait: null,
   }
 }
 
@@ -143,7 +146,7 @@ export function bagStats(bag: TokenStack[]): BagStats {
 // --- character assembly ------------------------------------------------
 
 /** Wizard steps, in order. Issues are tagged with the step that owns them. */
-export const STEP_IDS = ['profession', 'species', 'background', 'special', 'abilities', 'equipment'] as const
+export const STEP_IDS = ['profession', 'species', 'background', 'special', 'abilities', 'equipment', 'portrait'] as const
 export type StepId = (typeof STEP_IDS)[number]
 
 export interface Issue {
@@ -185,6 +188,7 @@ export interface BuiltCharacter {
   inventory: InventoryEntry[]
   /** What is held in each hand. */
   hands: Hands
+  portrait: string | null
   /** The items held, main hand first. */
   held: HandItem[]
   coinsSpent: number
@@ -263,6 +267,7 @@ export function buildCharacter(draft: CharacterDraft): BuiltCharacter {
     chosenAbilities,
     inventory,
     hands,
+    portrait: draft.portrait ?? null,
     held,
     coinsSpent,
     coinsLeft: STARTING_COINS - coinsSpent,

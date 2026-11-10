@@ -1,6 +1,7 @@
 import { TOKENS } from '../data/tokens'
 import { SPECIAL_KEYS, SPECIAL_LABELS } from '../data/types'
 import type { BuiltCharacter, CharacterDraft } from '../lib/buildCharacter'
+import { CharacterPortrait } from './CharacterPortrait'
 import { Portrait } from './Portrait'
 import { BagStatTiles, TokenBag, TokenTable } from './TokenBag'
 
@@ -29,7 +30,7 @@ export function Review({
         <div className="portrait-row">
           <Portrait kind="species" id={species?.id} size="md" />
           <Portrait kind="bg" id={background?.id} size="md" />
-          <Portrait kind="profession" id={profession?.id} size="md" />
+          <CharacterPortrait professionId={profession?.id} portrait={built.portrait} size="md" />
         </div>
         <div>
           <span className="step-index">Review</span>

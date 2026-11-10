@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import type { ReactionAnswer, ReactionRequest } from '../lib/reactionTypes'
 import { AVATAR_COLORS } from '../lib/partyColors'
-import { Portrait } from './Portrait'
+import { CharacterPortrait } from './CharacterPortrait'
 
 interface Props {
   request: ReactionRequest
-  reactor?: { name: string; professionId: string; colorIndex: number }
+  reactor?: { name: string; professionId: string; portrait?: string | null; colorIndex: number }
   onAnswer: (answer: ReactionAnswer) => void
 }
 
@@ -23,7 +23,7 @@ export function ReactionPrompt({ request, reactor, onAnswer }: Props) {
               className="party-avatar"
               style={{ borderColor: AVATAR_COLORS[reactor.colorIndex % AVATAR_COLORS.length] }}
             >
-              <Portrait kind="profession" id={reactor.professionId} size="md" />
+              <CharacterPortrait professionId={reactor.professionId} portrait={reactor.portrait} size="md" />
             </span>
           )}
           <div>

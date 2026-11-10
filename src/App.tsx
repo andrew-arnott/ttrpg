@@ -7,6 +7,7 @@ import { SavedCharactersDialog } from './components/SavedCharactersDialog'
 import {
   StepBackground,
   StepEquipment,
+  StepPortrait,
   StepProfession,
   StepProfessionDetail,
   StepSpecial,
@@ -37,6 +38,7 @@ const STEPS: { id: StepId | 'review'; label: string }[] = [
   { id: 'special', label: 'SPECIAL' },
   { id: 'abilities', label: 'Abilities' },
   { id: 'equipment', label: 'Equipment' },
+  { id: 'portrait', label: 'Portrait' },
   { id: 'review', label: 'Review' },
 ]
 
@@ -271,6 +273,7 @@ export default function App() {
               {step.id === 'special' && <StepSpecial {...stepProps} />}
               {step.id === 'abilities' && <StepProfessionDetail {...stepProps} />}
               {step.id === 'equipment' && <StepEquipment {...stepProps} />}
+              {step.id === 'portrait' && <StepPortrait {...stepProps} />}
               {step.id === 'review' && (
                 <Review
                   draft={draft}

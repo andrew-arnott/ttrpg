@@ -1,4 +1,4 @@
-import { artUrl } from '../lib/art'
+import { characterArtUrl } from '../lib/art'
 import { linkKey, type DungeonLink, type DungeonRoom } from '../data/dungeon'
 import {
   adjacentRoomIds,
@@ -88,7 +88,7 @@ function avatarPositions(room: DungeonRoom, count: number, labelLines: number) {
 
 function Avatar({ member, index, x, y }: { member: PartyMember; index: number; x: number; y: number }) {
   const color = AVATAR_COLORS[index % AVATAR_COLORS.length]
-  const src = artUrl('profession', member.professionId)
+  const src = characterArtUrl(member.professionId, member.portrait)
   const clipId = `avatar-clip-${index}`
   return (
     <g className="avatar" transform={`translate(${x} ${y})`}>

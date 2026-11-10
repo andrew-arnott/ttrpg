@@ -10,7 +10,8 @@ All art is AI-generated pixel art in one style so the UI stays consistent. Image
 
 | Kind | Id | Used for |
 | --- | --- | --- |
-| `profession` | profession id (`warrior`) | wizard, party avatars, battle |
+| `profession` | profession id (`warrior`) | a symbol for the profession: wizard cards, fallback avatar |
+| `portrait` | `<profession>-<1..3>` (`warrior-2`) | the three portraits a character can pick; avatars everywhere |
 | `species` | species id (`catfolk`) | wizard, sheet |
 | `bg` | background id (`treasureHunter`) | wizard, sheet |
 | `item` | art key (`potion`) | equipment, pack, bag simulator |

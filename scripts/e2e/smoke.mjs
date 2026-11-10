@@ -3,6 +3,7 @@
  * Fails (exit code 1) if anything is missing or the console logs an error.
  */
 import assert from 'node:assert/strict'
+import sharp from 'sharp'
 import { BASE_URL, launch, report, screenshotter } from './lib.mjs'
 
 const { browser, page, errors } = await launch()
@@ -30,8 +31,24 @@ for (const item of ['Torch', 'Torch', 'Torch', 'Ration', 'Bandage']) {
   await page.getByRole('button', { name: `Buy one ${item}` }).click()
 }
 assert.match(await page.locator('.coin-purse').innerText(), /4 of 10 coins left/)
+await page.getByLabel('Main hand').selectOption('sword')
+assert.match(await page.locator('.coin-purse').innerText(), /2 of 10 coins left/)
+await page.getByLabel('Off hand').selectOption('shield')
+assert.match(await page.locator('.coin-purse').innerText(), /0 of 10 coins left/)
+assert.ok(await page.getByRole('button', { name: 'Buy one Torch' }).isDisabled(), 'no coins left for supplies')
 assert.ok(await page.getByRole('button', { name: 'Buy one Healing Potion' }).isDisabled(), 'cannot overspend')
 await shot('equipment', true)
+await next()
+
+assert.equal(await page.locator('.portrait-option').count(), 4, 'three portraits and an upload')
+await page.locator('.portrait-option', { hasText: 'Portrait 2' }).click()
+assert.equal(await page.locator('.portrait-option[aria-pressed="true"]').innerText(), 'Portrait 2')
+const picture = await sharp({ create: { width: 48, height: 32, channels: 3, background: '#c04040' } }).png().toBuffer()
+await page.getByLabel('Upload a portrait').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: picture })
+await page.getByText('Your picture').waitFor()
+await shot('portrait', true)
+await page.getByRole('button', { name: 'Remove uploaded picture' }).click()
+await page.locator('.portrait-option', { hasText: 'Portrait 3' }).click()
 await next()
 
 await page.getByPlaceholder('Name your adventurer').fill('Smoke Test')

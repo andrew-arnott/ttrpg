@@ -5,6 +5,7 @@ import { SPECIAL_KEYS, SPECIAL_LABELS } from '../data/types'
 import { buildCharacter, type BuiltCharacter, type CharacterDraft } from '../lib/buildCharacter'
 import type { SavedCharacter } from '../lib/savedCharacters'
 import { groupOf, GROUP_META } from '../lib/tokenGroups'
+import { CharacterPortrait } from './CharacterPortrait'
 import { Portrait } from './Portrait'
 
 const handName = (id: string | null) => (id ? (HAND_ITEMS_BY_ID[id]?.name ?? 'empty') : 'empty')
@@ -23,7 +24,7 @@ function SheetPaper({ built }: { built: BuiltCharacter }) {
       <header className="sheet-head">
         <div className="sheet-portraits">
           <Portrait kind="species" id={species?.id} size="lg" />
-          <Portrait kind="profession" id={profession?.id} size="lg" />
+          <CharacterPortrait professionId={profession?.id} portrait={built.portrait} size="lg" />
           <Portrait kind="bg" id={background?.id} size="lg" />
         </div>
         <div className="sheet-title">

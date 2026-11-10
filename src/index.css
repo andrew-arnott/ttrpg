@@ -1172,3 +1172,26 @@ table.tokens-table td.num { text-align: right; }
 
 .hands { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 8px; }
 .hands .prompt-target { margin-top: 0; min-width: 220px; }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.option.portrait-option {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+  cursor: pointer;
+}
+.option.portrait-option > .portrait, .option.portrait-option > :not(.portrait) { grid-row: auto; grid-column: 1; }
+.upload-slot {
+  display: grid;
+  place-items: center;
+  width: 128px;
+  height: 128px;
+  border: 2px dashed var(--baseline);
+  border-radius: var(--radius);
+  font-family: var(--font-pixel);
+  font-size: 28px;
+  color: var(--accent);
+}
+.portrait-option:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }

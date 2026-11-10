@@ -8,7 +8,7 @@ import {
   type PlannedAction,
 } from '../lib/intervalActions'
 import { AVATAR_COLORS } from '../lib/partyColors'
-import { Portrait } from './Portrait'
+import { CharacterPortrait } from './CharacterPortrait'
 
 const GROUP_ORDER: ActionGroup[] = ['Basic', 'Room', 'Class']
 
@@ -45,7 +45,7 @@ function MemberRow({
     <div className="plan-row">
       <div className="plan-who">
         <span className="party-avatar" style={{ borderColor: AVATAR_COLORS[index % AVATAR_COLORS.length] }}>
-          <Portrait kind="profession" id={member.professionId} size="sm" />
+          <CharacterPortrait professionId={member.professionId} portrait={member.portrait} size="sm" />
         </span>
         <span className="party-name">
           {index + 1}. {member.name}

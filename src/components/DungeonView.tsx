@@ -32,6 +32,7 @@ import { Tip } from './Tip'
 import { DungeonMap } from './DungeonMap'
 import { IntervalPlanner } from './IntervalPlanner'
 import { ResolutionOverlay } from './ResolutionOverlay'
+import { CharacterPortrait } from './CharacterPortrait'
 import { Portrait } from './Portrait'
 
 const MAX_PARTY = 4
@@ -99,7 +100,7 @@ function PartySetup({ roster, onStart }: { roster: RosterEntry[]; onStart: (chos
               disabled={!selected && full}
               onClick={() => toggle(entry.key)}
             >
-              <Portrait kind="profession" id={built.profession?.id} />
+              <CharacterPortrait professionId={built.profession?.id} portrait={built.portrait} />
               <span className="name">
                 {entry.label}
                 {selected && (
@@ -169,7 +170,7 @@ function PartyPanel({
             <div className="party-member" key={member.key}>
               <div className="party-head">
                 <span className="party-avatar" style={{ borderColor: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>
-                  <Portrait kind="profession" id={member.professionId} size="sm" />
+                  <CharacterPortrait professionId={member.professionId} portrait={member.portrait} size="sm" />
                 </span>
                 <div>
                   <div className="party-name">
@@ -317,7 +318,7 @@ function GoalCard({ state }: { state: DungeonState }) {
 function reactorOf(state: DungeonState, key: string) {
   const index = state.party.findIndex((m) => m.key === key)
   const member = state.party[index]
-  return member ? { name: member.name, professionId: member.professionId, colorIndex: index } : undefined
+  return member ? { name: member.name, professionId: member.professionId, portrait: member.portrait, colorIndex: index } : undefined
 }
 
 interface PendingResolution {

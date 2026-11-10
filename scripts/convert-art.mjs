@@ -3,7 +3,7 @@
  *
  *   node convert-art.mjs <source-dir-of-pngs> [destination-dir]
  *
- * File names must follow `<kind>-<id>.png` (kind: profession, species, bg, item, enemy), because
+ * File names must follow `<kind>-<id>.png` (kind: profession, portrait, species, bg, item, enemy), because
  * src/lib/art.ts finds images by that name. The destination defaults to ../src/assets/art.
  */
 import fs from 'node:fs'
@@ -20,7 +20,7 @@ if (!source) {
 }
 
 fs.mkdirSync(destination, { recursive: true })
-const kinds = ['profession', 'species', 'bg', 'item', 'enemy']
+const kinds = ['profession', 'portrait', 'species', 'bg', 'item', 'enemy']
 let converted = 0
 
 for (const file of fs.readdirSync(source)) {

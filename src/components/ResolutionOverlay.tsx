@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { SPECIAL_LABELS } from '../data/types'
 import { AVATAR_COLORS } from '../lib/partyColors'
-import type { Clash, ResolutionStep } from '../lib/resolution'
+import type { Clash, ResolutionStep, StepActor } from '../lib/resolution'
 import { useDrawAnimation } from '../lib/useDrawAnimation'
+import { CharacterPortrait } from './CharacterPortrait'
 import { DrawStage } from './DrawStage'
 import { Portrait } from './Portrait'
 import { Typewriter } from './Typewriter'
@@ -33,6 +34,15 @@ function StepSummary({ step }: { step: ResolutionStep }) {
       <b>{step.title}.</b> {step.intro} {step.outcome}
       {step.test && step.testMode === 'check' && <span className="tag">{testBadge(step)}</span>}
     </li>
+  )
+}
+
+/** A character shows their own portrait; anyone else (an enemy) shows their art. */
+function ActorPortrait({ actor, size, className }: { actor: StepActor; size: 'sm' | 'md'; className?: string }) {
+  return actor.artKind === 'profession' ? (
+    <CharacterPortrait professionId={actor.artId} portrait={actor.portrait} size={size} className={className} />
+  ) : (
+    <Portrait kind={actor.artKind} id={actor.artId} size={size} className={className} />
   )
 }
 
@@ -73,12 +83,7 @@ function ClashPanel({ clash, onDone }: { clash: Clash; onDone: () => void }) {
       </span>
       <div className="clash-side defense">
         <span className="clash-target">
-          <Portrait
-            kind={clash.target.artKind}
-            id={clash.target.artId}
-            size="sm"
-            className={resolved && clash.breaks ? 'hit-flash' : ''}
-          />
+          <ActorPortrait actor={clash.target} size="sm" className={resolved && clash.breaks ? 'hit-flash' : ''} />
           <span className="step-index">{clash.target.name}&rsquo;s Defense</span>
         </span>
         <b className="clash-num">{defense}</b>
@@ -203,7 +208,7 @@ export function ResolutionOverlay({ heading, steps, onFinish }: Props) {
                     className={`party-avatar${attacking ? ' lunge' : ''}`}
                     style={{ borderColor: actorColor(actor.colorIndex) }}
                   >
-                    <Portrait kind={actor.artKind} id={actor.artId} size="md" />
+                    <ActorPortrait actor={actor} size="md" />
                   </span>
                 ) : (
                   <Portrait kind="item" id="torch" size="md" />

@@ -1,3 +1,5 @@
+import { MAX_UPLOAD_CHARS } from '../data/portraits'
+import { isBuiltInPortrait, isUploadedPortrait } from './art'
 import { normalizeHands, type Hands } from '../data/weapons'
 import { emptyDraft, type CharacterDraft } from './buildCharacter'
 
@@ -19,6 +21,13 @@ function numberMap(raw: unknown): Record<string, number> {
  * inject arbitrary keys into the draft. Accepts either a bare draft or an
  * export payload that wraps one under `draft`.
  */
+/** Keeps a built-in portrait id or a reasonably small uploaded image, and drops anything else. */
+function sanePortrait(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  if (isBuiltInPortrait(value)) return value
+  return isUploadedPortrait(value) && value.length <= MAX_UPLOAD_CHARS ? value : null
+}
+
 export function parseDraft(raw: unknown): CharacterDraft | string {
   if (!isRecord(raw)) return 'File is not a character object.'
   const draft = isRecord(raw.draft) ? raw.draft : raw
@@ -43,5 +52,6 @@ export function parseDraft(raw: unknown): CharacterDraft | string {
       : [],
     equipment: numberMap(draft.equipment),
     hands: normalizeHands(isRecord(draft.hands) ? (draft.hands as Partial<Hands>) : undefined),
+    portrait: sanePortrait(draft.portrait),
   }
 }

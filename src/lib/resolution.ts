@@ -11,6 +11,8 @@ export interface StepActor {
   artId: string
   /** Index into the party colours, or -1 for enemies. */
   colorIndex: number
+  /** For a character: the portrait they chose or uploaded. */
+  portrait?: string | null
 }
 
 /** An enemy attack setting its value against a player's Defense score. */
@@ -45,8 +47,15 @@ export interface ResolutionStep {
 }
 
 export function playerActor(
-  member: { key: string; name: string; professionId: string },
+  member: { key: string; name: string; professionId: string; portrait?: string | null },
   colorIndex: number,
 ): StepActor {
-  return { key: member.key, name: member.name, artKind: 'profession', artId: member.professionId, colorIndex }
+  return {
+    key: member.key,
+    name: member.name,
+    artKind: 'profession',
+    artId: member.professionId,
+    colorIndex,
+    portrait: member.portrait,
+  }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { buildCharacter } from '../lib/buildCharacter'
 import type { SavedCharacter } from '../lib/savedCharacters'
-import { Portrait } from './Portrait'
+import { CharacterPortrait } from './CharacterPortrait'
 
 interface Props {
   saved: SavedCharacter[]
@@ -58,7 +58,7 @@ export function SavedCharactersDialog({ saved, currentSavedId, onSave, onLoad, o
               const isCurrent = c.id === currentSavedId
               return (
                 <li key={c.id} className={`saved-item${isCurrent ? ' current' : ''}`}>
-                  <Portrait kind="profession" id={c.draft.professionId} size="sm" />
+                  <CharacterPortrait professionId={c.draft.professionId} portrait={c.draft.portrait} size="sm" />
                   <div className="saved-meta">
                     <span className="saved-name">
                       {c.draft.name.trim() || 'Unnamed adventurer'}

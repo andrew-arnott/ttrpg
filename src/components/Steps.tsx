@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { BACKGROUNDS } from '../data/backgrounds'
 import { PROFESSIONS } from '../data/professions'
 import { SPECIES } from '../data/species'
@@ -11,6 +12,9 @@ import {
   type SpecialKey,
 } from '../data/types'
 import { ITEMS, STARTING_COINS } from '../data/items'
+import { portraitOptions } from '../data/portraits'
+import { isBuiltInPortrait, isUploadedPortrait } from '../lib/art'
+import { imageToPortrait } from '../lib/portraitUpload'
 import { HAND_ITEMS, HAND_ITEMS_BY_ID, type Hands } from '../data/weapons'
 import {
   allAbilities,
@@ -18,6 +22,7 @@ import {
   type BuiltCharacter,
   type CharacterDraft,
 } from '../lib/buildCharacter'
+import { CharacterPortrait } from './CharacterPortrait'
 import { Portrait } from './Portrait'
 
 interface StepProps {
@@ -486,6 +491,83 @@ export function StepEquipment({ draft, built, update }: StepProps) {
           )
         })}
       </div>
+    </section>
+  )
+}
+
+// --- Step 7: Portrait ----------------------------------------------------
+
+export function StepPortrait({ draft, built, update }: StepProps) {
+  const [error, setError] = useState<string | null>(null)
+  const professionId = built.profession?.id
+  const chosen = draft.portrait
+  const uploaded = isUploadedPortrait(chosen)
+  const current = !chosen || !isBuiltInPortrait(chosen) ? (professionId ? `${professionId}-1` : null) : chosen
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      update({ portrait: await imageToPortrait(file) })
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'That picture could not be used.')
+    }
+  }
+
+  return (
+    <section className="card">
+      <CardHead
+        step="Step 7"
+        title="Choose a portrait"
+        hint="Pick one of the portraits for your profession, or upload your own picture."
+      />
+      {!professionId ? (
+        <p className="blocker-text">Choose a profession first to see its portraits.</p>
+      ) : (
+        <div className="options three">
+          {portraitOptions(professionId).map((id, i) => (
+            <button
+              key={id}
+              className="option with-art portrait-option"
+              aria-pressed={!uploaded && current === id}
+              onClick={() => update({ portrait: id })}
+            >
+              <CharacterPortrait professionId={professionId} portrait={id} size="xl" />
+              <span className="name">Portrait {i + 1}</span>
+            </button>
+          ))}
+          <label className={`option with-art portrait-option${uploaded ? ' selected' : ''}`} aria-pressed={uploaded}>
+            {uploaded ? (
+              <CharacterPortrait professionId={professionId} portrait={chosen} size="xl" />
+            ) : (
+              <span className="upload-slot">+</span>
+            )}
+            <span className="name">{uploaded ? 'Your picture' : 'Upload your own'}</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="visually-hidden"
+              aria-label="Upload a portrait"
+              onChange={(e) => {
+                void upload(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
+          </label>
+        </div>
+      )}
+      {error && (
+        <p className="blocker-text" role="alert">
+          {error}
+        </p>
+      )}
+      {uploaded && (
+        <div className="review-actions">
+          <button className="btn" onClick={() => update({ portrait: null })}>
+            Remove uploaded picture
+          </button>
+        </div>
+      )}
     </section>
   )
 }

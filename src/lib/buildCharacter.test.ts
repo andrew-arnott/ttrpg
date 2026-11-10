@@ -236,6 +236,7 @@ describe('wizard step order', () => {
       'special',
       'abilities',
       'equipment',
+      'portrait',
     ])
   })
 })

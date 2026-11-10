@@ -27,6 +27,7 @@ const SAMPLE_RECIPES = [
     backgroundId: 'soldier',
     equipment: { torch: 1, bandage: 1, antivenom: 1 },
     hands: { main: 'sword', off: 'shield' },
+    portrait: 'warrior-1',
     combatIds: ['provoke', 'disable', 'intercept'],
     explorationIds: ['fortify'],
   },
@@ -37,6 +38,7 @@ const SAMPLE_RECIPES = [
     backgroundId: 'urchin',
     equipment: { torch: 1, antivenom: 1, healingPotion: 1 },
     hands: { main: 'dagger', off: null },
+    portrait: 'rogue-2',
     combatIds: ['backstab', 'flanking'],
     explorationIds: ['scoutAhead', 'findAShortcut'],
   },
@@ -47,6 +49,7 @@ const SAMPLE_RECIPES = [
     backgroundId: 'scholar',
     equipment: { torch: 1, bandage: 1, healingPotion: 1 },
     hands: { main: 'mace', off: null },
+    portrait: 'priest-1',
     combatIds: ['heal', 'prayer'],
     explorationIds: ['holyLight', 'groupHeal'],
   },
@@ -57,6 +60,7 @@ const SAMPLE_RECIPES = [
     backgroundId: 'scholar',
     equipment: { healingPotion: 1, bandage: 1 },
     hands: { main: 'magicStaff', off: null },
+    portrait: 'wizard-2',
     combatIds: ['magicMissile', 'fireball'],
     explorationIds: ['detectMagic', 'dispelMagic'],
   },
@@ -87,6 +91,7 @@ function sampleDraft(recipe: (typeof SAMPLE_RECIPES)[number]): CharacterDraft {
     abilityIds: [...recipe.combatIds, ...recipe.explorationIds],
     equipment: recipe.equipment,
     hands: recipe.hands,
+    portrait: recipe.portrait,
   }
 }
 

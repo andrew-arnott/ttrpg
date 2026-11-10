@@ -10,6 +10,7 @@ import {
 import { AVATAR_COLORS } from '../lib/partyColors'
 import { BagDialog } from './BagDialog'
 import { EnemyStatCard } from './EnemyStatCard'
+import { CharacterPortrait } from './CharacterPortrait'
 import { Portrait } from './Portrait'
 import { Tip } from './Tip'
 
@@ -29,7 +30,7 @@ function PlayerCard({ p, active, onShowBag }: { p: BattlePlayer; active: boolean
   return (
     <div className={`combatant player${down ? ' down' : ''}${active ? ' active' : ''}`}>
       <span className="party-avatar" style={{ borderColor: AVATAR_COLORS[p.colorIndex % AVATAR_COLORS.length] }}>
-        <Portrait kind="profession" id={p.professionId} size="sm" />
+        <CharacterPortrait professionId={p.professionId} portrait={p.portrait} size="sm" />
       </span>
       <div className="combatant-info">
         <span className="party-name">{p.name}</span>

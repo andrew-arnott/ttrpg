@@ -5,7 +5,7 @@ import { drawTest, simulate, type SimulationSummary, type TestResult } from '../
 import type { RosterEntry } from '../lib/roster'
 import { useDrawAnimation } from '../lib/useDrawAnimation'
 import { DrawStage } from './DrawStage'
-import { Portrait } from './Portrait'
+import { CharacterPortrait } from './CharacterPortrait'
 import { BagStatTiles, TokenBag } from './TokenBag'
 import { TokenCoin } from './TokenCoin'
 
@@ -64,7 +64,7 @@ export function BagSimulator({ roster }: { roster: RosterEntry[] }) {
           </div>
 
           <div className="roster-pick">
-            <Portrait kind="profession" id={built.profession?.id} size="sm" />
+            <CharacterPortrait professionId={built.profession?.id} portrait={built.portrait} size="sm" />
             <label>
               <span className="step-index">Character</span>
               <select value={entry.key} onChange={(e) => pickCharacter(e.target.value)}>

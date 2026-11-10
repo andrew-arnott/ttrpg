@@ -14,7 +14,7 @@ import {
 import { AVATAR_COLORS } from '../lib/partyColors'
 import { ENGAGE_HELP } from '../data/tutorial'
 import { TOKENS } from '../data/tokens'
-import { Portrait } from './Portrait'
+import { CharacterPortrait } from './CharacterPortrait'
 import { RuleHelpDialog } from './RuleHelpDialog'
 
 const firstUsable = (option: CombatOption | undefined) => option?.targets?.find((t) => !t.disabledReason)?.id
@@ -74,7 +74,7 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
         <span className="step-index">Round {battle.round}</span>
         <div className="resolution-actor">
           <span className="party-avatar" style={{ borderColor: AVATAR_COLORS[player.colorIndex % AVATAR_COLORS.length] }}>
-            <Portrait kind="profession" id={player.professionId} size="md" />
+            <CharacterPortrait professionId={player.professionId} portrait={player.portrait} size="md" />
           </span>
           <div>
             <h2>

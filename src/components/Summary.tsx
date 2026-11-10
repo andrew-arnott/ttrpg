@@ -1,6 +1,7 @@
 import { TOKENS } from '../data/tokens'
 import { SPECIAL_KEYS, SPECIAL_LABELS } from '../data/types'
 import type { BuiltCharacter } from '../lib/buildCharacter'
+import { CharacterPortrait } from './CharacterPortrait'
 import { Portrait } from './Portrait'
 import { BagStatTiles, TokenBag } from './TokenBag'
 
@@ -13,7 +14,7 @@ export function Summary({ built }: { built: BuiltCharacter }) {
           <div className="portrait-row">
             <Portrait kind="species" id={built.species?.id} size="sm" />
             <Portrait kind="bg" id={built.background?.id} size="sm" />
-            <Portrait kind="profession" id={built.profession?.id} size="sm" />
+            <CharacterPortrait professionId={built.profession?.id} portrait={built.portrait} size="sm" />
           </div>
           <h2>{built.name.trim() || 'Unnamed adventurer'}</h2>
           <p className="hint">

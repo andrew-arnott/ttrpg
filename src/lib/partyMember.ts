@@ -21,6 +21,7 @@ export function createPartyMember(key: string, draft: CharacterDraft): PartyMemb
     restResourceId,
     shieldsInPlay: 0,
     hands: normalizeHands(draft.hands),
+    portrait: draft.portrait ?? null,
     abilityIds: built.chosenAbilities.map((a) => a.id),
   }
 }
