@@ -348,7 +348,6 @@ export function StepProfessionDetail({ draft, built, update }: StepProps) {
         {pool.map((a) => {
           const selected = draft.abilityIds.includes(a.id)
           const atLimit = !selected && draft.abilityIds.length >= profession.abilityPicks
-          const isExploration = profession.explorationAbilities.some((e) => e.id === a.id)
           return (
             <button
               key={a.id}
@@ -360,7 +359,7 @@ export function StepProfessionDetail({ draft, built, update }: StepProps) {
               <span className="ability-head">
                 <span className="nm">{a.name}</span>
                 <span className="tag">{a.types.join(' + ')}</span>
-                {!isExploration && <span className="tag">{a.cost}</span>}
+                {a.cost !== '—' && <span className="tag">{a.cost}</span>}
               </span>
               <span className="desc">{a.text}</span>
             </button>

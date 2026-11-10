@@ -6,7 +6,6 @@ import {
   patrolIsDue,
   roomById,
   springPatrol,
-  STAND_WATCH,
   withLog,
   type DungeonState,
   type PartyMember,
@@ -63,8 +62,7 @@ function intervalFlow(
     const planned = plan[member.key] ?? DEFAULT_ACTION
     const option = availableActions(working, member).find((o) => o.id === planned.actionId)
     const usable = option && !option.disabledReason ? planned : DEFAULT_ACTION
-    if (usable.actionId === 'ability:standWatch') watch = STAND_WATCH
-    else if (usable.actionId === 'watch' && !watch) watch = KEEP_WATCH
+    if (usable.actionId === 'watch' && !watch) watch = KEEP_WATCH
 
     const { state: next, step } = resolveAction({
       state: working,

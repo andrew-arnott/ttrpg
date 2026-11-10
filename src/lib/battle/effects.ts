@@ -1,5 +1,5 @@
 import { ENEMIES_BY_ID, type EnemyAttack, type EnemyTrigger } from '../../data/enemies'
-import type { SpecialKey } from '../../data/types'
+import { SPECIAL_LABELS, type SpecialKey } from '../../data/types'
 import { drawTest, drewComplication, type TestResult } from '../drawTest'
 import { performSkillTest, type SkillTestOutcome, type TestBonus } from '../skillTest'
 import { recoverToken } from '../tokenFlow'
@@ -9,7 +9,7 @@ import { settleTest, takeDamage, testBonuses } from '../characterTest'
 import { drawRulesFor } from './conditionRules'
 import { gainCondition } from './conditions'
 import { offerPrayer } from '../reactorRules'
-import { INTERCEPT_DEFENSE, offerIntercept, offerShieldWall } from './reactions'
+import { INTERCEPT_DEFENSE, offerIntercept, offerLastStand, offerShieldWall } from './reactions'
 import { releaseCommitment, type Commitment } from './tokens'
 import {
   adjustBag,
@@ -120,7 +120,8 @@ export function strikePlayer(
     reduction > 0 ? `Disabled: damage reduced by ${reduction}.` : '',
     absorbed > 0 ? `${absorbed} absorbed by Shield.` : '',
   ].filter(Boolean)
-  const falls = target.hp === 0 ? ` ${target.name} falls!` : ''
+  const stood = target.hp === 0 && offerLastStand(engine, target)
+  const falls = stood ? ` Last Stand: ${target.name} stays on their feet at 1 HP.` : target.hp === 0 ? ` ${target.name} falls!` : ''
   const gained = attack.condition ? ` ${gainCondition(engine, target, attack.condition)}` : ''
   addStep(engine, {
     actor: enemyActorOf(e),
@@ -251,8 +252,8 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
   }
 
   const damage = (options.damage ?? 1) + plan.extraDamage + might + (options.bonusDamage ?? 0)
-  const extra = options.onHit?.(e) ?? ''
   const groupId = groupOf(b, e.id)
+  const extra = options.onHit?.(e) ?? ''
   const defeated = damageEnemy(b, e, damage)
   if (defeated) engine.defeats.push({ enemyId: e.id, byKey: p.key, groupId, viaAttack: true })
   const flanked = flankingRecovery(p, e, b)
@@ -455,7 +456,8 @@ export function fireball(engine: Engine, caster: BattlePlayer, groupId: string, 
   if (burned.length > 0 || fatigue > 0) {
     const lines = burned.map((a) => {
       takeDamage(a, mana, true)
-      return `${a.name} takes ${mana} (${a.hp}/${a.maxHp} HP)${a.hp === 0 ? ', and falls' : ''}`
+      const stood = a.hp === 0 && offerLastStand(engine, a)
+      return `${a.name} takes ${mana} (${a.hp}/${a.maxHp} HP)${stood ? ', and stays up with Last Stand' : a.hp === 0 ? ', and falls' : ''}`
     })
     if (fatigue > 0) caster.bag = adjustBag(caster.bag, 'fatigue', fatigue)
     addStep(engine, {
@@ -472,4 +474,42 @@ export function fireball(engine: Engine, caster: BattlePlayer, groupId: string, 
     })
     updateResult(b)
   }
+}
+
+/**
+ * Sweeping Blow: one attack test against every enemy in the player's engagement group. The result is
+ * compared with each enemy's Defense, like a Fireball, and every enemy it reaches takes damage.
+ */
+export function sweepingBlow(engine: Engine, p: BattlePlayer, power: number) {
+  const { b } = engine
+  const groupId = groupOf(b, p.key)
+  const living = enemiesInGroup(b, groupId).filter((e) => e.hp > 0)
+  if (living.length === 0) return
+  const plan = planAttack(p, { power, closeRange: true })
+  const lowest = Math.min(...living.map((e) => enemyDefense(e)))
+  const test = playerTest(engine, p, plan.attribute, lowest, plan.modifiers)
+  const outcome = test.result.outcome
+  const might = test.result.drawn.filter((d) => d.tokenId === 'might').length
+  const damage = 1 + plan.extraDamage + might
+  const reaches = (e: BattleEnemy) =>
+    outcome === 'critical-success' || (outcome !== 'critical-failure' && test.total >= enemyDefense(e))
+  const lines = living.map((e) => {
+    if (!reaches(e)) return `${e.name} (Defense ${enemyDefense(e)}) ducks the blow.`
+    const defeated = damageEnemy(b, e, damage)
+    if (defeated) engine.defeats.push({ enemyId: e.id, byKey: p.key, groupId, viaAttack: true })
+    return `${e.name} takes ${damage} damage (${e.hp}/${e.maxHp} HP).${defeated ? ` ${e.name} is defeated!` : ''}`
+  })
+  addStep(engine, {
+    actor: playerActorOf(p),
+    title: 'Sweeping Blow',
+    intro: `${p.name} swings through everything in reach. One result is compared with every enemy's Defense.`,
+    test,
+    testMode: 'score',
+    testHeading: `${SPECIAL_LABELS[plan.attribute]} test against each enemy in the group`,
+    resultLine: `Tokens ${fmtSigned(test.result.total)} + ${SPECIAL_LABELS[plan.attribute]} ${test.attributeValue}${test.bonuses.map((x) => ` ${x.value < 0 ? '-' : '+'} ${x.label} ${Math.abs(x.value)}`).join('')} = ${test.total}`,
+    outcome: lines.join(' '),
+    tone: living.some(reaches) ? 'success' : 'failure',
+  })
+  updateResult(b)
+  runTriggers(engine, p, test.result)
 }

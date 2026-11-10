@@ -1,22 +1,30 @@
 import { ENEMIES_BY_ID } from '../../data/enemies'
 import { strikePlayer } from './effects'
 import { addStep, enemyActorOf, groupOf, livingEnemies, livingPlayers, moveToGroup, pick, playerByKey, playersInGroup, shuffled, type Engine } from './state'
-import type { BattleEnemy, BattlePlayer, BattleState } from './types'
+import type { BattleEnemy, BattleState } from './types'
 
-export function ensureEngaged(engine: Engine, e: BattleEnemy): { target: BattlePlayer; closedIn: boolean } | null {
+/** An enemy that is not engaged with anyone spends its whole turn closing in on a player. */
+function closeIn(engine: Engine, e: BattleEnemy) {
   const { b, rng } = engine
-  const inGroup = playersInGroup(b, groupOf(b, e.id))
-  if (inGroup.length > 0) return { target: pick(inGroup, rng), closedIn: false }
   const players = livingPlayers(b)
-  if (players.length === 0) return null
-  const target = pick(players, rng)
+  if (players.length === 0) return
+  const preferred = [e.shovedBy, e.provokedBy].map((key) => (key ? playerByKey(b, key) : undefined)).find((p) => p && p.hp > 0)
+  const target = preferred ?? pick(players, rng)
   moveToGroup(b, e.id, groupOf(b, target.key))
-  return { target, closedIn: true }
+  e.shovedBy = null
+  addStep(engine, {
+    actor: enemyActorOf(e),
+    title: 'Closes in',
+    intro: `${e.name} is not engaged with anyone.`,
+    outcome: `${e.name} spends its turn closing in on ${target.name}, and does nothing else.`,
+    tone: 'neutral',
+  })
 }
 
 export function enemyTurn(engine: Engine, e: BattleEnemy) {
-  makeAttacks(engine, e)
   const { b } = engine
+  if (playersInGroup(b, groupOf(b, e.id)).length === 0) closeIn(engine, e)
+  else makeAttacks(engine, e)
   if (!ENEMIES_BY_ID[e.defId]?.pullsEveryoneIn || e.hp <= 0 || b.result !== 'ongoing') return
   const group = groupOf(b, e.id)
   const dragged = livingPlayers(b).filter((p) => groupOf(b, p.key) !== group)
@@ -49,12 +57,8 @@ function makeAttacks(engine: Engine, e: BattleEnemy) {
       })
       continue
     }
-    const engaged = ensureEngaged(engine, e)
-    if (!engaged) return
-    const intro = engaged.closedIn
-      ? `${e.name} closes in on ${engaged.target.name} and strikes with ${attack.name}.`
-      : `${e.name} attacks ${engaged.target.name} with ${attack.name}.`
-    strikePlayer(engine, e, attack, engaged.target, intro, { interceptable: true })
+    const target = pick(playersInGroup(b, groupOf(b, e.id)), engine.rng)
+    strikePlayer(engine, e, attack, target, `${e.name} attacks ${target.name} with ${attack.name}.`, { interceptable: true })
   }
 }
 

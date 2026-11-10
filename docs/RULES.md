@@ -36,12 +36,12 @@ Two other sources feed the code:
 | Engagement | Groups of players and enemies. You can usually only attack within your group. Enemies engage randomly for now. An action changes group; some abilities (Provoke) force it |
 | Triggers | Enemy triggered abilities usually fire when a Complication is drawn |
 | End | The fight ends when all of one side is at 0 HP |
-| Surprise | Owner ruling: each player makes one Perception test against the median notice Difficulty of the enemies (Goblin Scout 6, Cave Troll 3, Skeleton Guard 6, Barrow Warden 5, Bone Colossus 2, all invented; with an even number the middle two are averaged and rounded up). If anyone passes the party sees the danger coming; if nobody does every enemy gets a surprise round. Stand Watch and Keep watch add +2 | `medianNoticeDifficulty` in `battle/start.ts` |
+| Surprise | Owner ruling: each player makes one Perception test against the median notice Difficulty of the enemies (Goblin Scout 6, Cave Troll 3, Skeleton Guard 6, Barrow Warden 5, Bone Colossus 2, all invented; with an even number the middle two are averaged and rounded up). If anyone passes the party sees the danger coming; if nobody does every enemy gets a surprise round. Keeping watch adds +2, and a Secured room skips the check | `medianNoticeDifficulty` in `battle/start.ts` |
 | Patrol | No patrol until the first door is unlocked |
 | Locked doors | Entrance door can be picked (Agility) or broken (Strength). Retrying is intended, to make torches a constraint |
 | Final room | Sealed by a lock that only opens through actions in other rooms; guarded by a boss |
 | Lighting a torch | Free, at the start of an Interval. The tutorial warns when the torch goes Dim and says to right-click a torch in a pack |
-| Keep watch | The basic Interval action adds +2 to the surprise check, the same as Stand Watch. (The guide words it as "treat the light as one level brighter"; see the table below.) |
+| Keep watch | The basic Interval action adds +2 to the surprise check. (Stand Watch was removed because it did exactly this.) (The guide words it as "treat the light as one level brighter"; see the table below.) |
 | Hands and weapons | Owner ruling: each character has two hand slots. A weapon sets the attribute an ordinary attack tests (sword and mace Strength, dagger Agility, shortbow Perception, magic staff Intelligence, bare hands Strength). A two-handed weapon takes both hands and does +1 damage. A ranged weapon can attack enemies you are not engaged with and is -2 against ones you are. A shield adds 2 Shield (+2) tokens to the bag. The first weapon held (main hand first) is used; a second weapon is a spare. Hand items are bought with the starting coins (dagger 1, sword, mace and shield 2, greataxe, shortbow and magic staff 3). Spell attacks keep their own attribute and ignore weapon damage | `src/data/weapons.ts`, `attackEnemy` |
 | After a fight | Characters who were down wake with 1 HP |
 | Tutorial framing | Intro and outro explain that real play is more flexible than this guided dungeon |
@@ -91,6 +91,15 @@ Two other sources feed the code:
 | Dispel Magic | Owner ruling: it must never block the dungeon. Shrine: disarms the glyph. Library: reveals the secret the ward hid. Crypt: the Barrow Warden loses Undying | `magic.effect` in `data/dungeon.ts` |
 | Breaking the door | A failed attempt that draws a Complication gives the character a Fatigue token | `complication` on the door's lock option |
 | Ossuary | An optional room between the Storeroom and the Cistern with one Bone Colossus. It starts engaged with everyone and drags everyone back into its group at the end of its turn. Scout Ahead shows what is inside, and a hidden crawlspace from the Storeroom to the Cistern (found by Investigate at 6 or Find a Shortcut) goes round it | `data/dungeon.ts`, `data/enemies.ts` |
+| Unengaged enemies | Owner ruling: an enemy with no player in its group spends its whole turn closing in on a player and does nothing else, area attacks included. A Shield Bash target returns to the warrior who bashed it, then a Provoker, then a random player | `closeIn` in `battle/enemies.ts` |
+| Shield Bash | Fight, 1 Resolve, engaged enemies only. A hit knocks the enemy into a group of its own and costs it its next turn | `shieldBash` in `battle/abilities.ts` |
+| Sweeping Blow | Fight, 2 Resolve. One attack test compared with every enemy's Defense in your group, like Fireball. Each enemy reached takes 1 damage plus weapon and Might bonuses | `sweepingBlow` in `battle/effects.ts` |
+| Last Stand | Triggered, 1 Resolve (owner worded it without a cost; the Resolve is my addition, since abilities cost class resources). Offered when an enemy attack or a Fireball backlash drops the warrior to 0 HP. Poison damage does not offer it | `offerLastStand` in `battle/reactions.ts` |
+| Interval ability costs | Warrior utility abilities spend Resolve (1) or a consumable. A spent Resolve goes back to the bag, so it is only a cost until the warrior rests or draws it again | `payCost` in `intervalActions/abilities.ts` |
+| Barricade | Owner asked for it to do something concrete now that enemies do not make tests: each use delays the patrol by 3 Intervals, however often it is used, limited by Resolve and torch time | `patrolDelay` in `dungeonState.ts` |
+| Secure Area | Combat that begins in a Secured room has no surprise check | `surpriseIn` in `dungeonState.ts` |
+| Shoulder Through | Owner's "break down the door" idea. Strength against the door's break Difficulty minus 2, no Complication on failure | `shoulderThrough` in `intervalActions/abilities.ts` |
+| Steel Nerves, Hearty Meal | Steel Nerves removes a Fear token with no test, for 1 Resolve. Hearty Meal uses a Ration to heal everyone 1 HP and remove a Fatigue token from each bag. Both are my designs | `intervalActions/abilities.ts` |
 | Fortify | Owner ruling: everyone in the party, not just the warrior, begins combat with +2 Defense | `FORTIFY_DEFENSE` |
 | Set an Ambush | A free attack on a random enemy at the start of the fight | `startBattle` |
 
@@ -112,7 +121,6 @@ them settled yet. Rows marked "owner ruling" were decided in conversation and wi
 
 - Species traits that are not bag changes (Catfolk Foresight, Jann Exchange, Verdant Accumulated Knowledge) and
   background abilities: flavour only.
-- Room preparations other than Fortify and Ambush (Secure Area, Barricade) are recorded but have no effect in a fight.
 - Scry beyond showing a neighbouring room.
 - Weapons and armor, other equipment effects, buying or selling in play.
 - Smarter enemy engagement than random, and players choosing the order enemies resolve in.

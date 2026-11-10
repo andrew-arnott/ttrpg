@@ -7,7 +7,7 @@ import {
   createDungeonState,
   KEEP_WATCH,
   passagesOf,
-  STAND_WATCH,
+  patrolCountdown,
   unlockLock,
   springBoss,
   type DungeonState,
@@ -17,6 +17,7 @@ import { availableActions, resolveInterval, respondToIntervalReaction, type Inte
 import { createPartyMember } from './partyMember'
 import { sampleRoster } from './roster'
 import { ALWAYS_FAIL, ALWAYS_PASS, bagOf, testMember } from './testFixtures'
+import { countInBag } from './tokenFlow'
 import { torchLevel, totalIntervals } from './torch'
 
 const rng = () => mulberry32(1)
@@ -25,7 +26,6 @@ const flat = { strength: 1, perception: 1, endurance: 1, charisma: 1, intelligen
 const stateWith = (...members: ReturnType<typeof testMember>[]): DungeonState =>
   createDungeonState(SUNKEN_CRYPT, members)
 
-const watchman = (key: string) => ({ ...sampleMember('warrior', key), abilityIds: ['standWatch'] })
 
 const sampleMember = (professionId: string, key = professionId) => {
   const entry = sampleRoster().find((r) => r.key === `sample:${professionId}`)!
@@ -541,19 +541,6 @@ describe('resolveInterval', () => {
       expect(steps[0].outcome).toMatch(/h recovers 1 HP/)
     })
 
-    it('Fortify and Barricade leave a preparation on the room', () => {
-      const warrior = { ...sampleMember('warrior', 'w') }
-      const s = unlockLock(stateWith({ ...warrior, abilityIds: [...warrior.abilityIds, 'barricade'] }), 'entranceDoor')
-      const { state } = resolveInterval(s, { w: { actionId: 'ability:fortify' } }, rng())
-      expect(state.prepared.entrance.map((p) => p.tag)).toEqual(['Fortified'])
-      expect(state.prepared.entrance[0].memberKey).toBe('w')
-      const barricaded = resolveInterval(state, { w: { actionId: 'ability:barricade', targetRoomId: 'greatHall' } }, rng())
-      expect(barricaded.state.prepared.entrance.map((p) => p.tag)).toEqual([
-        'Fortified',
-        'Barricaded toward Great Hall',
-      ])
-    })
-
     it('Dispel Magic tests Intelligence against the room magic', () => {
       const wizard = { ...sampleMember('wizard', 'z'), bag: ALWAYS_PASS }
       const s = { ...stateWith(wizard), roomId: 'shrine' }
@@ -589,26 +576,10 @@ describe('resolveInterval', () => {
 })
 
 describe('watching during an Interval', () => {
-  it('records Stand Watch for the surprise check', () => {
-    const s = stateWith(watchman('w'))
-    const { state } = resolveInterval(s, { w: { actionId: 'ability:standWatch' } }, rng())
-    expect(state.watch).toEqual(STAND_WATCH)
-  })
-
   it('records Keep watch, including by default', () => {
     const s = stateWith(testMember('a', 0))
     expect(resolveInterval(s, { a: { actionId: 'watch' } }, rng()).state.watch).toEqual(KEEP_WATCH)
     expect(resolveInterval(s, {}, rng()).state.watch).toEqual(KEEP_WATCH)
-  })
-
-  it('takes the best watch when several characters watch', () => {
-    const s = stateWith(testMember('a', 0), watchman('w'))
-    const { state } = resolveInterval(
-      s,
-      { a: { actionId: 'watch' }, w: { actionId: 'ability:standWatch' } },
-      rng(),
-    )
-    expect(state.watch).toEqual(STAND_WATCH)
   })
 
   it('records nothing when everyone is busy with something else', () => {
@@ -895,5 +866,103 @@ describe('using healing items', () => {
     expect(steps[0].title).toBe('Use a Bandage')
     expect(steps[1].title).toBe('Keep watch')
     expect(state.party[1].inventory.bandage).toBe(1)
+  })
+})
+
+describe('Warrior utility abilities', () => {
+  const warrior = (extra: string[], over: Partial<PartyMember> = {}) => ({
+    ...sampleMember('warrior', 'w'),
+    abilityIds: extra,
+    ...over,
+  })
+  const use = (id: string): InteractionPlan => ({ w: { actionId: `ability:${id}` } })
+
+  it('Barricade spends 1 Resolve and pushes the patrol back 3 Intervals, however often it is used', () => {
+    const s = unlockLock(stateWith(warrior(['barricade'])), 'entranceDoor')
+    const before = patrolCountdown(s)!
+    const once = resolveInterval(s, use('barricade'), rng())
+    expect(patrolCountdown({ ...once.state, intervals: s.intervals })).toBe(before + 3)
+    expect(once.state.party[0].resources.resolve).toBe(2)
+    const twice = resolveInterval(once.state, use('barricade'), rng())
+    expect(patrolCountdown({ ...twice.state, intervals: s.intervals })).toBe(before + 6)
+  })
+
+  it('Barricade is unavailable without Resolve, and still helps before the patrol clock starts', () => {
+    const broke = stateWith(warrior(['barricade'], { resources: {} }))
+    const option = availableActions(broke, broke.party[0]).find((o) => o.id === 'ability:barricade')!
+    expect(option.disabledReason).toMatch(/Needs 1 Resolve/)
+    const early = resolveInterval(stateWith(warrior(['barricade'])), use('barricade'), rng())
+    expect(early.state.patrolDelay).toBe(3)
+    expect(early.steps[0].outcome).toMatch(/3 Intervals longer/)
+  })
+
+  it('Secure Area leaves a Secured preparation on the room and spends 1 Resolve', () => {
+    const { state } = resolveInterval(stateWith(warrior(['secureArea'])), use('secureArea'), rng())
+    expect(state.prepared.entrance.map((p) => p.tag)).toEqual(['Secured'])
+    expect(state.party[0].resources.resolve).toBe(2)
+  })
+
+  describe('Shoulder Through', () => {
+    const door = (bag = ALWAYS_PASS) => stateWith(warrior(['shoulderThrough'], { bag }))
+    const plan = use('shoulderThrough:entranceDoor')
+
+    it('is offered as a Room interaction beside a locked door, and nowhere else', () => {
+      const s = door()
+      const option = availableActions(s, s.party[0]).find((o) => o.id === 'ability:shoulderThrough:entranceDoor')!
+      expect(option.label).toBe('Room interaction: shoulder through the rusted iron door')
+      expect(option.description).toMatch(/Difficulty 5/)
+      const open = unlockLock(s, 'entranceDoor')
+      expect(availableActions(open, open.party[0]).some((o) => o.id.startsWith('ability:shoulderThrough'))).toBe(false)
+    })
+
+    it('opens the door on a success and spends 1 Resolve', () => {
+      const { state, steps } = resolveInterval(door(), plan, rng())
+      expect(state.unlocked).toContain('entranceDoor')
+      expect(steps[0].test?.difficulty).toBe(5)
+      expect(state.party[0].resources.resolve).toBe(2)
+    })
+
+    it('draws no Complication token when it fails', () => {
+      const { state } = resolveInterval(door([{ tokenId: 'complication', count: 1 }]), plan, rng())
+      expect(state.unlocked).not.toContain('entranceDoor')
+      expect(countInBag(state.party[0].bag, 'fatigue')).toBe(0)
+    })
+  })
+
+  describe('Steel Nerves', () => {
+    const afraid = () =>
+      stateWith(warrior(['steelNerves']), {
+        ...testMember('a', 0),
+        bag: [...bagOf('plus1'), { tokenId: 'fear', count: 1 }],
+      })
+
+    it('removes a Fear token from an ally with no test, only when someone has one', () => {
+      const s = afraid()
+      const options = availableActions(s, s.party[0]).filter((o) => o.id.startsWith('ability:steelNerves'))
+      expect(options.map((o) => o.id)).toEqual(['ability:steelNerves:a'])
+      const { state, steps } = resolveInterval(s, { w: { actionId: 'ability:steelNerves:a' } }, rng())
+      expect(countInBag(state.party[1].bag, 'fear')).toBe(0)
+      expect(steps[0].test).toBeUndefined()
+      expect(state.party[0].resources.resolve).toBe(2)
+      const calm = stateWith(warrior(['steelNerves']))
+      expect(availableActions(calm, calm.party[0]).some((o) => o.id.startsWith('ability:steelNerves'))).toBe(false)
+    })
+  })
+
+  describe('Hearty Meal', () => {
+    it('uses up a Ration to heal everyone 1 HP and take a Fatigue token from each bag', () => {
+      const tired = { ...testMember('a', 0), hp: 3, maxHp: 10, bag: [...bagOf('plus1'), { tokenId: 'fatigue', count: 2 }] }
+      const s = stateWith(warrior(['heartyMeal'], { inventory: { ration: 1 } }), tired)
+      const { state } = resolveInterval(s, use('heartyMeal'), rng())
+      expect(state.party[0].inventory.ration).toBe(0)
+      expect(state.party[1].hp).toBe(4)
+      expect(countInBag(state.party[1].bag, 'fatigue')).toBe(1)
+    })
+
+    it('needs a Ration', () => {
+      const s = stateWith(warrior(['heartyMeal'], { inventory: {} }))
+      const option = availableActions(s, s.party[0]).find((o) => o.id === 'ability:heartyMeal')!
+      expect(option.disabledReason).toMatch(/No Ration/)
+    })
   })
 })

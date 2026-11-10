@@ -1,5 +1,6 @@
+import { canUseFastOrTriggered } from '../conditionRules'
 import { canReact, payForReaction, type Cost } from '../reactorRules'
-import type { Commitment } from '../tokenFlow'
+import { releaseCommitment, resourceAvailable, type Commitment } from '../tokenFlow'
 import type { Engine } from './state'
 import type { BattleEnemy, BattlePlayer, ReactionRequest } from './types'
 
@@ -70,4 +71,23 @@ export function offerShieldWall(
     notes.push(`${guard.name}'s Shield Wall absorbs ${absorbed}`)
   }
   return { remaining, note: notes.length > 0 ? `, ${notes.join(', ')}` : '' }
+}
+
+const LAST_STAND_COST: Cost = { tokenId: 'resolve', amount: 1 }
+
+/** A warrior who has just been brought to 0 HP may spend 1 Resolve to stay on their feet at 1 HP instead. */
+export function offerLastStand(engine: Engine, p: BattlePlayer): boolean {
+  if (p.hp > 0 || !p.abilityIds.includes('lastStand') || !canUseFastOrTriggered(p)) return false
+  if (resourceAvailable(p, LAST_STAND_COST.tokenId) < LAST_STAND_COST.amount) return false
+  const request: ReactionRequest = {
+    abilityId: 'lastStand',
+    reactorKey: p.key,
+    title: 'Last Stand',
+    prompt: `${p.name} has been brought down to 0 HP. Last Stand spends 1 Resolve to stay on their feet at 1 HP instead.`,
+    cost: '1 Resolve',
+  }
+  if (!engine.ask(request).use) return false
+  releaseCommitment(p, payForReaction(p, LAST_STAND_COST))
+  p.hp = 1
+  return true
 }

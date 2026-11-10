@@ -41,7 +41,6 @@ export interface Watchfulness {
   value: number
 }
 
-export const STAND_WATCH: Watchfulness = { label: 'Stand Watch', value: 2 }
 export const KEEP_WATCH: Watchfulness = { label: 'Keeping watch', value: 2 }
 
 export interface DungeonState {
@@ -67,6 +66,8 @@ export interface DungeonState {
   patrolTriggered: boolean
   /** The Interval count when the first lock was opened. The patrol clock only runs from then. */
   patrolStartedAt: number | null
+  /** Extra Intervals the patrol takes to arrive, gained by Barricading. */
+  patrolDelay?: number
   bossTriggered: boolean
   /** The boss has been beaten and the tutorial is complete. */
   completed: boolean
@@ -224,6 +225,10 @@ export function surpriseCheckFor(state: DungeonState): SurpriseCheck {
   return { modifiers: state.watch ? [state.watch] : [] }
 }
 
+/** Secure Area: nobody can be surprised in a room that has been secured. */
+const surpriseIn = (state: DungeonState, roomId: string): SurpriseCheck | null =>
+  (state.prepared[roomId] ?? []).some((prep) => prep.tag === 'Secured') ? null : surpriseCheckFor(state)
+
 export function springPatrol(state: DungeonState, rng: Rng): DungeonState {
   const { patrol } = state.dungeon
   const battle = startBattle(
@@ -232,7 +237,7 @@ export function springPatrol(state: DungeonState, rng: Rng): DungeonState {
     patrol.enemyIds,
     rng,
     patrol.arrival,
-    surpriseCheckFor(state),
+    surpriseIn(state, state.roomId),
     { torchLevel: torchLevel(state.torch) },
   )
   return withLog({ ...state, battle, battleKind: 'patrol', patrolTriggered: true }, patrol.arrival)
@@ -260,7 +265,7 @@ export function springGuardian(state: DungeonState, room: DungeonRoom, rng: Rng)
     guardian.enemyIds,
     rng,
     guardian.arrival,
-    surpriseCheckFor(state),
+    surpriseIn(state, room.id),
     { torchLevel: torchLevel(state.torch) },
   )
   return withLog(
@@ -269,16 +274,18 @@ export function springGuardian(state: DungeonState, room: DungeonRoom, rng: Rng)
   )
 }
 
+const patrolDelayFor = (state: DungeonState) => state.dungeon.patrol.delayAfterUnlock + (state.patrolDelay ?? 0)
+
 /** The patrol only starts looking once the first lock has been opened. */
 export function patrolIsDue(state: DungeonState): boolean {
   if (state.battle || state.patrolTriggered || state.patrolStartedAt === null) return false
-  return state.intervals - state.patrolStartedAt >= state.dungeon.patrol.delayAfterUnlock
+  return state.intervals - state.patrolStartedAt >= patrolDelayFor(state)
 }
 
 /** Intervals until the patrol arrives, once its clock is running. */
 export function patrolCountdown(state: DungeonState): number | null {
   if (state.patrolStartedAt === null || state.patrolTriggered) return null
-  return state.dungeon.patrol.delayAfterUnlock - (state.intervals - state.patrolStartedAt)
+  return patrolDelayFor(state) - (state.intervals - state.patrolStartedAt)
 }
 
 export function springPatrolIfDue(state: DungeonState, rng: Rng): DungeonState {

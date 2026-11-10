@@ -15,7 +15,6 @@ import {
   patrolCountdown,
   patrolIsDue,
   sealStatuses,
-  STAND_WATCH,
   surpriseCheckFor,
   unlockLock,
   visibleRoomIds,
@@ -233,15 +232,22 @@ describe('the surprise check', () => {
 
   it('only adds watchfulness; the torch is a bonus on every test', () => {
     expect(surpriseCheckFor(fresh()).modifiers).toEqual([])
-    expect(surpriseCheckFor({ ...fresh(), watch: STAND_WATCH }).modifiers).toEqual([STAND_WATCH])
-    expect(STAND_WATCH.value).toBe(2)
+    expect(surpriseCheckFor({ ...fresh(), watch: KEEP_WATCH }).modifiers).toEqual([KEEP_WATCH])
+    expect(KEEP_WATCH.value).toBe(2)
   })
 
   it('gives each player the torch and the watch as bonuses to their Perception test when the patrol arrives', () => {
-    const s = dungeonReducer({ ...fresh(), watch: STAND_WATCH }, { type: 'startBattle', rng })
+    const s = dungeonReducer({ ...fresh(), watch: KEEP_WATCH }, { type: 'startBattle', rng })
     const looks = s.battle!.opening.filter((o) => o.title === 'Look out!')
     expect(looks).toHaveLength(s.party.length)
-    expect(looks[0].test!.bonuses).toEqual([{ label: 'Bright torch', value: 1 }, STAND_WATCH])
+    expect(looks[0].test!.bonuses).toEqual([{ label: 'Bright torch', value: 1 }, KEEP_WATCH])
+  })
+
+  it('skips the check when the room was secured', () => {
+    const secured = { ...fresh(), prepared: { entrance: [{ tag: 'Secured', memberKey: 'a' }] } }
+    const s = dungeonReducer(secured, { type: 'startBattle', rng })
+    expect(s.battle!.opening.some((o) => o.title === 'Look out!')).toBe(false)
+    expect(s.battle!.opening.some((o) => o.title === 'Surprise round')).toBe(false)
   })
 
   it('takes the light into the whole fight', () => {

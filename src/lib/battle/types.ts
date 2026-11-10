@@ -50,6 +50,8 @@ export interface BattleEnemy {
   sealed: SealedToken[]
   disabled: boolean
   provokedBy: string | null
+  /** Knocked out of its engagement group by this player's Shield Bash; it comes straight back at them. */
+  shovedBy?: string | null
   /** Extra attack value until the end of the round. */
   empowered: number
   /** Its healing triggers no longer work, because its wards were dispelled. */

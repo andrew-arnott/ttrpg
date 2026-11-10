@@ -6,13 +6,17 @@ import type { Ability } from '../../data/types'
 import {
   adjacentRoomIds,
   lightFreshTorch,
+  lockedExits,
   passagesOf,
+  patrolCountdown,
+  unlockLock,
   revealVisible,
   roomById,
   type DungeonState,
   type PartyMember,
 } from '../dungeonState'
-import { countInBag } from '../tokenFlow'
+import { adjustBag, commitResource, countInBag, releaseCommitment, resourceAvailable } from '../tokenFlow'
+import { parseCost } from '../battle/state'
 import { totalIntervals } from '../torch'
 import { addPrepared, defuseTrap, giveReward, keepWatch, markDone, narrate, runTest, updateMember, withArticle, withDarkness } from './context'
 import type { ActionHandler, Context, Resolution } from './context'
@@ -205,26 +209,117 @@ const tendTheAfflicted: AbilityAction = {
   },
 }
 
+const PATROL_DELAY = 3
+
+const barricade: AbilityAction = {
+  perform: (ctx, ability) => {
+    const next = { ...ctx.state, patrolDelay: (ctx.state.patrolDelay ?? 0) + PATROL_DELAY }
+    const left = patrolCountdown(next)
+    return narrate(
+      ctx,
+      ability.name,
+      `${ctx.member.name} drags furniture and rubble across the passages.`,
+      left === null
+        ? `Nothing is hunting the party yet, but when the patrol comes it will take ${PATROL_DELAY} Intervals longer to reach them.`
+        : `The patrol will take ${PATROL_DELAY} Intervals longer to find the party. It is about ${Math.max(0, left)} Intervals away.`,
+      'success',
+      next,
+    )
+  },
+}
+
+/** Shoulder Through: a Strength test on a locked door that is easier than breaking it down, and never costs a Complication. */
+const shoulderThrough: AbilityAction = {
+  options: (state, _member, ability) => {
+    const room = roomById(state.dungeon, state.roomId)
+    return lockedExits(state.dungeon, room.id, passagesOf(state)).flatMap(({ lock, room: beyond }) => {
+      const brute = lock.kind === 'door' ? lock.options.find((o) => o.id === 'break') : undefined
+      if (!brute) return []
+      return [
+        {
+          id: `ability:${ability.id}:${lock.id}`,
+          group: 'Room',
+          label: `Room interaction: shoulder through the ${lock.name.toLowerCase()}`,
+          description: `Make a Strength test (Difficulty ${Math.max(2, brute.difficulty - 2)}) to get through to ${beyond.name}. A failure draws no Complication.`,
+        } satisfies ActionOption,
+      ]
+    })
+  },
+  perform: (ctx, ability, [lockId]) => {
+    const { member, state } = ctx
+    const exit = lockedExits(state.dungeon, state.roomId, passagesOf(state)).find((e) => e.lock.id === lockId)
+    const brute = exit?.lock.kind === 'door' ? exit.lock.options.find((o) => o.id === 'break') : undefined
+    if (!exit || !brute) return keepWatch(ctx, ability.name)
+    const intro = withDarkness(ctx, `${member.name} lowers a shoulder and charges the ${exit.lock.name.toLowerCase()}.`)
+    const test = runTest(ctx, 'strength', Math.max(2, brute.difficulty - 2))
+    if (!test.passed) return narrate(ctx, ability.name, intro, brute.failure, 'failure', ctx.state, test)
+    const first = ctx.state.patrolStartedAt === null
+    const stir = first ? ' Somewhere deeper in the complex, something starts to stir.' : ''
+    return narrate(ctx, ability.name, intro, brute.success + stir, 'success', unlockLock(ctx.state, exit.lock.id), test)
+  },
+}
+
+/** Steel Nerves: talk an ally out of their Fear. No test, no item. */
+const steelNerves: AbilityAction = {
+  options: (state, member, ability) =>
+    state.party
+      .filter((patient) => countInBag(patient.bag, 'fear') > 0)
+      .map(
+        (patient): ActionOption => ({
+          id: `ability:${ability.id}:${patient.key}`,
+          group: 'Class',
+          label: `${ability.name}: ${patient.key === member.key ? 'your' : `${patient.name}'s`} Fear`,
+          description: `Remove 1 Fear token from ${patient.key === member.key ? 'your' : `${patient.name}'s`} bag. No test is needed.`,
+        }),
+      ),
+  perform: (ctx, ability, [patientKey]) => {
+    const patient = ctx.state.party.find((m) => m.key === patientKey)
+    if (!patient || countInBag(patient.bag, 'fear') <= 0) return keepWatch(ctx, ability.name)
+    return narrate(
+      ctx,
+      ability.name,
+      `${ctx.member.name} steadies ${patient.key === ctx.member.key ? 'themselves' : patient.name} with a few firm words.`,
+      `The Fear token is removed from ${patient.name}'s bag.`,
+      'success',
+      removeConditionToken(ctx.state, patient.key, 'fear'),
+    )
+  },
+}
+
+/** Hearty Meal: a Ration feeds the whole party. */
+const heartyMeal: AbilityAction = {
+  unavailable: (_state, member) => ((member.inventory.ration ?? 0) <= 0 ? 'No Ration to use up' : undefined),
+  perform: (ctx, ability) => {
+    const { member, state } = ctx
+    const fed = state.party.map((m) => {
+      const eating = m.key === member.key ? { ...m, inventory: { ...m.inventory, ration: (m.inventory.ration ?? 0) - 1 } } : { ...m }
+      return {
+        ...eating,
+        hp: Math.min(eating.maxHp, eating.hp + 1),
+        bag: countInBag(eating.bag, 'fatigue') > 0 ? adjustBag(eating.bag, 'fatigue', -1) : eating.bag,
+      }
+    })
+    const lighter = state.party.filter((m) => countInBag(m.bag, 'fatigue') > 0).length
+    const healed = state.party.filter((m) => m.hp < m.maxHp).length
+    return narrate(
+      ctx,
+      ability.name,
+      `${member.name} shares out a hot meal.`,
+      `Everyone recovers 1 HP${healed === 0 ? ' if they need it' : ''} and ${lighter} ${lighter === 1 ? 'person loses' : 'people lose'} a Fatigue token.`,
+      'success',
+      { ...state, party: fed },
+    )
+  },
+}
+
 const ABILITY_ACTIONS: Record<string, AbilityAction> = {
   fortify: prepare('Fortified', 'If combat begins here before the party leaves, the party begins with +2 Defend.'),
-  secureArea: prepare('Secured', 'The party can rest here without being surprised through the entrances secured.'),
+  secureArea: prepare('Secured', 'If combat begins here before the party leaves, nobody can be surprised.'),
   setAnAmbush: prepare('Ambush set', 'If enemies enter before the party leaves, a free attack is ready for the first one.'),
-  barricade: {
-    targeted: true,
-    perform: (ctx, ability) => {
-      const target = targetRoom(ctx)
-      if (!target) return keepWatch(ctx, ability.name)
-      return narrate(
-        ctx,
-        ability.name,
-        `${ctx.member.name} reinforces the passage to ${target.name}.`,
-        'Creatures forcing their way through must succeed on a Strength test.',
-        'success',
-        addPrepared(ctx.state, ctx.room.id, `Barricaded toward ${target.name}`, ctx.member.key),
-      )
-    },
-  },
-  standWatch: { perform: (ctx, ability) => keepWatch(ctx, ability.name) },
+  barricade,
+  shoulderThrough,
+  steelNerves,
+  heartyMeal,
   scoutAhead: observeAdjacent('carefully scouts'),
   scry: observeAdjacent('magically observes'),
   caseTheJoint: describeRoom((ctx) => `${ctx.member.name} studies ${ctx.room.name}.`, (room) => room.intel),
@@ -250,13 +345,38 @@ const fallbackAbility: AbilityAction = {
     narrate(ctx, ability.name, `${ctx.member.name} uses ${ability.name}.`, ability.text, 'success'),
 }
 
+/** Why an Interval ability cannot be paid for, if it cannot. */
+function costGate(member: PartyMember, ability: Ability): string | undefined {
+  const cost = parseCost(ability.cost)
+  if (!cost || resourceAvailable(member, cost.tokenId) >= cost.amount) return undefined
+  return `Needs ${cost.amount} ${TOKENS[cost.tokenId]?.name ?? cost.tokenId}`
+}
+
+/** Spending a resource takes it out of play and returns it to the bag. */
+function payCost(resolution: Resolution, memberKey: string, ability: Ability): Resolution {
+  const cost = parseCost(ability.cost)
+  if (!cost) return resolution
+  return {
+    ...resolution,
+    state: updateMember(resolution.state, memberKey, (m) => {
+      const holder = { ...m }
+      const committed = commitResource(holder, cost.tokenId, cost.amount)
+      if (committed) releaseCommitment(holder, committed)
+      return holder
+    }),
+  }
+}
+
 export const abilityHandler: ActionHandler = {
   options: (state, member) => {
     const room = roomById(state.dungeon, state.roomId)
     const exits = adjacentRoomIds(state.dungeon, room.id, passagesOf(state)).map((id) => roomById(state.dungeon, id))
     return memberAbilities(member).flatMap((ability): ActionOption[] => {
       const action = ABILITY_ACTIONS[ability.id]
-      if (action?.options) return action.options(state, member, ability)
+      const gate = costGate(member, ability)
+      if (action?.options) {
+        return action.options(state, member, ability).map((o) => ({ ...o, disabledReason: o.disabledReason ?? gate }))
+      }
       const targeted = Boolean(action?.targeted)
       return [
         {
@@ -266,13 +386,15 @@ export const abilityHandler: ActionHandler = {
           description: ability.text,
           targets: targeted ? exits : undefined,
           disabledReason:
-            action?.unavailable?.(state, member) ?? (targeted && exits.length === 0 ? 'Nowhere to point it' : undefined),
+            gate ?? action?.unavailable?.(state, member) ?? (targeted && exits.length === 0 ? 'Nowhere to point it' : undefined),
         },
       ]
     })
   },
   perform: (ctx, [abilityId, ...extra]) => {
     const ability = memberAbilities(ctx.member).find((a) => a.id === abilityId)
-    return ability ? (ABILITY_ACTIONS[ability.id] ?? fallbackAbility).perform(ctx, ability, extra) : keepWatch(ctx)
+    if (!ability) return keepWatch(ctx)
+    const resolution = (ABILITY_ACTIONS[ability.id] ?? fallbackAbility).perform(ctx, ability, extra)
+    return payCost(resolution, ctx.member.key, ability)
   },
 }

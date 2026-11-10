@@ -668,6 +668,8 @@ On success, you may change your engagement as follows:
 
 On failure, your engagement remains unchanged.
 
+An enemy that is not engaged with anyone spends its whole turn closing in on a player, and does nothing else. If it was knocked out of a group by a Shield Bash, it closes in on the one who did it; otherwise on a player of its choice.
+
 ### Starting Combat and Surprise
 
 Each player makes one Perception test against the median notice Difficulty of the enemies. If anyone passes, the party sees the danger coming and the fight starts on even terms. If nobody does, every enemy gets a surprise round before the players act.
@@ -858,6 +860,26 @@ You may use your resulting Defend score to protect yourself and allies in your e
 
 You choose which incoming attacks consume your Defend score.
 
+#### Shield Bash
+
+**Fight — 1 Resolve**
+
+Make an attack against an enemy you are engaged with.
+
+On success, deal damage normally and knock the enemy out of its engagement group. It is no longer engaged with anyone, so on its next turn it can only close in on you.
+
+#### Sweeping Blow
+
+**Fight — 2 Resolve**
+
+Make one attack against every enemy in your engagement group. Compare the single result with each enemy's Defense, and deal damage to every enemy it reaches.
+
+#### Last Stand
+
+**Triggered — 1 Resolve**
+
+When you drop to 0 HP, stay at 1 HP instead.
+
 ### Warrior Exploration Abilities
 
 #### Fortify
@@ -868,23 +890,35 @@ Everyone in the party begins combat with +2 Defend, not just the Warrior.
 
 Prepare the current room for defense. If combat begins in this room before the party leaves, **everyone in the party** begins combat with **+2 Defend**.
 
-#### Stand Watch
+#### Secure Area
 
-**Interval**
+**Interval — 1 Resolve**
 
-Keep watch over the surrounding area. The GM informs you of approaching enemies or other obvious threats before they reach the party, provided they can reasonably be detected from your position.
+Watch every approach to the current room. If combat begins here before the party leaves, nobody can be surprised.
 
 #### Barricade
 
-**Interval**
+**Interval — 1 Resolve**
 
-Reinforce a doorway or passage using available materials. Creatures attempting to force their way through must succeed on a Strength test against a Difficulty determined by the GM.
+Block the doors and passages with whatever is at hand. The patrol takes 3 Intervals longer to find the party. It can be used again for another 3.
 
-#### Secure Area
+#### Shoulder Through
 
-**Interval**
+**Interval — 1 Resolve**
 
-Inspect and prepare the current room as a safe resting location. The GM informs you of obvious vulnerabilities, and the party can rest here without being surprised by threats approaching through entrances you have secured.
+Room interaction: put your weight behind a locked door. Make a Strength test against the door's break Difficulty minus 2. A failure draws no Complication.
+
+#### Steel Nerves
+
+**Interval — 1 Resolve**
+
+Talk an ally down. Remove 1 Fear token from their bag. No test is needed.
+
+#### Hearty Meal
+
+**Interval — Ration**
+
+Use up a Ration and feed the party. Everyone recovers 1 HP and removes 1 Fatigue token from their bag.
 
 ### Sealed Resolve
 

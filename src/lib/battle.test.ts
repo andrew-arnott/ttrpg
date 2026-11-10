@@ -178,11 +178,20 @@ describe('enemy attacks', () => {
     expect(firstEnemyStep).toBeGreaterThan(lastPlayerStep)
   })
 
-  it('make an enemy with nobody in its group engage a random player first', () => {
+  it('has an enemy with nobody in its group spend its whole turn engaging a player', () => {
     const b = battleOf([player('p')], [enemy('goblin', 'e')], { p: 'g1', e: 'g9' })
     const { battle, steps } = playRound(b, { p: turn() }, rng())
     expect(battle.groups.e).toBe('g1')
-    expect(steps.find((s) => s.title === 'Rusty Knife')!.intro).toMatch(/closes in/)
+    expect(steps.find((s) => s.title === 'Closes in')!.outcome).toMatch(/does nothing else/)
+    expect(steps.some((s) => s.title === 'Rusty Knife')).toBe(false)
+    expect(battle.players[0].hp).toBe(10)
+  })
+
+  it('lets an enemy that has closed in attack on its next turn', () => {
+    const b = battleOf([player('p')], [enemy('goblin', 'e')], { p: 'g1', e: 'g9' })
+    const first = playRound(b, { p: turn() }, rng())
+    const second = playRound(first.battle, { p: turn() }, rng())
+    expect(second.steps.some((s) => s.title === 'Rusty Knife')).toBe(true)
   })
 
   it('hit every player in the room with an area attack', () => {
@@ -1280,6 +1289,104 @@ describe('Shield Wall', () => {
     })()
     playRound(b, useWall, rng(), reactions)
     expect(seen).not.toContain('shieldWall')
+  })
+})
+
+describe('Shield Bash', () => {
+  const bash = (bag = bagOf('plus3')) =>
+    battleOf(
+      [player('w', { abilityIds: ['shieldBash'], bag }), player('q')],
+      [enemy('goblin', 'e', { hp: 9 }), holder()],
+      { w: 'g1', q: 'g2', e: 'g1', holder: 'g2' },
+    )
+  const useBash: PlannedCombat = { actionId: 'ability:shieldBash', targetId: 'e' }
+
+  it('knocks a hit enemy out of its group without sealing the Resolve', () => {
+    const { battle, steps } = takeAction(bash(), useBash, rng())
+    expect(steps[0].title).toBe('Shield Bash')
+    expect(battle.groups.e).not.toBe('g1')
+    expect(battle.players[0].resources.resolve).toBe(2)
+    expect(battle.enemies[0].sealed).toEqual([])
+    expect(battle.enemies[0].shovedBy).toBe('w')
+  })
+
+  it('leaves the enemy engaged when the attack misses', () => {
+    const { battle } = takeAction(bash(ALWAYS_FAIL), useBash, rng())
+    expect(battle.groups.e).toBe('g1')
+  })
+
+  it('sends the bashed enemy straight back at the warrior, and nothing else, on its turn', () => {
+    const { battle, steps } = playRound(bash(), { w: turn(useBash), q: turn() }, rng())
+    const closing = steps.find((s) => s.title === 'Closes in')!
+    expect(closing.outcome).toMatch(/closing in on w/)
+    expect(steps.some((s) => s.title === 'Rusty Knife')).toBe(false)
+    expect(battle.groups.e).toBe('g1')
+    expect(battle.enemies[0].shovedBy).toBeNull()
+  })
+
+  it('can only target enemies the warrior is engaged with', () => {
+    const option = availableCombatActions(bash(), bash().players[0]).find((o) => o.id === 'ability:shieldBash')!
+    expect(option.targets!.find((t) => t.id === 'holder')!.disabledReason).toBeTruthy()
+  })
+})
+
+describe('Sweeping Blow', () => {
+  const sweep = (resolve = 3) =>
+    battleOf(
+      [player('w', { abilityIds: ['sweepingBlow'], resources: { resolve } })],
+      [enemy('goblin', 'g', { hp: 9 }), enemy('troll', 't', { hp: 9 }), enemy('goblin', 'far', { hp: 9 })],
+      { w: 'g1', g: 'g1', t: 'g1', far: 'g2' },
+    )
+
+  it('draws once and compares the result with every enemy in the group', () => {
+    const { battle, steps } = takeAction(sweep(), { actionId: 'ability:sweepingBlow' }, rng())
+    const blow = steps.filter((s) => s.title === 'Sweeping Blow')
+    expect(blow).toHaveLength(1)
+    expect(blow[0].test?.total).toBe(4)
+    expect(blow[0].outcome).toMatch(/g takes 1 damage/)
+    expect(blow[0].outcome).toMatch(/t \(Defense 5\) ducks/)
+    expect(battle.enemies.find((e) => e.id === 'far')!.hp).toBe(9)
+  })
+
+  it('costs 2 Resolve', () => {
+    const { battle } = takeAction(sweep(), { actionId: 'ability:sweepingBlow' }, rng())
+    expect(battle.players[0].resources.resolve).toBe(1)
+    const poor = availableCombatActions(sweep(1), sweep(1).players[0]).find((o) => o.id === 'ability:sweepingBlow')!
+    expect(poor.disabledReason).toMatch(/Needs 2 Resolve/)
+  })
+
+  it('needs an engaged enemy', () => {
+    const b = sweep()
+    b.groups.g = 'g3'
+    b.groups.t = 'g3'
+    const option = availableCombatActions(b, b.players[0]).find((o) => o.id === 'ability:sweepingBlow')!
+    expect(option.disabledReason).toMatch(/No enemy you are engaged with/)
+  })
+})
+
+describe('Last Stand', () => {
+  const dying = (over: Partial<BattlePlayer> = {}) =>
+    battleOf([player('w', { abilityIds: ['lastStand'], hp: 1, ...over })], [enemy('goblin', 'e', { hp: 9 })], {
+      w: 'g1',
+      e: 'g1',
+    })
+
+  it('keeps a warrior at 1 HP for 1 Resolve instead of dropping to 0', () => {
+    const { battle, steps } = playRound(dying(), { w: turn() }, rng(), acceptAll)
+    expect(battle.players[0].hp).toBe(1)
+    expect(battle.players[0].resources.resolve).toBe(2)
+    expect(steps.some((s) => /Last Stand/.test(s.outcome))).toBe(true)
+  })
+
+  it('lets the warrior fall when declined', () => {
+    const { battle } = playRound(dying(), { w: turn() }, rng(), declineAll)
+    expect(battle.players[0].hp).toBe(0)
+  })
+
+  it('is not offered without Resolve to pay', () => {
+    const seen: string[] = []
+    playRound(dying({ resources: { resolve: 0 } }), { w: turn() }, rng(), (r) => (seen.push(r.abilityId), { use: true }))
+    expect(seen).toEqual([])
   })
 })
 

@@ -1,7 +1,7 @@
 import { ENEMIES_BY_ID } from '../../data/enemies'
 import { BACKSTAB_DAMAGE, MAX_FIREBALL_MANA, SMITE_BONUS_DAMAGE } from './types'
 import type { BattleEnemy, BattlePlayer, BattleState, CombatOption } from './types'
-import { attackEnemy, blessAlly, changeEngagement, defend, fireball, healAlly, magicMissile, sealOn } from './effects'
+import { attackEnemy, blessAlly, changeEngagement, defend, fireball, healAlly, magicMissile, sealOn, sweepingBlow } from './effects'
 import { arcaneFocus, chainLightning, transpose } from './spells'
 import {
   distinctGroupIds,
@@ -14,6 +14,7 @@ import {
   addStep,
   livingPlayers,
   moveToGroup,
+  newGroup,
   playerActorOf,
   type Engine,
 } from './state'
@@ -109,6 +110,31 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
         },
       })
     },
+  },
+  shieldBash: {
+    options: enemyFightOptions('engaged'),
+    perform: ({ engine, p, enemy, boost }) => {
+      if (!enemy) return
+      attackEnemy(engine, p, enemy, {
+        title: 'Shield Bash',
+        power: boost,
+        onHit: (e) => {
+          e.shovedBy = p.key
+          moveToGroup(engine.b, e.id, newGroup(engine.b))
+          return `${e.name} is knocked out of the fight. It is no longer engaged, so on its turn it can only close in.`
+        },
+      })
+    },
+  },
+  sweepingBlow: {
+    options: ({ b, p, id, base, gate }) => [
+      {
+        ...base,
+        id,
+        disabledReason: gate ?? (engagedEnemies(b, p).length === 0 ? 'No enemy you are engaged with' : undefined),
+      },
+    ],
+    perform: ({ engine, p, boost }) => sweepingBlow(engine, p, boost),
   },
   cheapShot: {
     options: enemyFightOptions('engaged'),
