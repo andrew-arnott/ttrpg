@@ -930,22 +930,26 @@ describe('Warrior utility abilities', () => {
   })
 
   describe('Steel Nerves', () => {
-    const afraid = () =>
-      stateWith(warrior(['steelNerves']), {
+    const afraid = (inventory: Record<string, number>) =>
+      stateWith(warrior(['steelNerves'], { inventory }), {
         ...testMember('a', 0),
         bag: [...bagOf('plus1'), { tokenId: 'fear', count: 1 }],
       })
+    const steel = (s: DungeonState) => availableActions(s, s.party[0]).filter((o) => o.id.startsWith('ability:steelNerves'))
 
-    it('removes a Fear token from an ally with no test, only when someone has one', () => {
-      const s = afraid()
-      const options = availableActions(s, s.party[0]).filter((o) => o.id.startsWith('ability:steelNerves'))
-      expect(options.map((o) => o.id)).toEqual(['ability:steelNerves:a'])
+    it('uses up a Liquid Courage to remove a Fear token from an ally with no test', () => {
+      const s = afraid({ liquidCourage: 1 })
+      expect(steel(s).map((o) => o.id)).toEqual(['ability:steelNerves:a'])
       const { state, steps } = resolveInterval(s, { w: { actionId: 'ability:steelNerves:a' } }, rng())
       expect(countInBag(state.party[1].bag, 'fear')).toBe(0)
+      expect(state.party[0].inventory.liquidCourage).toBe(0)
+      expect(state.party[0].resources.resolve).toBe(3)
       expect(steps[0].test).toBeUndefined()
-      expect(state.party[0].resources.resolve).toBe(2)
-      const calm = stateWith(warrior(['steelNerves']))
-      expect(availableActions(calm, calm.party[0]).some((o) => o.id.startsWith('ability:steelNerves'))).toBe(false)
+    })
+
+    it('is not offered without the item, or when nobody is afraid', () => {
+      expect(steel(afraid({}))).toEqual([])
+      expect(steel(stateWith(warrior(['steelNerves'], { inventory: { liquidCourage: 1 } })))).toEqual([])
     })
   })
 

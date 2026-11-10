@@ -910,9 +910,9 @@ Room interaction: put your weight behind a locked door. Make a Strength test aga
 
 #### Steel Nerves
 
-**Interval — 1 Resolve**
+**Interval — Liquid Courage**
 
-Talk an ally down. Remove 1 Fear token from their bag. No test is needed.
+Use up a Liquid Courage to talk an ally down. Remove 1 Fear token from their bag. No test is needed.
 
 #### Hearty Meal
 

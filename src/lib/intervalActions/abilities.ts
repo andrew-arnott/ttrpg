@@ -259,29 +259,38 @@ const shoulderThrough: AbilityAction = {
   },
 }
 
-/** Steel Nerves: talk an ally out of their Fear. No test, no item. */
+/** Steel Nerves: use up Liquid Courage to talk an ally out of their Fear. The patient needs no test. */
 const steelNerves: AbilityAction = {
   options: (state, member, ability) =>
-    state.party
-      .filter((patient) => countInBag(patient.bag, 'fear') > 0)
-      .map(
-        (patient): ActionOption => ({
-          id: `ability:${ability.id}:${patient.key}`,
-          group: 'Class',
-          label: `${ability.name}: ${patient.key === member.key ? 'your' : `${patient.name}'s`} Fear`,
-          description: `Remove 1 Fear token from ${patient.key === member.key ? 'your' : `${patient.name}'s`} bag. No test is needed.`,
-        }),
-      ),
+    (member.inventory.liquidCourage ?? 0) <= 0
+      ? []
+      : state.party
+          .filter((patient) => countInBag(patient.bag, 'fear') > 0)
+          .map(
+            (patient): ActionOption => ({
+              id: `ability:${ability.id}:${patient.key}`,
+              group: 'Class',
+              label: `${ability.name}: ${patient.key === member.key ? 'your' : `${patient.name}'s`} Fear`,
+              description: `Use up a Liquid Courage and remove 1 Fear token from ${patient.key === member.key ? 'your' : `${patient.name}'s`} bag. No test is needed.`,
+            }),
+          ),
   perform: (ctx, ability, [patientKey]) => {
-    const patient = ctx.state.party.find((m) => m.key === patientKey)
-    if (!patient || countInBag(patient.bag, 'fear') <= 0) return keepWatch(ctx, ability.name)
+    const { member, state } = ctx
+    const patient = state.party.find((m) => m.key === patientKey)
+    if (!patient || countInBag(patient.bag, 'fear') <= 0 || (member.inventory.liquidCourage ?? 0) <= 0) {
+      return keepWatch(ctx, ability.name)
+    }
+    const spent = updateMember(state, member.key, (m) => ({
+      ...m,
+      inventory: { ...m.inventory, liquidCourage: (m.inventory.liquidCourage ?? 0) - 1 },
+    }))
     return narrate(
       ctx,
       ability.name,
-      `${ctx.member.name} steadies ${patient.key === ctx.member.key ? 'themselves' : patient.name} with a few firm words.`,
+      `${member.name} presses a flask of Liquid Courage into ${patient.key === member.key ? 'their own' : `${patient.name}'s`} hands with a few firm words.`,
       `The Fear token is removed from ${patient.name}'s bag.`,
       'success',
-      removeConditionToken(ctx.state, patient.key, 'fear'),
+      removeConditionToken(spent, patient.key, 'fear'),
     )
   },
 }

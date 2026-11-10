@@ -116,8 +116,8 @@ export const PROFESSIONS: Profession[] = [
         id: 'steelNerves',
         name: 'Steel Nerves',
         types: ['Interval'],
-        cost: '1 Resolve',
-        text: 'Talk an ally down. Remove 1 Fear token from their bag. No test is needed.',
+        cost: 'Liquid Courage',
+        text: 'Use up a Liquid Courage to talk an ally down. Remove 1 Fear token from their bag. No test is needed.',
       },
       {
         id: 'heartyMeal',

@@ -99,7 +99,7 @@ Two other sources feed the code:
 | Barricade | Owner asked for it to do something concrete now that enemies do not make tests: each use delays the patrol by 3 Intervals, however often it is used, limited by Resolve and torch time | `patrolDelay` in `dungeonState.ts` |
 | Secure Area | Combat that begins in a Secured room has no surprise check | `surpriseIn` in `dungeonState.ts` |
 | Shoulder Through | Owner's "break down the door" idea. Strength against the door's break Difficulty minus 2, no Complication on failure | `shoulderThrough` in `intervalActions/abilities.ts` |
-| Steel Nerves, Hearty Meal | Steel Nerves removes a Fear token with no test, for 1 Resolve. Hearty Meal uses a Ration to heal everyone 1 HP and remove a Fatigue token from each bag. Both are my designs | `intervalActions/abilities.ts` |
+| Steel Nerves, Hearty Meal | Steel Nerves uses up a Liquid Courage to remove a Fear token with no test, and costs no Resolve because the item is the cost. Hearty Meal uses a Ration to heal everyone 1 HP and remove a Fatigue token from each bag. Both are my designs | `intervalActions/abilities.ts` |
 | Fortify | Owner ruling: everyone in the party, not just the warrior, begins combat with +2 Defense | `FORTIFY_DEFENSE` |
 | Set an Ambush | A free attack on a random enemy at the start of the fight | `startBattle` |
 
