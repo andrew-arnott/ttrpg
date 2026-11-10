@@ -26,6 +26,7 @@ import { parseDraft } from './lib/draftIO'
 import { buildRoster } from './lib/roster'
 import type { SavedCharacter } from './lib/savedCharacters'
 import { useSavedCharacters } from './lib/useSavedCharacters'
+import { RulesView } from './components/RulesView'
 import { useView, VIEWS } from './lib/useView'
 
 const EXPORT_VERSION = 1
@@ -325,6 +326,7 @@ export default function App() {
       {view === 'sheet' && <SheetView current={draft} saved={saved} />}
       {view === 'bag' && <BagSimulator roster={roster} />}
       {view === 'dungeon' && <DungeonView roster={roster} />}
+      {view === 'rules' && <RulesView />}
 
       {dialogOpen && (
         <SavedCharactersDialog

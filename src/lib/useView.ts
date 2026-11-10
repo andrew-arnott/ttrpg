@@ -5,13 +5,20 @@ export const VIEWS = [
   { id: 'sheet', label: 'Sheet' },
   { id: 'bag', label: 'Token Bag' },
   { id: 'dungeon', label: 'Dungeon' },
+  { id: 'rules', label: 'Rules' },
 ] as const
 
 export type ViewId = (typeof VIEWS)[number]['id']
 
 function readHash(): ViewId {
-  const id = window.location.hash.replace(/^#\/?/, '')
+  const id = window.location.hash.replace(/^#\/?/, '').split('/')[0]
   return VIEWS.find((v) => v.id === id)?.id ?? 'creator'
+}
+
+/** The section named after `#/rules/`, if any. */
+export function readRulesSlug(): string | null {
+  const [view, slug] = window.location.hash.replace(/^#\/?/, '').split('/')
+  return view === 'rules' && slug ? slug : null
 }
 
 /** Keeps the active view in the URL hash so views are linkable and the back button works. */
