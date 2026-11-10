@@ -244,7 +244,7 @@ export function buildCharacter(draft: CharacterDraft): BuiltCharacter {
   const chosenAbilities = allAbilities(profession).filter((a) => draft.abilityIds.includes(a.id))
 
   const inventory = ownedItems(draft)
-  const coinsSpent = inventory.reduce((a, e) => a + e.item.cost * e.count, 0)
+  const coinsSpent = spentOn(draft)
 
   const issues = validate(draft, profession)
 
@@ -270,6 +270,12 @@ export function buildCharacter(draft: CharacterDraft): BuiltCharacter {
     issues,
     issuesFor: (step) => issues.filter((i) => i.step === step).map((i) => i.message),
   }
+}
+
+/** Starting coins spent on supplies and on what is held. */
+export function spentOn(draft: CharacterDraft): number {
+  const supplies = ownedItems(draft).reduce((a, e) => a + e.item.cost * e.count, 0)
+  return supplies + heldItems(normalizeHands(draft.hands)).reduce((a, item) => a + item.cost, 0)
 }
 
 function ownedItems(draft: CharacterDraft): InventoryEntry[] {
@@ -323,7 +329,7 @@ export function validate(draft: CharacterDraft, profession: Profession | null): 
     add('equipment', 'A two-handed item needs both hands free.')
   }
 
-  const spent = ownedItems(draft).reduce((a, e) => a + e.item.cost * e.count, 0)
+  const spent = spentOn(draft)
   if (spent > STARTING_COINS) {
     add('equipment', `You have spent ${spent} coins but only started with ${STARTING_COINS}.`)
   }

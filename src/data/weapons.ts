@@ -4,6 +4,8 @@ import type { SpecialKey } from './types'
 export interface HandItem {
   id: string
   name: string
+  /** Starting coins. */
+  cost: number
   kind: 'weapon' | 'shield'
   /** The SPECIAL attribute an attack with it tests. */
   attribute?: SpecialKey
@@ -22,6 +24,7 @@ export const RANGED_CLOSE_PENALTY = -2
 export const HAND_ITEMS: HandItem[] = [
   {
     id: 'sword',
+    cost: 2,
     name: 'Sword',
     kind: 'weapon',
     attribute: 'strength',
@@ -30,6 +33,7 @@ export const HAND_ITEMS: HandItem[] = [
   },
   {
     id: 'mace',
+    cost: 2,
     name: 'Mace',
     kind: 'weapon',
     attribute: 'strength',
@@ -38,6 +42,7 @@ export const HAND_ITEMS: HandItem[] = [
   },
   {
     id: 'dagger',
+    cost: 1,
     name: 'Dagger',
     kind: 'weapon',
     attribute: 'agility',
@@ -46,6 +51,7 @@ export const HAND_ITEMS: HandItem[] = [
   },
   {
     id: 'greataxe',
+    cost: 3,
     name: 'Greataxe',
     kind: 'weapon',
     attribute: 'strength',
@@ -54,6 +60,7 @@ export const HAND_ITEMS: HandItem[] = [
   },
   {
     id: 'shortbow',
+    cost: 3,
     name: 'Shortbow',
     kind: 'weapon',
     attribute: 'perception',
@@ -64,6 +71,7 @@ export const HAND_ITEMS: HandItem[] = [
   },
   {
     id: 'magicStaff',
+    cost: 3,
     name: 'Magic Staff',
     kind: 'weapon',
     attribute: 'intelligence',
@@ -72,6 +80,7 @@ export const HAND_ITEMS: HandItem[] = [
   },
   {
     id: 'shield',
+    cost: 2,
     name: 'Shield',
     kind: 'shield',
     hands: 1,

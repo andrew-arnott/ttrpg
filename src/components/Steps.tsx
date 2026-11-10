@@ -382,6 +382,13 @@ function setHand(hands: Hands, slot: 'main' | 'off', id: string | null): Hands {
 }
 
 export function StepEquipment({ draft, built, update }: StepProps) {
+  /** Whether there are coins for it, counting what it would replace in the hands as refunded. */
+  const canAfford = (item: (typeof HAND_ITEMS)[number], slot: 'main' | 'off') => {
+    const held = (id: string | null) => (id ? (HAND_ITEMS_BY_ID[id]?.cost ?? 0) : 0)
+    const replaced = item.hands === 2 ? held(draft.hands.main) + held(draft.hands.off) : held(draft.hands[slot])
+    return item.cost <= built.coinsLeft + replaced
+  }
+
   const setCount = (itemId: string, delta: number) => {
     const current = draft.equipment[itemId] ?? 0
     const next = Math.max(0, current + delta)
@@ -395,12 +402,19 @@ export function StepEquipment({ draft, built, update }: StepProps) {
       <CardHead
         step="Step 6"
         title="Buy equipment"
-        hint="Choose what to hold, then spend your starting coins on basic supplies. Armor is not available yet. Unspent coins are kept."
+        hint="Spend your starting coins on what to hold and on basic supplies. Armor is not available yet. Unspent coins are kept."
       />
+
+      <div className="coin-purse" aria-live="polite">
+        <span className="coin" aria-hidden="true" />
+        <span>
+          <b>{built.coinsLeft}</b> of {STARTING_COINS} coins left
+        </span>
+      </div>
 
       <h3 className="section-title">Hands</h3>
       <p className="hint">
-        Two hand slots, free to fill. Your weapon decides what an attack tests. A two-handed weapon takes both hands
+        Two hand slots, bought with your starting coins. Your weapon decides what an attack tests. A two-handed weapon takes both hands
         and does 1 extra damage. A ranged weapon can attack enemies you are not engaged with, but is at -2 against
         ones you are. A shield adds 2 Shield tokens to your bag.
       </p>
@@ -417,9 +431,9 @@ export function StepEquipment({ draft, built, update }: StepProps) {
               >
                 <option value="">{blocked ? 'Held by a two-handed weapon' : 'Empty'}</option>
                 {HAND_ITEMS.map((item) => (
-                  <option key={item.id} value={item.id}>
+                  <option key={item.id} value={item.id} disabled={!canAfford(item, slot)}>
                     {item.name}
-                    {item.hands === 2 ? ' (two-handed)' : ''}
+                    {item.hands === 2 ? ' (two-handed)' : ''} - {item.cost} {item.cost === 1 ? 'coin' : 'coins'}
                   </option>
                 ))}
               </select>
@@ -436,13 +450,6 @@ export function StepEquipment({ draft, built, update }: StepProps) {
       </ul>
 
       <h3 className="section-title">Supplies</h3>
-      <div className="coin-purse" aria-live="polite">
-        <span className="coin" aria-hidden="true" />
-        <span>
-          <b>{built.coinsLeft}</b> of {STARTING_COINS} coins left
-        </span>
-      </div>
-
       <div className="options">
         {ITEMS.map((item) => {
           const n = draft.equipment[item.id] ?? 0
