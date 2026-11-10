@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { RULES_LINKS } from '../data/rulesLinks'
-import { RULES_NOTES } from '../data/rulesNotes'
 import { parseMarkdown, searchSections, sectionOf, slugify, tableOfContents, topSectionSlug } from './markdown'
 import { GUIDE_BLOCKS } from './rulesGuide'
 
@@ -72,8 +71,7 @@ describe('markdown', () => {
 describe('the Player’s Guide as browsed', () => {
   const slugs = new Set(GUIDE_BLOCKS.flatMap((b) => (b.kind === 'heading' ? [b.slug] : [])))
 
-  it('has a section for every ruling note and every tutorial link', () => {
-    for (const slug of Object.keys(RULES_NOTES)) expect(slugs.has(slug), `note ${slug}`).toBe(true)
+  it('has a section for every tutorial link', () => {
     for (const slug of Object.values(RULES_LINKS)) expect(slugs.has(slug), `link ${slug}`).toBe(true)
   })
 

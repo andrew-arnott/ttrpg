@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { RULES_NOTES } from '../data/rulesNotes'
 import type { Block } from '../lib/markdown'
 
 /** Renders **bold**, *italic* and `code` within a line of the guide. */
@@ -21,7 +20,7 @@ function inline(text: string): ReactNode[] {
   return parts
 }
 
-/** A run of guide blocks, with this app's notes under the headings they belong to. */
+/** A run of guide blocks. */
 export function RulesContent({ blocks }: { blocks: Block[] }) {
   return (
     <div className="rules-content">
@@ -29,15 +28,9 @@ export function RulesContent({ blocks }: { blocks: Block[] }) {
         switch (block.kind) {
           case 'heading': {
             const Tag = `h${Math.min(6, block.level + 1)}` as 'h3'
-            const note = RULES_NOTES[block.slug]
             return (
               <div key={i} id={`rules-${block.slug}`} className="rules-heading">
                 <Tag>{block.text}</Tag>
-                {note && (
-                  <p className="rules-note">
-                    <b>In this app.</b> {note}
-                  </p>
-                )}
               </div>
             )
           }

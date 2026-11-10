@@ -124,6 +124,8 @@ Leave previously drawn tokens outside the bag until the test is resolved. Contin
 
 #### Resource
 
+Resource tokens only come into play from a successful test, or by resting. A failed test leaves them in the bag.
+
 A Resource token is put **in play** after being drawn during a **successful** test. Resources can be spent on abilities. Profession tokens only come back into play from a successful test or by resting.
 
 #### In Play
@@ -169,6 +171,8 @@ After resolving the test, put the Critical Success token in play. It counts as *
 A Critical Success token must be spent or sealed as a single token. It cannot be divided into two separate resources.
 
 ### Complications
+
+By default, a failed test that draws a Complication costs you a token in play, returned to your bag. Enemies, rooms and traps add their own consequences on top.
 
 Complications represent additional dangers or consequences.
 
@@ -422,6 +426,8 @@ Entering a room reveals its obvious features and occupants. Hidden features must
 
 #### Investigate
 
+Search is called Investigate. It is one Perception test, and everything hidden at or below your result turns up: secrets, traps and hidden passages. Room interactions set off a trap in the room until it has been found and disarmed.
+
 **Interval — Perception Test**
 
 Investigate a room or area for hidden objects, traps, treasure, clues, or secret passages.
@@ -445,6 +451,8 @@ The GM determines whether a test is required and which SPECIAL attribute applies
 Some rooms require multiple interactions to complete an objective. For example, opening a magical doorway might require activating three separate glyphs.
 
 #### Rest
+
+Resting moves one token from your bag into play: your profession’s resource if the bag has one, otherwise Expertise, otherwise a Critical Success.
 
 **Interval**
 
@@ -471,6 +479,8 @@ On success, remove 1 matching condition token from the patient's bag. On failure
 
 #### Keep Watch
 
+Keeping watch adds +2 to your party’s Perception tests to spot enemies before a fight.
+
 **Interval**
 
 Watch for approaching enemies while the party explores or rests.
@@ -489,6 +499,8 @@ When determining whether enemies receive a surprise round, treat the current lig
 Torches provide light during dungeon exploration and are consumed as Intervals pass.
 
 ### Torch Duration
+
+Light is a modifier on every test, in the dungeon and in a fight: Bright +1, Steady 0, Dim −1, no torch −2. A dwarf’s darkvision counts no torch as dim. The party carries three spare torches between them.
 
 A torch lasts **6 Intervals (60 minutes)**.
 
@@ -527,6 +539,8 @@ Items can be transferred between characters when circumstances permit. You canno
 Ordinary coins and insignificant personal belongings do not consume inventory space.
 
 ### Equipment Slots
+
+For now each character has two hand slots, Main Hand and Off Hand. Weapons and shields are bought with your starting coins when you create your character. A shield adds 2 Shield (+2) tokens to your bag.
 
 | Slot | Purpose |
 | ----- | ----- |
@@ -597,6 +611,8 @@ Actions include attacking, defending, changing engagement, and using abilities.
 
 ### Ability Types
 
+Triggered abilities ask you when they come up. Fast abilities cost no action. An ability is greyed out when it has no valid target, and targets you cannot pick are listed but disabled.
+
 | Type | Description |
 | ----- | ----- |
 | **Fight** | An action that includes an attack. Additional effects occur on a successful hit. |
@@ -609,6 +625,8 @@ Actions include attacking, defending, changing engagement, and using abilities.
 Abilities may combine action types, such as **Engage + Fight**, to perform both as one action.
 
 ### Attacking
+
+Your weapon decides what an attack tests: sword and mace Strength, dagger Agility, shortbow Perception, magic staff Intelligence, bare hands Strength. A two-handed weapon does 1 extra damage. A ranged weapon can attack enemies you are not engaged with, but is at −2 against ones you are. Melee weapons can only attack enemies you are engaged with.
 
 To attack an enemy, make a test using the appropriate SPECIAL attribute against the enemy's **Defense**.
 
@@ -634,11 +652,13 @@ Your Defend score resets each round.
 
 ### Engagement
 
+Changing engagement only takes a test if an enemy is engaged with you; otherwise you simply move. The test is Agility, with a Difficulty of 4, plus 1 for each enemy in the group you leave or join, minus 1 for each ally who stays behind, and never below 2. The Difficulty is shown for each destination.
+
 Characters and enemies are organized into engagement groups. A group may contain multiple players and enemies.
 
 For example, two players might be engaged with three enemies, while another player is engaged with a different enemy.
 
-Changing engagement costs **1 action** and requires an **Agility test against Difficulty 6**.
+Changing engagement costs **1 action**.
 
 On success, you may change your engagement as follows:
 
@@ -650,32 +670,13 @@ On failure, your engagement remains unchanged.
 
 ### Starting Combat and Surprise
 
+Each player makes one Perception test against the median notice Difficulty of the enemies. If anyone passes, the party sees the danger coming and the fight starts on even terms. If nobody does, every enemy gets a surprise round before the players act.
+
 The GM determines the initial engagement groups based on the encounter and the circumstances when combat begins.
-
-Enemies have one of three concealment levels:
-
-* **Obvious:** Easily noticed under normal circumstances.
-* **Concealed:** Difficult to notice without sufficient light or attention.
-* **Hidden:** Deliberately or naturally difficult to detect.
-
-Compare the enemy's concealment against the current light level.
-
-| Light | Obvious | Concealed | Hidden |
-| ----- | ----- | ----- | ----- |
-| **Bright** | Notice | Notice | Check |
-| **Steady** | Notice | Check | Surprised |
-| **Dim** | Check | Surprised | Surprised |
-| **Dark** | Surprised | Surprised | Surprised |
-
-**Notice:** You spot the enemy before combat begins.
-
-**Check:** Make an appropriate test. On success, you notice the enemy. On failure, you are surprised.
-
-**Surprised:** You do not notice the enemy in time.
 
 #### Surprise Round
 
-If one side notices the other without being noticed themselves, they receive a **Surprise Round**.
+If nobody in the party notices the enemies, the enemies receive a **Surprise Round**.
 
 During the Surprise Round, each combatant on the surprising side may perform **1 action**. Surprised combatants do not act.
 
@@ -810,6 +811,8 @@ Resources spent on Fight abilities are committed before drawing tokens for the a
 
 #### Provoke
 
+Provoke can target any enemy in the room, not only the ones you are engaged with.
+
 **Fight — 1 Resolve**
 
 Make an attack against an enemy.
@@ -858,6 +861,8 @@ You choose which incoming attacks consume your Defend score.
 ### Warrior Exploration Abilities
 
 #### Fortify
+
+Everyone in the party begins combat with +2 Defend, not just the Warrior.
 
 **Interval**
 
@@ -1174,6 +1179,8 @@ Deal **1 damage** to an enemy in your room that you are not engaged with.
 No attack test is required.
 
 #### Fireball
+
+A Fireball makes one Intelligence draw and compares the result with every enemy’s Defense in the group.
 
 **Fight — X Mana**
 

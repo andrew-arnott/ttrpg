@@ -12,14 +12,9 @@ await page.goto(`${page.url().split('#')[0]}#/rules`)
 await page.getByRole('navigation', { name: 'Rules contents' }).waitFor()
 await shot('start', true)
 
-await page.getByRole('link', { name: 'How this app plays it' }).click()
-await page.getByRole('heading', { name: 'How this app plays it' }).waitFor()
-assert.match(await page.locator('main').innerText(), /median notice Difficulty/)
-await shot('app', true)
-
 await page.getByRole('navigation', { name: 'Rules contents' }).getByRole('link', { name: /Combat/ }).click()
 await page.locator('#rules-engagement').waitFor()
-assert.match(await page.locator('#rules-engagement').innerText(), /In this app/)
+assert.match(await page.locator('main').innerText(), /Changing engagement only takes a test/)
 await shot('combat', true)
 
 await page.getByPlaceholder(/engagement/).fill('disengage')

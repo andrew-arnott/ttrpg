@@ -138,8 +138,7 @@ headings, paragraphs, lists and tables the guide uses. So editing the guide chan
 Heading slugs drop their numbers (`1. Core Rules` is `core-rules`) so links survive renumbering.
 
 - `RulesView` is the Rules tab: contents, search, and `#/rules/<slug>` links.
-- `data/rulesNotes.ts` holds the "In this app" notes shown under the headings where this app plays a rule differently.
-  Add one whenever an owner ruling departs from the guide text. A test checks every note names a real heading.
+- The guide is canonical: when a ruling changes, edit `docs/PLAYERS_GUIDE.md` itself.
 - `RulesLink` opens a section in a popup (`RulesDialog`) without leaving the page, which matters in the dungeon because
   leaving it loses the delve. `data/rulesLinks.ts` lists the sections the tutorial links to; a test checks they exist.
 

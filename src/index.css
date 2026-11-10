@@ -1212,14 +1212,6 @@ table.tokens-table td.num { text-align: right; }
 .rules-content p { margin: 0 0 10px; }
 .rules-content ul, .rules-content ol { margin: 0 0 12px; padding-left: 26px; }
 .rules-heading:first-child h3 { margin-top: 0; }
-.rules-note {
-  margin: 6px 0 12px;
-  padding: 8px 12px;
-  border: 2px dashed var(--accent);
-  border-radius: var(--radius);
-  background: var(--surface-inset);
-}
-.rules-note b { color: var(--accent); }
 .rules-table-wrap { overflow-x: auto; margin: 0 0 14px; }
 .rules-table { border-collapse: collapse; width: 100%; }
 .rules-table th, .rules-table td { border: 2px solid var(--baseline); padding: 6px 10px; text-align: left; font-size: 20px; vertical-align: top; }
