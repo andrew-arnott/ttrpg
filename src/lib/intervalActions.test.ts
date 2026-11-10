@@ -132,7 +132,7 @@ describe('resolveInterval', () => {
     })
 
     it('adds the torch to every test: +1 bright, 0 steady, -1 dim, -2 once it is out', () => {
-      const lit = stateWith(testMember('a', 0, { bag: bagOf('plus3'), special: flat }))
+      const lit = stateWith(testMember('a', 0, { bag: bagOf('plus3'), special: flat, speciesId: 'human' }))
       const plan: InteractionPlan = { a: { actionId: 'investigate' } }
       const at = (remaining: number) => resolveInterval({ ...lit, torch: { ...lit.torch, remaining } }, plan, rng()).steps[0]
       expect(torchLevel({ ...lit.torch, remaining: 0 })).toBe('out')
@@ -142,6 +142,14 @@ describe('resolveInterval', () => {
       expect(at(0).test?.bonuses).toEqual([{ label: 'No torch', value: -2 }])
       expect(at(0).test?.passed).toBe(false)
       expect(at(0).intro).toMatch(/light is poor/)
+    })
+
+    it('gives a dwarf darkvision: no torch counts as dim', () => {
+      const dwarf = stateWith(testMember('a', 0, { bag: bagOf('plus3'), special: flat, speciesId: 'dwarf' }))
+      const dark = { ...dwarf, torch: { ...dwarf.torch, remaining: 0 } }
+      const step = resolveInterval(dark, { a: { actionId: 'investigate' } }, rng()).steps[0]
+      expect(step.test?.bonuses).toEqual([{ label: 'Darkvision', value: -1 }])
+      expect(step.test?.total).toBe(3)
     })
   })
 

@@ -23,7 +23,7 @@ import {
   type Engine,
 } from './state'
 import { FORTIFY_DEFENSE } from './types'
-import type { TestBonus } from '../skillTest'
+import type { TorchLevel } from '../torch'
 import type { BattleEnemy, BattleState, SurpriseCheck } from './types'
 
 
@@ -52,7 +52,7 @@ export function startBattle(
   rng: Rng,
   arrival: string,
   surprise: SurpriseCheck | null,
-  options: { unwarded?: boolean; light?: TestBonus | null } = {},
+  options: { unwarded?: boolean; torchLevel?: TorchLevel | null } = {},
 ): BattleState {
   const defs = enemyIds.flatMap((id) => (ENEMIES_BY_ID[id] ? [ENEMIES_BY_ID[id]] : []))
   const b: BattleState = {
@@ -79,7 +79,7 @@ export function startBattle(
     turnIndex: 0,
     actionsUsed: 0,
     opening: [],
-    light: options.light ?? null,
+    torchLevel: options.torchLevel ?? null,
   }
 
   b.players.forEach((p) => moveToGroup(b, p.key, newGroup(b)))

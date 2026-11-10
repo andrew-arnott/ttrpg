@@ -76,6 +76,8 @@ export interface Species {
   attributeBonus: SpecialKey | null
   traits: { name: string; text: string }[]
   bagMods: BagMod[]
+  /** Sees in the dark as though it were dim light. */
+  darkvision?: boolean
 }
 
 export interface Background {

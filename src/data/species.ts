@@ -15,6 +15,7 @@ export const SPECIES: Species[] = [
       },
     ],
     bagMods: [{ kind: 'add', tokenId: 'shield', count: 3 }],
+    darkvision: true,
   },
   {
     id: 'elf',
@@ -129,3 +130,6 @@ export const SPECIES: Species[] = [
     bagMods: [],
   },
 ]
+
+export const hasDarkvision = (speciesId: string | undefined): boolean =>
+  Boolean(SPECIES.find((s) => s.id === speciesId)?.darkvision)

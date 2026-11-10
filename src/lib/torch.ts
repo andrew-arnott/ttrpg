@@ -62,12 +62,18 @@ export function torchOutPopup(spareTorches: number): string[] {
   ]
 }
 
-const LIGHT_BONUS: Record<TorchLevel, { label: string; value: number } | null> = {
+const LIGHT_BONUS: Record<TorchLevel, TestBonus | null> = {
   bright: { label: 'Bright torch', value: 1 },
   steady: null,
   dim: { label: 'Dim torch', value: -1 },
   out: { label: 'No torch', value: -2 },
 }
 
-/** Light is a modifier on every test the party makes: Bright +1, Steady 0, Dim -1, no torch -2. */
-export const lightBonus = (torch: TorchState): TestBonus | null => LIGHT_BONUS[torchLevel(torch)]
+/**
+ * Light is a modifier on every test the party makes: Bright +1, Steady 0, Dim -1, no torch -2.
+ * With darkvision, darkness counts as dim light.
+ */
+export function lightBonusAt(level: TorchLevel, darkvision = false): TestBonus | null {
+  if (level === 'out' && darkvision) return { label: 'Darkvision', value: LIGHT_BONUS.dim!.value }
+  return LIGHT_BONUS[level]
+}

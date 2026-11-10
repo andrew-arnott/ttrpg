@@ -1,8 +1,11 @@
+import { hasDarkvision } from '../data/species'
 import { TOKENS } from '../data/tokens'
 import type { SpecialSpread } from '../data/types'
 import { countSealed, hasSealed, isCondition, sealedOf, type SealedCondition } from './conditionRules'
 import { drewComplication, type TestResult } from './drawTest'
 import type { Ask } from './replay'
+import type { TestBonus } from './skillTest'
+import { lightBonusAt, type TorchLevel } from './torch'
 import { adjustBag, type TokenHolder } from './tokenFlow'
 
 /** Anyone who makes tests: an adventurer in a fight or in the dungeon. */
@@ -15,6 +18,16 @@ export interface TestTaker extends TokenHolder {
   /** Shield tokens drawn and waiting to absorb the next damage taken. */
   shieldsInPlay: number
   sealedConditions?: SealedCondition[]
+}
+
+/** Everything added to a test before the draw: the light the party has, then anything else. */
+export function testBonuses(
+  taker: { speciesId?: string },
+  torch: TorchLevel | null | undefined,
+  extras: TestBonus[] = [],
+): TestBonus[] {
+  const light = torch ? lightBonusAt(torch, hasDarkvision(taker.speciesId)) : null
+  return light ? [light, ...extras] : extras
 }
 
 const tokenName = (tokenId: string) => TOKENS[tokenId]?.name ?? tokenId

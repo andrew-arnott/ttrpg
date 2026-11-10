@@ -4,8 +4,8 @@ import { drawTest, drewComplication, type TestResult } from '../drawTest'
 import { performSkillTest, type SkillTestOutcome, type TestBonus } from '../skillTest'
 import { recoverToken } from '../tokenFlow'
 import { engageBreakdown, engageDifficulty } from './engagement'
-import { attackProfile, RANGED_CLOSE_PENALTY, TWO_HANDED_DAMAGE } from '../../data/weapons'
-import { settleTest, takeDamage } from '../characterTest'
+import { planAttack } from './attackPlan'
+import { settleTest, takeDamage, testBonuses } from '../characterTest'
 import { drawRulesFor } from './conditionRules'
 import { gainCondition } from './conditions'
 import { offerPrayer } from '../reactorRules'
@@ -208,7 +208,7 @@ export function playerTest(
   difficulty: number,
   bonuses: TestBonus[] = [],
 ): SkillTestOutcome {
-  const all = engine.b.light ? [engine.b.light, ...bonuses] : bonuses
+  const all = testBonuses(p, engine.b.torchLevel, bonuses)
   const rolled = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng, all, drawRulesFor(p))
   const test = offerPrayer(engine.ask, engine.b.players, p, rolled)
   afterTest(engine, p, test.result, test.passed)
@@ -230,16 +230,8 @@ export interface AttackOptions {
 
 export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, options: AttackOptions = {}): boolean {
   const { b } = engine
-  const weaponAttack = options.attribute === undefined
-  const weapon = attackProfile(p.hands)
-  const attribute = options.attribute ?? weapon.attribute
-  const defense = enemyDefense(e)
-  const closeRange = groupOf(b, e.id) === groupOf(b, p.key)
-  const modifiers: TestBonus[] = [
-    ...(options.power ? [{ label: 'Power', value: options.power }] : []),
-    ...(weaponAttack && weapon.ranged && closeRange ? [{ label: weapon.name, value: RANGED_CLOSE_PENALTY }] : []),
-  ]
-  const test = playerTest(engine, p, attribute, defense, modifiers)
+  const plan = planAttack(p, { attribute: options.attribute, power: options.power, closeRange: groupOf(b, e.id) === groupOf(b, p.key) })
+  const test = playerTest(engine, p, plan.attribute, enemyDefense(e), plan.modifiers)
   const title = options.title ?? 'Attack'
   const intro = options.intro ?? `${p.name} attacks ${e.name}.`
   const might = test.result.drawn.filter((d) => d.tokenId === 'might').length
@@ -258,8 +250,7 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
     return false
   }
 
-  const handed = weaponAttack && weapon.twoHanded ? TWO_HANDED_DAMAGE : 0
-  const damage = (options.damage ?? 1) + handed + might + (options.bonusDamage ?? 0)
+  const damage = (options.damage ?? 1) + plan.extraDamage + might + (options.bonusDamage ?? 0)
   const extra = options.onHit?.(e) ?? ''
   const groupId = groupOf(b, e.id)
   const defeated = damageEnemy(b, e, damage)
@@ -310,7 +301,7 @@ export function defend(engine: Engine, p: BattlePlayer, armor = 0, title = 'Defe
   const attribute = DEFEND_ATTRIBUTE
   const result = drawTest(p.bag, engine.rng, drawRulesFor(p))
   const attributeValue = p.special[attribute]
-  const bonuses = [...(engine.b.light ? [engine.b.light] : []), ...(armor > 0 ? [{ label: 'Armor', value: armor }] : [])]
+  const bonuses = testBonuses(p, engine.b.torchLevel, armor > 0 ? [{ label: 'Armor', value: armor }] : [])
   const total = result.total + attributeValue + bonuses.reduce((sum, x) => sum + x.value, 0)
   const failed = result.outcome === 'critical-failure'
   afterTest(engine, p, result, !failed)

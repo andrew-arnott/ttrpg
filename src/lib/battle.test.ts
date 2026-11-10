@@ -23,6 +23,7 @@ import {
 import { releaseAllConditions } from './characterTest'
 import { mulberry32 } from './drawTest'
 import { countInBag } from './tokenFlow'
+import type { TorchLevel } from './torch'
 import {
   ALWAYS_FAIL,
   ALWAYS_PASS,
@@ -564,18 +565,18 @@ describe('weapons', () => {
 })
 
 describe('the light', () => {
-  const lit = (value: number, label: string) => ({ ...duel({}, { hp: 99 }), light: { label, value } })
+  const lit = (level: TorchLevel, over: Partial<BattlePlayer> = {}) => ({ ...duel(over, { hp: 99 }), torchLevel: level })
 
   it('applies to attacks and shows up as a bonus on the test', () => {
-    const { steps } = takeAction(lit(-1, 'Dim torch'), attack('e'), rng())
+    const { steps } = takeAction(lit('dim'), attack('e'), rng())
     expect(steps[0].test?.bonuses).toEqual([{ label: 'Dim torch', value: -1 }])
     expect(steps[0].test?.total).toBe(1 + 3 - 1)
-    const bright = takeAction(lit(1, 'Bright torch'), attack('e'), rng())
+    const bright = takeAction(lit('bright'), attack('e'), rng())
     expect(bright.steps[0].test?.total).toBe(5)
   })
 
   it('applies to defending too', () => {
-    const { steps, battle } = takeAction(lit(-2, 'No torch'), { actionId: 'defend' }, rng())
+    const { steps, battle } = takeAction(lit('out'), { actionId: 'defend' }, rng())
     expect(steps[0].test?.bonuses).toEqual([{ label: 'No torch', value: -2 }])
     expect(battle.players[0].defense).toBe(1 + 3 - 2)
     expect(steps[0].resultLine).toMatch(/- No torch 2 = 2/)
@@ -583,6 +584,19 @@ describe('the light', () => {
 
   it('does nothing when there is no light modifier', () => {
     expect(takeAction(duel({}, { hp: 99 }), attack('e'), rng()).steps[0].test?.bonuses).toEqual([])
+  })
+
+  it('lets a dwarf see in the dark as though it were dim', () => {
+    const dwarf = takeAction(lit('out', { speciesId: 'dwarf' }), attack('e'), rng())
+    expect(dwarf.steps[0].test?.bonuses).toEqual([{ label: 'Darkvision', value: -1 }])
+    const elf = takeAction(lit('out', { speciesId: 'elf' }), attack('e'), rng())
+    expect(elf.steps[0].test?.bonuses).toEqual([{ label: 'No torch', value: -2 }])
+  })
+
+  it('gives a dwarf nothing extra in better light', () => {
+    expect(takeAction(lit('dim', { speciesId: 'dwarf' }), attack('e'), rng()).steps[0].test?.bonuses).toEqual([
+      { label: 'Dim torch', value: -1 },
+    ])
   })
 })
 
@@ -1762,7 +1776,7 @@ describe('surprise', () => {
       rng(),
       'x',
       check([{ label: 'Stand Watch', value: 2 }]),
-      { light: { label: 'Dim torch', value: -1 } },
+      { torchLevel: 'dim' },
     )
     expect(look(b).map((s) => s.actor?.key)).toEqual(['a', 'b'])
     const test = look(b)[0].test!

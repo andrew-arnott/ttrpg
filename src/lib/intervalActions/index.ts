@@ -16,7 +16,7 @@ import { drewComplication, type Rng } from '../drawTest'
 import type { ReactionAnswer } from '../reactionTypes'
 import { runReplayable } from '../replay'
 import type { ResolutionStep } from '../resolution'
-import { lightBonus } from '../torch'
+import { torchLevel } from '../torch'
 import { abilityHandler } from './abilities'
 import { BASIC_HANDLERS } from './basic'
 import { applyComplication } from './complications'
@@ -55,7 +55,7 @@ function intervalFlow(
   const steps: ResolutionStep[] = []
   progress.state = working
   progress.steps = steps
-  const light = lightBonus(state.torch)
+  const torch = torchLevel(state.torch)
   let watch: Watchfulness | null = null
 
   for (const original of state.party) {
@@ -73,7 +73,7 @@ function intervalFlow(
       planned: usable,
       rng,
       ask,
-      light,
+      torch,
       notes: [],
     })
     steps.push(step)

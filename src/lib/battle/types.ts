@@ -1,6 +1,6 @@
 import type { Adventurer } from '../adventurer'
 import type { SpecialKey } from '../../data/types'
-import type { TestBonus } from '../skillTest'
+import type { TorchLevel } from '../torch'
 import type { SealedCondition } from '../conditionRules'
 import type { ReactionAnswer, ReactionRequest, TargetChoice } from '../reactionTypes'
 import type { ResolutionStep } from '../resolution'
@@ -77,8 +77,8 @@ export interface BattleState {
   opening: ResolutionStep[]
   /** Set while the battle waits for a player to decide whether to use a Triggered ability. */
   pending?: PendingReaction | null
-  /** What the party's torch does to every test in this fight. */
-  light?: TestBonus | null
+  /** The party's torch when the fight began; it modifies every test. */
+  torchLevel?: TorchLevel | null
 }
 
 

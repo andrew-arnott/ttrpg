@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
-import { burnInterval, lightBonus, lightTorch, torchAdvice, torchLevel, totalIntervals, type TorchLevel } from './torch'
+import { burnInterval, lightBonusAt, lightTorch, torchAdvice, torchLevel, totalIntervals, type TorchLevel } from './torch'
 
 describe('torch', () => {
   it('burns Bright, then Steady, then Dim, then goes out', () => {
@@ -51,9 +51,15 @@ describe('torchAdvice', () => {
   })
 })
 
-describe('lightBonus', () => {
+describe('lightBonusAt', () => {
   it('is +1 bright, nothing steady, -1 dim and -2 with no torch', () => {
-    const at = (remaining: number) => lightBonus({ spec: ORDINARY_TORCH, remaining })?.value ?? 0
+    const at = (remaining: number) => lightBonusAt(torchLevel({ spec: ORDINARY_TORCH, remaining }))?.value ?? 0
     expect([6, 4, 2, 0].map(at)).toEqual([1, 0, -1, -2])
+  })
+
+  it('treats darkness as dim light with darkvision, and changes nothing else', () => {
+    expect(lightBonusAt('out', true)).toEqual({ label: 'Darkvision', value: -1 })
+    expect(lightBonusAt('dim', true)?.value).toBe(-1)
+    expect(lightBonusAt('bright', true)?.value).toBe(1)
   })
 })

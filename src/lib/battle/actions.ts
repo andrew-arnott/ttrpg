@@ -1,5 +1,5 @@
-import { attackProfile, RANGED_CLOSE_PENALTY } from '../../data/weapons'
-import { SPECIAL_LABELS } from '../../data/types'
+import { attackProfile } from '../../data/weapons'
+import { describeAttack } from './attackPlan'
 import { ABILITY_HANDLERS, unsupportedAbility } from './abilities'
 import { canAttack, canUseFastOrTriggered } from './conditionRules'
 import { attackEnemy, changeEngagement, defend } from './effects'
@@ -54,17 +54,6 @@ function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
     })
 }
 
-const withArticle = (word: string) => `${/^[AEIOU]/i.test(word) ? 'an' : 'a'} ${word}`
-
-function attackDescription(p: BattlePlayer): string {
-  const weapon = attackProfile(p.hands)
-  const damage = weapon.twoHanded ? '2 damage' : '1 damage'
-  const reach = weapon.ranged
-    ? `You can attack any enemy, but it is ${RANGED_CLOSE_PENALTY} against one you are engaged with.`
-    : 'You can only attack an enemy you are engaged with.'
-  return `Make ${withArticle(SPECIAL_LABELS[weapon.attribute])} test with your ${weapon.name} against an enemy's Defense. A hit deals ${damage}. ${reach}`
-}
-
 /** An option with targets cannot be used when none of them can be picked. */
 const withTargetGate = (o: CombatOption): CombatOption => ({
   ...o,
@@ -83,7 +72,7 @@ function listCombatActions(b: BattleState, p: BattlePlayer): CombatOption[] {
       id: 'attack',
       slot: 'action',
       label: 'Attack',
-      description: attackDescription(p),
+      description: describeAttack(p),
       targets: enemyTargets(livingEnemies(b), weapon.ranged ? undefined : onlyEngaged(b, p)),
       boost: boostOption(p, 'power'),
       disabledReason: !canAttack(p) ? FEAR_REASON : livingEnemies(b).length === 0 ? 'No enemy to target' : undefined,

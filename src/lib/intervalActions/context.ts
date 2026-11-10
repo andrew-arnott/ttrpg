@@ -2,7 +2,7 @@ import { interactionFlag, trapFlag, type DungeonRoom, type RoomReward, type Room
 import { ITEMS_BY_ID } from '../../data/items'
 import { TOKENS } from '../../data/tokens'
 import type { SpecialKey } from '../../data/types'
-import { settleTest, takeDamage } from '../characterTest'
+import { settleTest, takeDamage, testBonuses } from '../characterTest'
 import { drawRulesFor } from '../conditionRules'
 import { drewComplication, type Rng } from '../drawTest'
 import type { DungeonState, PartyMember } from '../dungeonState'
@@ -10,7 +10,8 @@ import { offerPrayer } from '../reactorRules'
 import type { Ask } from '../replay'
 import { adjustBag } from '../tokenFlow'
 import { playerActor, type ResolutionStep, type StepTone } from '../resolution'
-import { performSkillTest, type SkillTestOutcome, type TestBonus } from '../skillTest'
+import { performSkillTest, type SkillTestOutcome } from '../skillTest'
+import type { TorchLevel } from '../torch'
 import type { ActionOption, PlannedAction } from './types'
 
 export const withArticle = (word: string) => `${/^[AEIOU]/i.test(word) ? 'an' : 'a'} ${word}`
@@ -91,8 +92,8 @@ export interface Context {
   planned: PlannedAction
   rng: Rng
   ask: Ask
-  /** What the torch does to every test the party makes. */
-  light: TestBonus | null
+  /** The torch, which modifies every test the party makes. */
+  torch: TorchLevel
   /** Condition effects waiting to be added to the outcome. */
   notes: string[]
 }
@@ -142,7 +143,7 @@ export function runTestFor(
     subject.special[attribute],
     difficulty,
     ctx.rng,
-    ctx.light ? [ctx.light] : [],
+    testBonuses(subject, ctx.torch),
     drawRulesFor(subject),
   )
   const party = ctx.state.party.map((m) => ({ ...m }))
@@ -158,7 +159,7 @@ export const runTest = (ctx: Context, attribute: SpecialKey, difficulty: number)
   runTestFor(ctx, ctx.member, attribute, difficulty)
 
 export const withDarkness = (ctx: Context, intro: string) =>
-  ctx.light && ctx.light.value < 0 ? `${intro} The light is poor.` : intro
+  ctx.torch === 'dim' || ctx.torch === 'out' ? `${intro} The light is poor.` : intro
 
 export function keepWatch(ctx: Context, title = 'Keep watch'): Resolution {
   return narrate(

@@ -245,9 +245,9 @@ describe('the surprise check', () => {
   })
 
   it('takes the light into the whole fight', () => {
-    expect(dungeonReducer(fresh(), { type: 'startBattle', rng }).battle!.light).toEqual({ label: 'Bright torch', value: 1 })
+    expect(dungeonReducer(fresh(), { type: 'startBattle', rng }).battle!.torchLevel).toBe('bright')
     const dim = dungeonReducer(withTorch(2), { type: 'startBattle', rng })
-    expect(dim.battle!.light).toEqual({ label: 'Dim torch', value: -1 })
+    expect(dim.battle!.torchLevel).toBe('dim')
     expect(dim.battle!.opening.find((o) => o.title === 'Look out!')!.test!.bonuses).toEqual([{ label: 'Dim torch', value: -1 }])
   })
 

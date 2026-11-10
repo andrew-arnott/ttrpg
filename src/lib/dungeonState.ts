@@ -6,7 +6,7 @@ import { releaseAllConditions } from './characterTest'
 import type { PendingInterval } from './intervalActions/types'
 import { startBattle, type BattleState, type SurpriseCheck } from './battle'
 import type { Rng } from './drawTest'
-import { burnInterval, lightBonus, lightTorch, torchLevel, TORCH_LEVEL_LABEL, type TorchLevel, type TorchState } from './torch'
+import { burnInterval, lightTorch, torchLevel, TORCH_LEVEL_LABEL, type TorchLevel, type TorchState } from './torch'
 
 export interface PartyMember extends Adventurer {
   speciesId: string
@@ -233,7 +233,7 @@ export function springPatrol(state: DungeonState, rng: Rng): DungeonState {
     rng,
     patrol.arrival,
     surpriseCheckFor(state),
-    { light: lightBonus(state.torch) },
+    { torchLevel: torchLevel(state.torch) },
   )
   return withLog({ ...state, battle, battleKind: 'patrol', patrolTriggered: true }, patrol.arrival)
 }
@@ -243,7 +243,7 @@ export function springBoss(state: DungeonState, rng: Rng): DungeonState {
   const { boss } = state.dungeon
   const battle = startBattle(state.party, state.prepared[boss.roomId] ?? [], boss.enemyIds, rng, boss.arrival, null, {
     unwarded: state.done.includes(`dispelled:${boss.roomId}`),
-    light: lightBonus(state.torch),
+    torchLevel: torchLevel(state.torch),
   })
   return withLog(
     { ...state, battle, battleKind: 'boss', bossTriggered: true, patrolTriggered: true },
@@ -261,7 +261,7 @@ export function springGuardian(state: DungeonState, room: DungeonRoom, rng: Rng)
     rng,
     guardian.arrival,
     surpriseCheckFor(state),
-    { light: lightBonus(state.torch) },
+    { torchLevel: torchLevel(state.torch) },
   )
   return withLog(
     { ...state, battle, battleKind: 'guardian', done: [...state.done, guardianFlag(room.id)] },
