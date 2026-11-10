@@ -1,3 +1,4 @@
+import { intoFight } from '../adventurer'
 import { ENEMIES_BY_ID, type EnemyDef } from '../../data/enemies'
 import type { Rng } from '../drawTest'
 import type { PartyMember, Preparation } from '../dungeonState'
@@ -56,21 +57,7 @@ export function startBattle(
   const defs = enemyIds.flatMap((id) => (ENEMIES_BY_ID[id] ? [ENEMIES_BY_ID[id]] : []))
   const b: BattleState = {
     round: 1,
-    players: party.map((m, i) => ({
-      key: m.key,
-      name: m.name,
-      professionId: m.professionId,
-      hp: m.hp,
-      maxHp: m.maxHp,
-      special: m.special,
-      bag: m.bag.map((s) => ({ ...s })),
-      resources: { ...m.resources },
-      abilityIds: m.abilityIds,
-      shieldsInPlay: m.shieldsInPlay,
-      hands: m.hands,
-      defense: 0,
-      colorIndex: i,
-    })),
+    players: party.map((m, i) => ({ ...intoFight(m), defense: 0, colorIndex: i })),
     enemies: nameEnemies(defs).map(({ id, name, def }) => ({
       id,
       defId: def.id,

@@ -1,5 +1,5 @@
-import type { Hands } from '../../data/weapons'
-import type { SpecialKey, SpecialSpread, TokenStack } from '../../data/types'
+import type { Adventurer } from '../adventurer'
+import type { SpecialKey } from '../../data/types'
 import type { TestBonus } from '../skillTest'
 import type { SealedCondition } from '../conditionRules'
 import type { ReactionAnswer, ReactionRequest, TargetChoice } from '../reactionTypes'
@@ -20,31 +20,15 @@ export const MAX_FIREBALL_MANA = 3
 export const LOG_LIMIT = 40
 export const NEW_GROUP = 'new'
 
-export interface BattlePlayer {
-  key: string
-  name: string
-  professionId: string
-  hp: number
-  maxHp: number
-  special: SpecialSpread
-  bag: TokenStack[]
-  resources: Record<string, number>
-  abilityIds: string[]
-  /** What is held in each hand; the weapon decides what an ordinary attack tests. */
-  hands?: Hands
-  /** Shield tokens drawn and waiting to absorb the next damage taken. */
-  shieldsInPlay: number
+export interface BattlePlayer extends Adventurer {
   /** Defense score for this round. Resets at the end of the round. */
   defense: number
   colorIndex: number
   /** Triggered abilities already used this round that only work once per round. */
   usedThisRound?: string[]
-  /** Condition tokens sealed on this character. They return to the bag when released. */
-  sealedConditions?: SealedCondition[]
   /** Shield Wall was used this round: this Defense score can cover allies in the same group. */
   shieldWall?: boolean
 }
-
 
 export interface SealedToken {
   /** The token that was sealed. */

@@ -1,35 +1,19 @@
 import { type Hands } from '../data/weapons'
+import { outOfFight, type Adventurer } from './adventurer'
 import { HOLY_TORCH, ORDINARY_TORCH } from '../data/items'
 import { linkKey, type Dungeon, type DungeonLink, type DungeonRoom, type Lock } from '../data/dungeon'
-import type { SpecialSpread, TokenStack } from '../data/types'
 import { releaseAllConditions } from './characterTest'
-import type { SealedCondition } from './conditionRules'
 import type { PendingInterval } from './intervalActions/types'
 import { startBattle, type BattleState, type SurpriseCheck } from './battle'
 import type { Rng } from './drawTest'
 import { burnInterval, lightBonus, lightTorch, torchLevel, TORCH_LEVEL_LABEL, type TorchLevel, type TorchState } from './torch'
 
-export interface PartyMember {
-  key: string
-  name: string
-  professionId: string
+export interface PartyMember extends Adventurer {
   speciesId: string
-  hp: number
-  maxHp: number
-  special: SpecialSpread
-  bag: TokenStack[]
+  hands: Hands
   inventory: Record<string, number>
-  /** Profession resource tokens currently in play. */
-  resources: Record<string, number>
   /** The resource that resting restores. */
   restResourceId: string
-  abilityIds: string[]
-  /** Shield tokens drawn and waiting to absorb the next damage taken. */
-  shieldsInPlay: number
-  /** What is held in each hand. */
-  hands: Hands
-  /** Conditions sealed on the character until the end of the Interval or fight. */
-  sealedConditions?: SealedCondition[]
 }
 
 /** The party can only carry this many spare torches between them. */
@@ -355,14 +339,7 @@ export function endBattle(state: DungeonState): DungeonState {
     if (!found) return m
     const fought = { ...found }
     releaseAllConditions(fought)
-    return {
-      ...m,
-      hp: Math.max(1, fought.hp),
-      resources: fought.resources,
-      bag: fought.bag,
-      shieldsInPlay: fought.shieldsInPlay,
-      sealedConditions: [],
-    }
+    return outOfFight(m, fought)
   })
   const wonBoss = state.battleKind === 'boss' && battle.result === 'victory'
   return withLog(
