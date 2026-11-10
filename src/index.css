@@ -1198,7 +1198,8 @@ table.tokens-table td.num { text-align: right; }
 
 /* --- rules browser --- */
 
-.rules-layout { margin-top: 20px; }
+.rules-layout { margin-top: 20px; grid-template-columns: 280px minmax(0, 1fr); }
+@media (max-width: 900px) { .rules-layout { grid-template-columns: minmax(0, 1fr); } }
 .rules-toc { position: sticky; top: 12px; align-self: start; }
 .rules-toc-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 4px; }
 .rules-toc-list a { display: block; padding: 6px 8px; color: var(--text-secondary); text-decoration: none; border-left: 3px solid transparent; }

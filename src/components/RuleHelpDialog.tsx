@@ -1,3 +1,4 @@
+import { RulesLink } from './RulesLink'
 import { useEffect } from 'react'
 
 interface Props {
@@ -5,11 +6,13 @@ interface Props {
   paragraphs: string[]
   /** Small heading above the title. */
   label?: string
+  /** A section of the guide to offer a link to. */
+  rulesSlug?: string
   onClose: () => void
 }
 
 /** A short rules explanation shown when a player first meets a mechanic. */
-export function RuleHelpDialog({ title, paragraphs, label = 'How it works', onClose }: Props) {
+export function RuleHelpDialog({ title, paragraphs, label = 'How it works', rulesSlug, onClose }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -30,6 +33,11 @@ export function RuleHelpDialog({ title, paragraphs, label = 'How it works', onCl
             {text}
           </p>
         ))}
+        {rulesSlug && (
+          <p className="hint">
+            <RulesLink slug={rulesSlug}>Read the full rules for this</RulesLink>
+          </p>
+        )}
         <div className="review-actions">
           <button className="btn primary" autoFocus onClick={onClose}>
             Got it

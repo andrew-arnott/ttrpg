@@ -24,9 +24,11 @@ import { createPartyMember } from '../lib/partyMember'
 import type { ResolutionStep } from '../lib/resolution'
 import type { RosterEntry } from '../lib/roster'
 import { torchAdvice, torchOutPopup, torchLevel, TORCH_LEVEL_LABEL, totalIntervals, type TorchState } from '../lib/torch'
+import { RULES_LINKS } from '../data/rulesLinks'
 import { BagDialog } from './BagDialog'
 import { BattleView } from './BattleView'
 import { ReactionPrompt } from './ReactionPrompt'
+import { RulesLink } from './RulesLink'
 import { RuleHelpDialog } from './RuleHelpDialog'
 import { Tip } from './Tip'
 import { DungeonMap } from './DungeonMap'
@@ -81,6 +83,13 @@ function PartySetup({ roster, onStart }: { roster: RosterEntry[]; onStart: (chos
         ))}
         <p className="goal">
           <b>Your goal.</b> {TUTORIAL_GOAL}
+        </p>
+        <p className="hint">
+          The rules behind it, any time you want them:{' '}
+          <RulesLink slug={RULES_LINKS.core}>How tests work</RulesLink> ·{' '}
+          <RulesLink slug={RULES_LINKS.exploration}>Exploring</RulesLink> ·{' '}
+          <RulesLink slug={RULES_LINKS.torches}>Torches and light</RulesLink> ·{' '}
+          <RulesLink slug={RULES_LINKS.combat}>Combat</RulesLink>
         </p>
       </div>
 
@@ -376,7 +385,11 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
               {state.torch.remaining} of {totalIntervals(state.torch.spec)} Intervals left
             </span>
           </div>
-          {advice && <p className="blocker-text">{advice}</p>}
+          {advice && (
+            <p className="blocker-text">
+              {advice} <RulesLink slug={RULES_LINKS.torches}>Light rules</RulesLink>
+            </p>
+          )}
         </div>
         <div className="hud-meta">
           <span className="step-index">Interval</span>
@@ -510,6 +523,7 @@ function Dungeon({ initial, onLeave }: { initial: DungeonState; onLeave: () => v
           label="Uh oh..."
           title="The torch has gone out"
           paragraphs={torchOutPopup(spareTorches)}
+          rulesSlug={RULES_LINKS.torches}
           onClose={() => setDarkSeen(true)}
         />
       )}

@@ -1,3 +1,5 @@
+import { RULES_LINKS } from '../data/rulesLinks'
+import { RulesLink } from './RulesLink'
 import { useEffect } from 'react'
 import { TOKENS } from '../data/tokens'
 import type { TokenStack } from '../data/types'
@@ -63,7 +65,10 @@ export function BagDialog({ name, bag, inPlay, sealed = [], shieldsInPlay = 0, o
         <div className="card-head">
           <span className="step-index">Token bag</span>
           <h2 id="bag-title">{name}&rsquo;s bag</h2>
-          <p className="hint">{inBag.length} tokens in the bag right now. Hover one to read it.</p>
+          <p className="hint">
+            {inBag.length} tokens in the bag right now. Hover one to read it.{' '}
+            <RulesLink slug={RULES_LINKS.tokens}>Token bag rules</RulesLink>
+          </p>
         </div>
 
         <div className="table-felt bag-felt">

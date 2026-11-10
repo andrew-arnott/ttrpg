@@ -13,6 +13,8 @@ import {
   type PlannedCombat,
 } from '../lib/battle'
 import { AVATAR_COLORS } from '../lib/partyColors'
+import { RULES_LINKS } from '../data/rulesLinks'
+import { RulesLink } from './RulesLink'
 import { ENGAGE_HELP } from '../data/tutorial'
 import { TOKENS } from '../data/tokens'
 import { CharacterPortrait } from './CharacterPortrait'
@@ -87,6 +89,10 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
             </h2>
             <p className="hint">
               {player.hp}/{player.maxHp} HP · Defense {player.defense} · In: {group}
+            </p>
+            <p className="hint">
+              Rules: <RulesLink slug={RULES_LINKS.combat}>Combat</RulesLink> ·{' '}
+              <RulesLink slug={RULES_LINKS.abilityTypes}>Ability types</RulesLink>
             </p>
           </div>
         </div>
@@ -186,7 +192,12 @@ export function ActionPrompt({ battle, player, onAct, onEndTurn, engageHelpSeen,
           {selected?.slot === 'fast' ? 'Use it (free)' : 'Do it'}
         </button>
       </div>
-      {helpOpen && <RuleHelpDialog title={ENGAGE_HELP.title} paragraphs={ENGAGE_HELP.paragraphs} onClose={closeHelp} />}
+      {helpOpen && <RuleHelpDialog
+          title={ENGAGE_HELP.title}
+          paragraphs={ENGAGE_HELP.paragraphs}
+          rulesSlug={RULES_LINKS.engagement}
+          onClose={closeHelp}
+        />}
     </section>
   )
 }

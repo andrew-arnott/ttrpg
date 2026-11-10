@@ -131,6 +131,18 @@ Armor or Power picker and the Engage helper), `ReactionPrompt.tsx` (the Triggere
 `RuleHelpDialog.tsx`, `BattleBoard.tsx` (engagement groups), `EnemyStatCard.tsx` (hover card),
 `ResolutionOverlay.tsx`.
 
+## The rules browser
+
+`docs/PLAYERS_GUIDE.md` is imported as raw text (`lib/rulesGuide.ts`) and read by `lib/markdown.ts`, a small parser for the
+headings, paragraphs, lists and tables the guide uses. So editing the guide changes the Rules tab; there is no second copy.
+Heading slugs drop their numbers (`1. Core Rules` is `core-rules`) so links survive renumbering.
+
+- `RulesView` is the Rules tab: contents, search, and `#/rules/<slug>` links.
+- `data/rulesNotes.ts` holds the "In this app" notes shown under the headings where this app plays a rule differently.
+  Add one whenever an owner ruling departs from the guide text. A test checks every note names a real heading.
+- `RulesLink` opens a section in a popup (`RulesDialog`) without leaving the page, which matters in the dungeon because
+  leaving it loses the delve. `data/rulesLinks.ts` lists the sections the tutorial links to; a test checks they exist.
+
 ## Presentation
 
 - `Portrait.tsx` and `lib/art.ts`: `import.meta.glob` over `src/assets/art/*.webp`; the name is `<kind>-<id>.webp`.

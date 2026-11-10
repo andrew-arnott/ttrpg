@@ -16,6 +16,7 @@ The app is feature-complete for a first full tutorial. It is deployed from `main
 | Token bag simulator | Animated draws using the real rule, plus a "run 5,000 tests" check against the exact odds |
 | Dungeon (exploration) | Interval planner: each character chooses an action, resolved in order with animation; torch burns; light reach by torch level; hidden passage; locked door; Founders' Seal; room secrets and interactions; room complication consequences; healing items |
 | Combat | Triggered abilities (Cleave, Opportunist, Intercept, Prayer, Flanking, Shield Wall, Divine Intervention) ask the player mid-action, in battle and in the dungeon; Armor, Power and Expertise can be spent; engage Difficulty scales with the groups; conditions from enemy attacks are sealed on failed tests; Treat Conditions is an Interval action. Step-by-step turns ("Brann's action 1: what should they do?"), engagement groups, Defense scores, animated enemy attacks, enemy stat cards, surprise check, boss fight |
+| Rules | A Rules tab shows the whole Player's Guide with contents and search, plus a page of where this app plays it differently. The tutorial links to sections in popups |
 | Tutorial framing | Intro on the setup screen, goal checklist, Congratulations and "real game is more flexible" outro |
 
 Tests: 311 passing (`npm test`). Lint clean. CI (`deploy.yml`) runs `npm test` and `npm run build` (which runs `tsc -b`)

@@ -8,6 +8,8 @@ import {
   type PlannedAction,
 } from '../lib/intervalActions'
 import { AVATAR_COLORS } from '../lib/partyColors'
+import { RULES_LINKS } from '../data/rulesLinks'
+import { RulesLink } from './RulesLink'
 import { CharacterPortrait } from './CharacterPortrait'
 
 const GROUP_ORDER: ActionGroup[] = ['Basic', 'Room', 'Class']
@@ -111,7 +113,8 @@ export function IntervalPlanner({ state, plan, onChange, onResolve }: Props) {
         <h2>What does everyone want to do?</h2>
         <p className="hint">
           Each character picks an action. They resolve in order, and then the torch burns down. Moving to
-          another room also takes an Interval.
+          another room also takes an Interval.{' '}
+          <RulesLink slug={RULES_LINKS.exploration}>Exploration rules</RulesLink>
         </p>
       </div>
 

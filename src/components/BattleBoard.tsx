@@ -8,10 +8,12 @@ import {
   type BattleState,
 } from '../lib/battle'
 import { AVATAR_COLORS } from '../lib/partyColors'
+import { RULES_LINKS } from '../data/rulesLinks'
 import { BagDialog } from './BagDialog'
 import { EnemyStatCard } from './EnemyStatCard'
 import { CharacterPortrait } from './CharacterPortrait'
 import { Portrait } from './Portrait'
+import { RulesLink } from './RulesLink'
 import { Tip } from './Tip'
 
 function HpBar({ hp, max }: { hp: number; max: number }) {
@@ -119,7 +121,9 @@ export function BattleBoard({ battle, activeKey }: { battle: BattleState; active
         <h2>Engagement groups</h2>
         <p className="hint">
           Players and enemies can only attack those in their own group. Enemies attack after everyone has
-          acted. Hover an enemy for its stat card.
+          acted. Hover an enemy for its stat card.{' '}
+          <RulesLink slug={RULES_LINKS.engagement}>Engagement</RulesLink> ·{' '}
+          <RulesLink slug={RULES_LINKS.surprise}>Surprise</RulesLink>
         </p>
       </div>
 

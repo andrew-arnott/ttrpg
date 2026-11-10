@@ -13,6 +13,7 @@ import {
 } from '../data/types'
 import { ITEMS, STARTING_COINS } from '../data/items'
 import { portraitOptions } from '../data/portraits'
+import { RULES_LINKS } from '../data/rulesLinks'
 import { isBuiltInPortrait, isUploadedPortrait } from '../lib/art'
 import { imageToPortrait } from '../lib/portraitUpload'
 import { HAND_ITEMS, HAND_ITEMS_BY_ID, type Hands } from '../data/weapons'
@@ -24,6 +25,7 @@ import {
 } from '../lib/buildCharacter'
 import { CharacterPortrait } from './CharacterPortrait'
 import { Portrait } from './Portrait'
+import { RulesLink } from './RulesLink'
 
 interface StepProps {
   draft: CharacterDraft
@@ -421,7 +423,8 @@ export function StepEquipment({ draft, built, update }: StepProps) {
       <p className="hint">
         Two hand slots, bought with your starting coins. Your weapon decides what an attack tests. A two-handed weapon takes both hands
         and does 1 extra damage. A ranged weapon can attack enemies you are not engaged with, but is at -2 against
-        ones you are. A shield adds 2 Shield tokens to your bag.
+        ones you are. A shield adds 2 Shield tokens to your bag.{' '}
+        <RulesLink slug={RULES_LINKS.equipment}>Equipment rules</RulesLink>
       </p>
       <div className="hands">
         {(['main', 'off'] as const).map((slot) => {

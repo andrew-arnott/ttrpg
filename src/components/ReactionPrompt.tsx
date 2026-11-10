@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { ReactionAnswer, ReactionRequest } from '../lib/reactionTypes'
 import { AVATAR_COLORS } from '../lib/partyColors'
+import { RULES_LINKS } from '../data/rulesLinks'
+import { RulesLink } from './RulesLink'
 import { CharacterPortrait } from './CharacterPortrait'
 
 interface Props {
@@ -31,7 +33,18 @@ export function ReactionPrompt({ request, reactor, onAnswer }: Props) {
               {request.required ? `${reactor?.name}: ${request.title.toLowerCase()}` : `${reactor?.name}: use ${request.title}?`}
             </h2>
             <p className="hint">
-              {request.required ? 'Required: choose one.' : `Costs ${request.cost}. It does not use an action.`}
+              {request.required ? 'Required: choose one.' : `Costs ${request.cost}. It does not use an action.`}{' '}
+              <RulesLink
+                slug={
+                  request.abilityId === 'returnToken'
+                    ? RULES_LINKS.complications
+                    : request.required
+                      ? RULES_LINKS.conditions
+                      : RULES_LINKS.abilityTypes
+                }
+              >
+                Rules
+              </RulesLink>
             </p>
           </div>
         </div>
