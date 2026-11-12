@@ -7,8 +7,9 @@ Static React site, deployed to GitHub Pages.
 
 ## What it does
 
-The site has five tabs, kept in the URL hash so each is linkable:
+The site has six tabs, kept in the URL hash so each is linkable. It opens on the home page:
 
+- **Home**: what the site is, with a card for each of the sections below.
 - **Create**: a seven-step wizard (Profession, Species, Background, SPECIAL, Abilities, Equipment, Review) with a live
   summary. Each step validates on its own and blocks *Next* with the reason. You pick a portrait (three per profession,
   or upload one), spend 10 starting coins on weapons, shields and supplies, and can export the character as JSON.

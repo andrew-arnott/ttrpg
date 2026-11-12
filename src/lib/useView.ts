@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 export const VIEWS = [
+  { id: 'home', label: 'Home' },
   { id: 'creator', label: 'Create' },
   { id: 'sheet', label: 'Sheet' },
   { id: 'bag', label: 'Token Bag' },
@@ -12,7 +13,7 @@ export type ViewId = (typeof VIEWS)[number]['id']
 
 function readHash(): ViewId {
   const id = window.location.hash.replace(/^#\/?/, '').split('/')[0]
-  return VIEWS.find((v) => v.id === id)?.id ?? 'creator'
+  return VIEWS.find((v) => v.id === id)?.id ?? 'home'
 }
 
 /** The section named after `#/rules/`, if any. */

@@ -1223,3 +1223,23 @@ table.tokens-table td.num { text-align: right; }
 .rules-backdrop { z-index: 60; }
 input[type='search'] { width: 100%; }
 @media (max-width: 760px) { .rules-toc { position: static; } }
+
+/* --- home --- */
+.masthead h1 a { color: inherit; text-decoration: none; }
+.toolbar[hidden] { display: none; }
+.home-hero { margin-top: 22px; }
+.home-hero h2 { font-size: 16px; color: var(--accent); }
+.home-hero p { font-size: 24px; line-height: 1.35; margin: 12px 0 18px; max-width: 760px; }
+.home-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.home-grid {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+}
+.home-grid .card + .card { margin-top: 0; }
+.home-card { display: flex; gap: 16px; align-items: flex-start; }
+.home-card h3 { font-size: 13px; color: var(--accent); line-height: 1.5; }
+.home-card p { font-size: 21px; line-height: 1.3; margin: 8px 0 12px; color: var(--text-secondary); }

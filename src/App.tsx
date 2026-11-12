@@ -26,6 +26,7 @@ import { parseDraft } from './lib/draftIO'
 import { buildRoster } from './lib/roster'
 import type { SavedCharacter } from './lib/savedCharacters'
 import { useSavedCharacters } from './lib/useSavedCharacters'
+import { HomeView } from './components/HomeView'
 import { RulesView } from './components/RulesView'
 import { useView, VIEWS } from './lib/useView'
 
@@ -198,10 +199,12 @@ export default function App() {
     <div className="app">
       <header className="masthead no-print">
         <div>
-          <h1>Character Creator</h1>
+          <h1>
+            <a href="#/home">Fantasy TTRPG</a>
+          </h1>
           <p className="sub">A fantasy tabletop RPG of strategy, exploration, and adventure.</p>
         </div>
-        <div className="toolbar">
+        <div className="toolbar" hidden={view === 'home' || view === 'rules'}>
           <input
             ref={fileInput}
             type="file"
@@ -260,6 +263,14 @@ export default function App() {
         <p className="hint no-print" style={{ color: 'var(--danger)', marginTop: 8 }} role="alert">
           {importError}
         </p>
+      )}
+
+      {view === 'home' && (
+        <HomeView
+          savedCount={saved.length}
+          onGo={setView}
+          onOpenCharacters={() => setDialogOpen(true)}
+        />
       )}
 
       {view === 'creator' && (

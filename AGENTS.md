@@ -24,6 +24,7 @@ Browser checks live in `scripts/` with their own dependencies (kept out of the a
 
 ```bash
 cd scripts && npm install
+npm run e2e:home       # the home page and its links to each section
 npm run e2e:smoke      # wizard, save/load, sheet, bag simulator, dungeon setup
 npm run e2e:torch      # torch burns down and the dim warning appears
 npm run e2e:engage     # Change engagement popup and Difficulty preview

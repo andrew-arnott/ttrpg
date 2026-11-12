@@ -9,7 +9,7 @@ import { BASE_URL, launch, report, screenshotter } from './lib.mjs'
 const { browser, page, errors } = await launch()
 const shot = screenshotter(page, 'smoke')
 
-await page.goto(BASE_URL)
+await page.goto(`${BASE_URL}#/creator`)
 await page.waitForSelector('.option')
 const next = () => page.locator('.wizard-nav .btn.primary').click()
 

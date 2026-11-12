@@ -2,8 +2,8 @@
 
 ## Shape of the app
 
-One page, no router library. `src/App.tsx` owns the character being edited and switches between five sections using
-the URL hash (`#/creator`, `#/sheet`, `#/bag`, `#/dungeon`, `#/rules`, see `src/lib/useView.ts`). The dungeon section keeps its
+One page, no router library. `src/App.tsx` owns the character being edited and switches between six sections using
+the URL hash (`#/home` by default, `#/creator`, `#/sheet`, `#/bag`, `#/dungeon`, `#/rules`, see `src/lib/useView.ts`). The dungeon section keeps its
 own state.
 
 ```

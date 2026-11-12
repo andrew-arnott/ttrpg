@@ -9,6 +9,7 @@ The app is feature-complete for a first full tutorial and is deployed from `main
 
 | Area | State |
 | --- | --- |
+| Home | The site opens on a landing page with a card for each section (`HomeView.tsx`) |
 | Character creator | Seven-step wizard (Profession, Species, Background, SPECIAL, Abilities, Equipment, Review) with portraits (three per profession or an upload), starting weapons and shields, live summary, JSON import and export |
 | Saved characters | Saved to `localStorage`, listed, loaded, updated, deleted |
 | Character sheet | Printable parchment-style sheet with the character portrait |
