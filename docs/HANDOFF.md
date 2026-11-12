@@ -65,8 +65,8 @@ npm run build && npm run preview:e2e &
 ## Open questions for the owner
 
 1. Class design target: every class starts with a core passive (Rogue: Flanking), 4 combat abilities and 2 utility
-   abilities. Character creation still picks 4 abilities from one pool, and only the Rogue has a passive.
-2. Warrior passive: Combat Challenge, Stand Firm or Armored Instinct (all unbuilt).
+   abilities. Character creation still picks 4 abilities from one pool; only the Warrior has a separate passive choice, and the Rogue's Flanking is still an ability.
+2. Passives for the other classes, following the Warrior's choose-one pattern (`passives` on a profession, `passiveId` on the draft).
 3. Should healing items follow the guide (Health Potion 1 HP, Bandage treats Wounds only)? That makes the tutorial harder.
 4. Engage Difficulty scaling is agreed as a starting point and still being workshopped.
 

@@ -3,6 +3,7 @@ import type { ResolutionStep } from '../resolution'
 import { availableCombatActions, performAction } from './actions'
 import { actionsThisTurn } from './conditionRules'
 import { releaseAtRoundEnd } from './conditions'
+import { returnSealedResolve } from './sealedResolve'
 import { enemyActions, resetRoundState } from './enemies'
 import { offerFollowUps } from './followUps'
 import { addStep, createEngine, finalStep, type Engine } from './state'
@@ -22,11 +23,19 @@ function advanceTurn(b: BattleState) {
   if (current && current.hp > 0 && b.actionsUsed < actionsThisTurn(current, b.round)) return
   const next = b.players.findIndex((p, i) => i > b.turnIndex && p.hp > 0)
   b.actionsUsed = 0
+  b.turnStarted = false
   if (next === -1) {
     b.phase = 'enemies'
   } else {
     b.turnIndex = next
   }
+}
+
+/** Start-of-turn effects happen once, just before the player's first action of the turn. */
+function startTurn(engine: Engine, p: BattlePlayer) {
+  if (engine.b.turnStarted) return
+  engine.b.turnStarted = true
+  returnSealedResolve(engine, p)
 }
 
 type Outcome = { battle: BattleState; steps: ResolutionStep[] }
@@ -37,6 +46,7 @@ function playerActionFlow(engine: Engine, planned: PlannedCombat | null) {
   const p = currentPlayer(b)
   if (!p) return
 
+  startTurn(engine, p)
   let free = false
   if (planned) {
     free = availableCombatActions(b, p).find((o) => o.id === planned.actionId)?.slot === 'fast'
@@ -46,6 +56,17 @@ function playerActionFlow(engine: Engine, planned: PlannedCombat | null) {
   if (!free) b.actionsUsed += 1
 
   if (b.result === 'ongoing') advanceTurn(b)
+  finalStep(engine)
+}
+
+function endTurnFlow(engine: Engine) {
+  const { b } = engine
+  b.opening = []
+  const p = currentPlayer(b)
+  if (!p) return
+  startTurn(engine, p)
+  b.actionsUsed = ACTIONS_PER_TURN
+  advanceTurn(b)
   finalStep(engine)
 }
 
@@ -70,6 +91,7 @@ function enemyPhaseFlow(engine: Engine) {
     b.phase = 'players'
     b.turnIndex = Math.max(0, b.players.findIndex((p) => p.hp > 0))
     b.actionsUsed = 0
+    b.turnStarted = false
     addStep(engine, {
       actor: null,
       title: 'Round ends',
@@ -107,6 +129,7 @@ function runFlow(
       progress.state = engine.b
       progress.steps = engine.steps
       if (flow.kind === 'action') playerActionFlow(engine, flow.planned)
+      else if (flow.kind === 'endTurn') endTurnFlow(engine)
       else enemyPhaseFlow(engine)
       return { state: engine.b, steps: engine.steps }
     },
@@ -127,13 +150,9 @@ export function takeAction(battle: BattleState, planned: PlannedCombat | null, r
 }
 
 /** The current player gives up their remaining actions this round. */
-export function endTurn(battle: BattleState): BattleState {
-  if (battle.pending) return battle
-  const b = structuredClone(battle)
-  if (!currentPlayer(b)) return b
-  b.actionsUsed = ACTIONS_PER_TURN
-  advanceTurn(b)
-  return b
+export function endTurn(battle: BattleState, rng: Rng): Outcome {
+  if (battle.pending) return { battle, steps: [] }
+  return runFlow(battle, { kind: 'endTurn' }, rng, [], [], 0)
 }
 
 /** Every player has acted: the enemies attack in random order, Defense resets, and a new round begins. */

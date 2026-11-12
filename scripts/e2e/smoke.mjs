@@ -21,7 +21,8 @@ await page.locator('.option', { hasText: 'Soldier' }).click()
 await next()
 await page.getByRole('button', { name: 'Suggest spread' }).click()
 await next()
-for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Add one Armor' }).click()
+assert.equal(await page.getByRole('button', { name: 'Add one Armor' }).count(), 0, 'no starting Armor to allocate')
+await page.locator('.option', { hasText: 'Steadying Presence' }).click()
 for (const ability of ['Provoke', 'Disable', 'Cleave', 'Intercept']) {
   await page.locator('.option', { hasText: ability }).first().click()
 }

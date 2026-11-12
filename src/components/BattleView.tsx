@@ -66,6 +66,13 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
     else play(`Round ${battle.round}`, result.steps, next)
   }
 
+  const endCurrentTurn = () => {
+    const result = endTurn(battle, Math.random)
+    const next = withBattle(result.battle)
+    if (result.steps.length === 0) settle(next)
+    else play(`Round ${battle.round}`, result.steps, next)
+  }
+
   const answerReaction = (answer: ReactionAnswer) => {
     const result = respondToReaction(battle, answer, Math.random)
     const next = withBattle(result.battle)
@@ -89,7 +96,7 @@ export function BattleView({ state, dispatch, onLeave }: Props) {
             battle={battle}
             player={player}
             onAct={act}
-            onEndTurn={() => settle(withBattle(endTurn(battle)))}
+            onEndTurn={endCurrentTurn}
             engageHelpSeen={engageHelpSeen}
             onEngageHelpSeen={() => setEngageHelpSeen(true)}
           />

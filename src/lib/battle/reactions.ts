@@ -1,8 +1,8 @@
 import { canUseFastOrTriggered } from '../conditionRules'
 import { canReact, payForReaction, type Cost } from '../reactorRules'
 import { releaseCommitment, resourceAvailable, type Commitment } from '../tokenFlow'
-import type { Engine } from './state'
-import type { BattleEnemy, BattlePlayer, ReactionRequest } from './types'
+import { groupOf, livingPlayers, type Engine } from './state'
+import type { BattleEnemy, BattlePlayer, BattleState, ReactionRequest } from './types'
 
 export const INTERCEPT_DEFENSE = 2
 
@@ -90,4 +90,19 @@ export function offerLastStand(engine: Engine, p: BattlePlayer): boolean {
   releaseCommitment(p, payForReaction(p, LAST_STAND_COST))
   p.hp = 1
   return true
+}
+
+export const STEADYING_PRESENCE_DEFENSE = 2
+
+/**
+ * Steadying Presence: a Warrior's allies in the same engagement group gain +2 to Defend against attacks
+ * from enemies in that group. The bonus does not stack with a second Warrior's.
+ */
+export function steadyingPresenceBonus(b: BattleState, attacker: BattleEnemy, target: BattlePlayer): number {
+  const group = groupOf(b, attacker.id)
+  if (groupOf(b, target.key) !== group) return 0
+  const steadied = livingPlayers(b).some(
+    (w) => w.key !== target.key && w.abilityIds.includes('steadyingPresence') && groupOf(b, w.key) === group,
+  )
+  return steadied ? STEADYING_PRESENCE_DEFENSE : 0
 }

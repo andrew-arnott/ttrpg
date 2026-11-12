@@ -73,6 +73,8 @@ export interface BattleState {
   phase: 'players' | 'enemies'
   /** Index into `players` of whoever is choosing an action. */
   turnIndex: number
+  /** Whether the current player's start-of-turn effects have happened. */
+  turnStarted?: boolean
   /** Actions the current player has used this round. Fast abilities are free and do not count. */
   actionsUsed: number
   /** Steps leading into round 1, played once when the battle begins. */
@@ -84,7 +86,7 @@ export interface BattleState {
 }
 
 
-export type BattleFlow = { kind: 'action'; planned: PlannedCombat | null } | { kind: 'enemies' }
+export type BattleFlow = { kind: 'action'; planned: PlannedCombat | null } | { kind: 'endTurn' } | { kind: 'enemies' }
 
 /**
  * Everything needed to run the interrupted action again with the player's answer. The

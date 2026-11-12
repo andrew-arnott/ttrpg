@@ -25,7 +25,7 @@ const INSANITY_REASON = 'Insanity: no Fast abilities'
 function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
   return p.abilityIds
     .flatMap((id) => abilityById(id) ?? [])
-    .filter((ability) => !(ability.types.length === 1 && ['Interval', 'Triggered'].includes(ability.types[0])))
+    .filter((ability) => !(ability.types.length === 1 && ['Interval', 'Triggered', 'Passive'].includes(ability.types[0])))
     .flatMap((ability) => {
       const handler = ABILITY_HANDLERS[ability.id] ?? unsupportedAbility
       const options = handler.options({

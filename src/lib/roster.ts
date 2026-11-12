@@ -89,6 +89,7 @@ function sampleDraft(recipe: (typeof SAMPLE_RECIPES)[number]): CharacterDraft {
     specialAssignment: suggestedSpecialAssignment(profession),
     tokenChoices,
     abilityIds: [...recipe.combatIds, ...recipe.explorationIds],
+    passiveId: profession.passives?.[0]?.id ?? null,
     equipment: recipe.equipment,
     hands: recipe.hands,
     portrait: recipe.portrait,

@@ -9,7 +9,7 @@ import { settleTest, takeDamage, testBonuses } from '../characterTest'
 import { drawRulesFor } from './conditionRules'
 import { gainCondition } from './conditions'
 import { offerPrayer } from '../reactorRules'
-import { INTERCEPT_DEFENSE, offerIntercept, offerLastStand, offerShieldWall } from './reactions'
+import { INTERCEPT_DEFENSE, offerIntercept, offerLastStand, offerShieldWall, steadyingPresenceBonus } from './reactions'
 import { releaseCommitment, type Commitment } from './tokens'
 import {
   adjustBag,
@@ -86,14 +86,16 @@ export function strikePlayer(
     }
   }
   const raw = attack.attackValue + e.empowered
-  const bonus = options.defenseBonus ?? 0
+  const steadied = steadyingPresenceBonus(engine.b, e, target)
+  const bonus = (options.defenseBonus ?? 0) + steadied
+  const bonusLabel = [options.defenseBonus ? options.bonusLabel : '', steadied ? 'Steadying Presence' : ''].filter(Boolean).join(' and ')
   const cover = offerShieldWall(engine, e, attack.name, target, Math.max(0, raw - bonus))
   const value = cover.remaining
   const defense = target.defense
   const breaks = value > defense
   target.defense = Math.max(0, defense - value)
 
-  const resultLine = `Attack ${raw}${bonus > 0 ? ` - ${bonus} ${options.bonusLabel}` : ''}${cover.note} against Defense ${defense}: ${breaks ? 'breaks through' : 'blocked'}`
+  const resultLine = `Attack ${raw}${bonus > 0 ? ` - ${bonus} ${bonusLabel}` : ''}${cover.note} against Defense ${defense}: ${breaks ? 'breaks through' : 'blocked'}`
   const clash = {
     attack: value,
     defenseBefore: defense,

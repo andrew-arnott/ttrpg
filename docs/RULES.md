@@ -781,11 +781,10 @@ Warriors specialize in protecting allies, controlling enemies, and holding the l
 A Warrior begins with the standard 15-token distribution, plus:
 
 * **3 Resolve tokens**
-* **3 combat tokens**, chosen in any combination of Armor and Power
 
 Resolve, Armor, and Power are **+0, Chain, Resource** tokens.
 
-All Resolve, Armor, and Power tokens begin in play.
+All Resolve tokens begin in play.
 
 ### Warrior Resources
 
@@ -805,6 +804,22 @@ When you draw Resolve, Armor, Power, or Expertise during any test, put it in pla
 Spending a resource normally returns it to your bag. Some abilities instead seal the resource.
 
 A Critical Success token in play counts as 2 Expertise and must be spent or sealed as a single token.
+
+### Warrior Passives
+
+At character creation, choose **1 of these 2 passives**. A passive is always active, and it does not count towards your 4 Warrior abilities.
+
+#### Steadying Presence
+
+**Passive**
+
+Allies in your engagement group gain +2 to Defend against attacks from enemies in that group.
+
+#### Relentless Pressure
+
+**Passive**
+
+At the start of your turn, enemies return only 1 of your sealed Resolve tokens to your bag in total. Choose which enemy returns it.
 
 ### Warrior Abilities
 
@@ -925,11 +940,17 @@ Use up a Ration and feed the party. Everyone recovers 1 HP and removes 1 Fatigue
 
 Some Warrior abilities seal Resolve on enemies to maintain conditions.
 
-* Sealed Resolve remains attached until released by an effect or the enemy is defeated.
+* Sealed Resolve remains attached until it returns to your bag at the start of your turn, is released by an effect, or the enemy is defeated.
+* **At the start of your turn, each enemy with one or more of your Resolve tokens sealed on it returns 1 of those tokens to your bag.**
+* Relentless Pressure changes this: at the start of your turn, enemies return only **1 of your sealed Resolve tokens in total**, and you choose which enemy returns it.
 * Conditions remain active while you have at least one Resolve sealed on the enemy.
 * Different conditions applied by the same Warrior share the same pool of sealed Resolve.
 * Disable reduces damage based on the total number of Resolve tokens that Warrior has sealed on the enemy.
 * When an enemy is defeated, release all sealed tokens and return them to their owners' bags.
+
+**Example:** A Warrior has 2 Resolve sealed on a goblin and 1 on a troll. At the start of their turn, the normal rule returns 2 Resolve: 1 from the goblin and 1 from the troll.
+
+With Relentless Pressure, only 1 Resolve returns in total. The Warrior may return the troll's, leaving 2 sealed on the goblin, or return one of the goblin's, leaving 1 sealed on each enemy.
 
 **Example:** A Warrior uses Disable on an Ogre, sealing 1 Resolve and reducing its attack damage by 1.
 
@@ -937,7 +958,7 @@ Later, the Warrior successfully uses Provoke on the same Ogre, sealing another R
 
 The Ogre is now both Provoked and Disabled. Its attack damage is reduced by 2 because the Warrior has 2 Resolve sealed on it.
 
-The conditions remain until the sealed Resolve is released.
+At the start of the Warrior's next turn the Ogre returns 1 Resolve, so its attack damage is reduced by 1 and it stays Provoked. At the start of the turn after, it returns the other, and both conditions end.
 
 ## 12. Rogue
 

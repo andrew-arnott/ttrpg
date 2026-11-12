@@ -28,6 +28,8 @@ export interface CharacterDraft {
   /** Keyed by TokenChoice id, then token id -> count. */
   tokenChoices: Record<string, Record<string, number>>
   abilityIds: string[]
+  /** The Warrior's chosen passive, or any other profession's that offers a choice. */
+  passiveId: string | null
   /** Item id -> quantity bought with starting coins. */
   equipment: Record<string, number>
   /** What is held in each hand, bought with starting coins. */
@@ -45,6 +47,7 @@ export function emptyDraft(): CharacterDraft {
     backgroundId: null,
     tokenChoices: {},
     abilityIds: [],
+    passiveId: null,
     equipment: {},
     hands: NO_HANDS,
     portrait: null,
@@ -245,7 +248,11 @@ export function buildCharacter(draft: CharacterDraft): BuiltCharacter {
     }
   }
 
-  const chosenAbilities = allAbilities(profession).filter((a) => draft.abilityIds.includes(a.id))
+  const passive = profession?.passives?.find((a) => a.id === draft.passiveId)
+  const chosenAbilities = [
+    ...(passive ? [passive] : []),
+    ...allAbilities(profession).filter((a) => draft.abilityIds.includes(a.id)),
+  ]
 
   const inventory = ownedItems(draft)
   const coinsSpent = spentOn(draft)
@@ -319,6 +326,9 @@ export function validate(draft: CharacterDraft, profession: Profession | null): 
       if (total !== choice.total) {
         add('abilities', `Allocate all ${choice.total} combat tokens (${total} of ${choice.total} chosen).`)
       }
+    }
+    if (profession.passives?.length && !profession.passives.some((a) => a.id === draft.passiveId)) {
+      add('abilities', 'Choose a passive.')
     }
     if (profession.abilityPicks > 0 && draft.abilityIds.length !== profession.abilityPicks) {
       add(

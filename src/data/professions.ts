@@ -10,14 +10,7 @@ export const PROFESSIONS: Profession[] = [
     focus: 'Protection, battlefield control, and weapons',
     defined: true,
     fixedStartingTokens: [{ tokenId: 'resolve', count: 3 }],
-    tokenChoices: [
-      {
-        id: 'warriorCombat',
-        prompt: 'Split 3 combat tokens between Armor and Power in any combination.',
-        total: 3,
-        options: ['armor', 'power'],
-      },
-    ],
+    tokenChoices: [],
     resources: [
       { tokenId: 'resolve', effectWhenSpent: 'Activate Warrior abilities' },
       { tokenId: 'armor', effectWhenSpent: 'Add +1 to a Defend result' },
@@ -25,6 +18,22 @@ export const PROFESSIONS: Profession[] = [
       { tokenId: 'expertise', effectWhenSpent: 'Spend as Resolve, Armor, or Power' },
     ],
     abilityPicks: 4,
+    passives: [
+      {
+        id: 'steadyingPresence',
+        name: 'Steadying Presence',
+        types: ['Passive'],
+        cost: '—',
+        text: 'Allies in your engagement group gain +2 to Defend against attacks from enemies in that group.',
+      },
+      {
+        id: 'relentlessPressure',
+        name: 'Relentless Pressure',
+        types: ['Passive'],
+        cost: '—',
+        text: 'At the start of your turn, enemies return only 1 of your sealed Resolve tokens to your bag in total. Choose which enemy returns it.',
+      },
+    ],
     abilities: [
       {
         id: 'provoke',
@@ -128,7 +137,7 @@ export const PROFESSIONS: Profession[] = [
       },
     ],
     notes: [
-      'All Resolve, Armor, and Power tokens begin in play.',
+      'All Resolve tokens begin in play.',
       'Armor and Power must be spent before drawing tokens for their respective tests.',
       'Resources spent on Fight abilities are committed before drawing. If the attack fails, they return to the bag.',
     ],

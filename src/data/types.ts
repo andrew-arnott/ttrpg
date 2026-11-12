@@ -96,6 +96,7 @@ export type AbilityType =
   | 'Triggered'
   | 'Action'
   | 'Interval'
+  | 'Passive'
 
 export interface Ability {
   id: string
@@ -140,5 +141,7 @@ export interface Profession {
   abilityPicks: number
   /** Granted in full, not chosen. */
   explorationAbilities: Ability[]
+  /** When present, a character chooses exactly one of these. It does not count towards `abilityPicks`. */
+  passives?: Ability[]
   notes: string[]
 }

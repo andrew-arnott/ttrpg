@@ -126,8 +126,8 @@ describe('buildCharacter', () => {
     },
     speciesId: 'dwarf',
     backgroundId: 'soldier',
-    tokenChoices: { warriorCombat: { armor: 2, power: 1 } },
     abilityIds: ['provoke', 'disable', 'cleave', 'intercept'],
+    passiveId: 'steadyingPresence',
   })
 
   it('stacks species and background bonuses onto the array values', () => {
@@ -142,8 +142,8 @@ describe('buildCharacter', () => {
     const c = buildCharacter(fullDraft())
     expect(countOf(c.bag, 'resolve')).toBe(0)
     expect(countOf(c.inPlay, 'resolve')).toBe(3)
-    expect(countOf(c.inPlay, 'armor')).toBe(2)
-    expect(countOf(c.inPlay, 'power')).toBe(1)
+    expect(countOf(c.inPlay, 'armor')).toBe(0)
+    expect(countOf(c.inPlay, 'power')).toBe(0)
     // Bag is standard + Dwarf shields only.
     expect(c.stats.size).toBe(18)
   })
@@ -168,11 +168,24 @@ describe('buildCharacter', () => {
     expect(buildCharacter(draft).complete).toBe(false)
   })
 
-  it('flags an under-allocated Warrior token choice', () => {
-    const draft = fullDraft()
-    draft.tokenChoices = { warriorCombat: { armor: 1, power: 1 } }
-    const c = buildCharacter(draft)
-    expect(c.issuesFor('abilities').some((i) => i.includes('combat tokens'))).toBe(true)
+  it('gives the Warrior only Resolve to start with', () => {
+    const c = buildCharacter(fullDraft())
+    expect(c.inPlay).toEqual([{ tokenId: 'resolve', count: 3 }])
+  })
+
+  it('needs exactly one passive from the Warrior’s two, which does not count as an ability pick', () => {
+    const none = { ...fullDraft(), passiveId: null }
+    expect(buildCharacter(none).issuesFor('abilities')).toContain('Choose a passive.')
+    const relentless = buildCharacter({ ...fullDraft(), passiveId: 'relentlessPressure' })
+    expect(relentless.complete).toBe(true)
+    expect(relentless.chosenAbilities.map((a) => a.id)).toEqual(['relentlessPressure', 'provoke', 'disable', 'cleave', 'intercept'])
+    expect(buildCharacter({ ...fullDraft(), passiveId: 'bogus' }).complete).toBe(false)
+    expect(PROFESSIONS.find((p) => p.id === 'warrior')!.abilityPicks).toBe(4)
+  })
+
+  it('does not ask professions without passives to choose one', () => {
+    const rogue = sampleRoster().find((r) => r.key === 'sample:rogue')!
+    expect(buildCharacter(rogue.draft).complete).toBe(true)
   })
 
   it('refuses to complete an undefined profession', () => {
@@ -210,13 +223,13 @@ describe('ability pool', () => {
       },
       speciesId: 'human',
       backgroundId: 'soldier',
-      tokenChoices: { warriorCombat: { armor: 3 } },
       abilityIds: ['provoke', 'shieldWall', 'fortify', 'barricade'],
+      passiveId: 'relentlessPressure',
     }
     const c = buildCharacter(draft)
     expect(c.complete).toBe(true)
     expect(c.chosenAbilities.map((a) => a.id).sort()).toEqual(
-      ['barricade', 'fortify', 'provoke', 'shieldWall'].sort(),
+      ['barricade', 'fortify', 'provoke', 'relentlessPressure', 'shieldWall'].sort(),
     )
   })
 

@@ -23,7 +23,7 @@ describe('docs/RULES.md', () => {
     const blocks = parseMarkdown(doc)
     for (const profession of PROFESSIONS.filter((p) => p.defined)) {
       const section = sectionOf(blocks, slugify(profession.name))
-      const abilities = [...profession.abilities, ...profession.explorationAbilities]
+      const abilities = [...(profession.passives ?? []), ...profession.abilities, ...profession.explorationAbilities]
       for (const ability of abilities) {
         it(`${profession.name}: ${ability.name}`, () => {
           const at = section.findIndex((b) => b.kind === 'heading' && b.slug === slugify(ability.name))

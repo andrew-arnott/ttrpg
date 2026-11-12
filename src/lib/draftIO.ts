@@ -50,6 +50,7 @@ export function parseDraft(raw: unknown): CharacterDraft | string {
     abilityIds: Array.isArray(draft.abilityIds)
       ? draft.abilityIds.filter((a): a is string => typeof a === 'string')
       : [],
+    passiveId: typeof draft.passiveId === 'string' ? draft.passiveId : null,
     equipment: numberMap(draft.equipment),
     hands: normalizeHands(isRecord(draft.hands) ? (draft.hands as Partial<Hands>) : undefined),
     portrait: sanePortrait(draft.portrait),

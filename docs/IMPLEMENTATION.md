@@ -21,6 +21,8 @@ These were filled in so the tutorial would run. They are not rulings.
 | Sweeping Blow damage | 1 plus weapon and Might bonuses per enemy reached | `sweepingBlow` in `battle/effects.ts` |
 | Last Stand cost | 1 Resolve. The owner worded it without a cost | `offerLastStand` in `battle/reactions.ts` |
 | Warrior utilities | Barricade delays the patrol 3 Intervals per use; Steel Nerves and Hearty Meal are my designs; Shoulder Through is the break Difficulty minus 2 | `intervalActions/abilities.ts` |
+| Steadying Presence | Allies means the Warrior's other party members in the same group. It does not apply to the Warrior, and two Warriors do not stack. Applied as -2 to the attack's value, like Intercept's +2 Defend | `steadyingPresenceBonus` in `battle/reactions.ts` |
+| Sealed Resolve returning | Happens once, just before the player's first action or when they end their turn. A Critical Success sealed as 2 Resolve counts as one token when returned. Provoked and Disabled end when none of the Warrior's Resolve remains | `returnSealedResolve` in `battle/sealedResolve.ts` |
 | Enemy engagement | An unengaged enemy that was not shoved or provoked closes in on a random player | `closeIn` in `battle/enemies.ts` |
 | Chain Lightning | 1 Mana for 2 damage, then +2 and +3 Mana for further targets, never the same enemy twice | `battle/spells.ts` |
 | Conditions from enemies | Which enemies give which condition, and the Goblin Scout's Poisoned Blade trigger | `src/data/enemies.ts` |
@@ -73,6 +75,7 @@ These were filled in so the tutorial would run. They are not rulings.
 
 | Ability | Code |
 | --- | --- |
+| Warrior passives: Steadying Presence, Relentless Pressure (one chosen, stored as `passiveId`) | `battle/reactions.ts`, `battle/sealedResolve.ts` |
 | Warrior combat: Provoke, Disable, Shield Bash, Sweeping Blow, Shield Wall | `battle/abilities.ts`, `battle/effects.ts` |
 | Warrior triggered: Cleave, Intercept, Last Stand | `battle/followUps.ts`, `battle/reactions.ts` |
 | Rogue: Backstab, Slip Away, Cheap Shot, Flanking, Opportunist | `battle/abilities.ts`, `battle/effects.ts`, `battle/followUps.ts` |

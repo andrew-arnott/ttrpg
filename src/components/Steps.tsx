@@ -49,7 +49,7 @@ export function StepProfession({ draft, update }: StepProps) {
   const choose = (p: Profession) => {
     if (!p.defined) return
     // Ability and token picks belong to the old profession; drop them.
-    update({ professionId: p.id, abilityIds: [], tokenChoices: {} })
+    update({ professionId: p.id, abilityIds: [], passiveId: null, tokenChoices: {} })
   }
 
   return (
@@ -282,7 +282,7 @@ export function StepProfessionDetail({ draft, built, update }: StepProps) {
       <CardHead
         step="Step 5"
         title={`${profession.name} tokens and abilities`}
-        hint={`Starting resources, plus ${profession.abilityPicks} abilities of your choice.`}
+        hint={`Starting resources, ${profession.passives?.length ? 'a passive, ' : ''}plus ${profession.abilityPicks} abilities of your choice.`}
       />
 
       <h3 style={{ fontSize: 14, marginBottom: 8 }}>Starting resources</h3>
@@ -336,6 +336,31 @@ export function StepProfessionDetail({ draft, built, update }: StepProps) {
           </div>
         )
       })}
+
+      {profession.passives && profession.passives.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 14, margin: '18px 0 4px' }}>Passive — choose one</h3>
+          <p className="hint" style={{ marginBottom: 10 }}>
+            A passive is always on. It does not count towards your {profession.abilityPicks} abilities.
+          </p>
+          <div className="options two">
+            {profession.passives.map((a) => (
+              <button
+                key={a.id}
+                className="option"
+                aria-pressed={draft.passiveId === a.id}
+                onClick={() => update({ passiveId: a.id })}
+              >
+                <span className="ability-head">
+                  <span className="nm">{a.name}</span>
+                  <span className="tag">{a.types.join(' + ')}</span>
+                </span>
+                <span className="desc">{a.text}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <h3 style={{ fontSize: 14, margin: '18px 0 4px' }}>
         Abilities — choose {profession.abilityPicks}

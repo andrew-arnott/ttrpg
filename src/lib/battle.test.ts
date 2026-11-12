@@ -1390,6 +1390,108 @@ describe('Last Stand', () => {
   })
 })
 
+describe('Sealed Resolve returning at the start of the turn', () => {
+  const sealedBy = (n: number) => Array.from({ length: n }, () => ({ tokenId: 'resolve', byKey: 'w' }))
+  const held = (passive: string[] = []) =>
+    battleOf(
+      [player('w', { abilityIds: passive, resources: { resolve: 0 } })],
+      [
+        enemy('goblin', 'goblin', { hp: 99, sealed: sealedBy(2), provokedBy: 'w' }),
+        enemy('troll', 'troll', { hp: 99, sealed: sealedBy(1) }),
+      ],
+      { w: 'g1', goblin: 'g1', troll: 'g1' },
+    )
+  const bagResolve = (b: BattleState) => countInBag(b.players[0].bag, 'resolve')
+
+  it('returns 1 from each enemy holding any of the warrior’s Resolve', () => {
+    const { battle, steps } = takeAction(held(), defend, rng())
+    expect(bagResolve(battle)).toBe(2)
+    expect(battle.enemies.map((e) => e.sealed.length)).toEqual([1, 0])
+    expect(steps[0].title).toBe('Start of turn')
+  })
+
+  it('happens once a turn, not once an action', () => {
+    const first = takeAction(held(), defend, rng()).battle
+    const second = takeAction(first, defend, rng()).battle
+    expect(bagResolve(second)).toBe(2)
+  })
+
+  it('happens when a turn is ended without acting', () => {
+    expect(bagResolve(endTurn(held(), rng()).battle)).toBe(2)
+  })
+
+  it('ends Provoked once none of the warrior’s Resolve is left on the enemy', () => {
+    const b = held()
+    b.enemies[0].sealed = sealedBy(1)
+    const { battle } = takeAction(b, defend, rng())
+    expect(battle.enemies[0].provokedBy).toBeNull()
+  })
+
+  it('ignores other characters’ Resolve and other tokens', () => {
+    const b = held()
+    b.enemies[1].sealed = [{ tokenId: 'cunning', byKey: 'w' }, { tokenId: 'resolve', byKey: 'someone-else' }]
+    const { battle } = takeAction(b, defend, rng())
+    expect(battle.enemies[1].sealed).toHaveLength(2)
+    expect(bagResolve(battle)).toBe(1)
+  })
+
+  describe('with Relentless Pressure', () => {
+    it('returns only 1 in total, from the enemy the warrior chooses', () => {
+      const asked = takeAction(held(['relentlessPressure']), defend, rng())
+      expect(asked.battle.pending?.request.abilityId).toBe('relentlessPressure')
+      expect(asked.battle.pending?.request.required).toBe(true)
+      const { battle } = respondToReaction(asked.battle, { use: true, targetId: 'troll' }, rng())
+      expect(bagResolve(battle)).toBe(1)
+      expect(battle.enemies.map((e) => e.sealed.length)).toEqual([2, 0])
+    })
+
+    it('can leave 1 sealed on each enemy by returning from the goblin', () => {
+      const asked = takeAction(held(['relentlessPressure']), defend, rng())
+      const { battle } = respondToReaction(asked.battle, { use: true, targetId: 'goblin' }, rng())
+      expect(battle.enemies.map((e) => e.sealed.length)).toEqual([1, 1])
+    })
+
+    it('does not ask when only one enemy holds Resolve', () => {
+      const b = held(['relentlessPressure'])
+      b.enemies[1].sealed = []
+      const { battle } = takeAction(b, defend, rng())
+      expect(battle.pending).toBeFalsy()
+      expect(bagResolve(battle)).toBe(1)
+    })
+  })
+})
+
+describe('Steadying Presence', () => {
+  const crowd = (groups: Record<string, string>, passive = ['steadyingPresence']) =>
+    battleOf(
+      [player('w', { abilityIds: passive }), player('q')],
+      [enemy('goblin', 'e', { hp: 99 })],
+      groups,
+    )
+  const attackedQ = (b: BattleState) =>
+    playRound(b, { w: turn(), q: turn() }, rng()).steps.find((s) => s.clash?.target.key === 'q')!
+
+  it('takes 2 off attacks from enemies in the group against the warrior’s allies there', () => {
+    const strike = attackedQ(crowd({ w: 'g1', q: 'g1', e: 'g1' }))
+    expect(strike.resultLine).toMatch(/Attack 4 - 2 Steadying Presence/)
+  })
+
+  it('does nothing for allies in another group, or without the passive', () => {
+    expect(attackedQ(crowd({ w: 'g2', q: 'g1', e: 'g1' })).resultLine).not.toMatch(/Steadying/)
+    expect(attackedQ(crowd({ w: 'g1', q: 'g1', e: 'g1' }, [])).resultLine).not.toMatch(/Steadying/)
+  })
+
+  it('does not stack with a second Warrior’s', () => {
+    const b = battleOf(
+      [player('w', { abilityIds: ['steadyingPresence'] }), player('v', { abilityIds: ['steadyingPresence'] }), player('q')],
+      [enemy('goblin', 'e', { hp: 99 })],
+      { w: 'g1', v: 'g1', q: 'g1', e: 'g1' },
+    )
+    const strike = playRound(b, { w: turn(), v: turn(), q: turn() }, rng()).steps.find((s) => s.clash?.target.key === 'q')!
+    expect(strike.resultLine).toMatch(/Attack 4 - 2 Steadying Presence/)
+  })
+})
+
 describe('Chain Lightning', () => {
   const storm = (mana = 6) =>
     battleOf(
@@ -1820,7 +1922,7 @@ describe('step-by-step turns', () => {
   })
 
   it('lets a player end their turn early', () => {
-    const b = endTurn(three())
+    const b = endTurn(three(), rng()).battle
     expect(currentPlayer(b)!.key).toBe('p2')
     expect(b.actionsUsed).toBe(0)
   })
@@ -1843,7 +1945,7 @@ describe('step-by-step turns', () => {
       p3: 'g3',
       e: 'g1',
     })
-    const after = endTurn(b)
+    const after = endTurn(b, rng()).battle
     expect(currentPlayer(after)!.key).toBe('p3')
   })
 
