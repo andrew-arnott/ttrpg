@@ -990,6 +990,22 @@ Spend Cunning to activate Rogue abilities. Spent Cunning returns to your bag unl
 
 Expertise may be spent as Cunning. A Critical Success token in play counts as 2 Expertise.
 
+### Rogue Passives
+
+At character creation, choose **1 of these 2 passives**. A passive is always active, and it does not count towards your 4 Rogue abilities.
+
+#### Flanking
+
+**Passive**
+
+Once per combat round, when you successfully attack an enemy in an engagement group containing at least one of your allies, **recover 1 Cunning**.
+
+#### Patient Shadow
+
+**Passive**
+
+Whenever you end your turn unengaged, gain 1 Cunning.
+
 ### Rogue Abilities
 
 At character creation, choose **4 Rogue abilities**.
@@ -1021,12 +1037,6 @@ Make an attack against an enemy.
 On success, deal damage normally, seal the Cunning on the target, and apply **Exposed**.
 
 While Exposed, reduce the enemy's Defense by 1 for each Cunning you have sealed on it.
-
-#### Flanking
-
-**Triggered — No cost**
-
-Once per combat round, when you successfully attack an enemy in an engagement group containing at least one of your allies, **recover 1 Cunning**.
 
 #### Opportunist
 

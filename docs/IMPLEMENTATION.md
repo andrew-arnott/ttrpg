@@ -17,10 +17,11 @@ These were filled in so the tutorial would run. They are not rulings.
 | Test Difficulties | Investigate 4 to 6, room interactions 4 to 6, lockpicking 6, breaking the door 7, treating a condition 6, disarming 5 to 6 | `src/data/dungeon.ts`, `TREAT_DIFFICULTY` |
 | Enemy numbers | HP, Defense, attack values, damage and notice Difficulties for every enemy (see the bestiary in RULES.md) | `src/data/enemies.ts` |
 | Patrol timing | Arrives 4 Intervals after the first lock opens; a noise Complication brings it 1 sooner | `patrol.delayAfterUnlock` |
-| Sample party | Brann (Provoke, Disable, Intercept), Wren (Backstab, Flanking), Sister Maren (Heal, Prayer), Ilvara (Magic Missile, Fireball), each with a kit that spends all 10 coins | `src/lib/roster.ts` |
+| Sample party | Brann (Provoke, Disable, Intercept), Wren (Flanking, Backstab, Slip Away), Sister Maren (Heal, Prayer), Ilvara (Magic Missile, Fireball), each with a kit that spends all 10 coins | `src/lib/roster.ts` |
 | Sweeping Blow damage | 1 plus weapon and Might bonuses per enemy reached | `sweepingBlow` in `battle/effects.ts` |
 | Last Stand cost | 1 Resolve. The owner worded it without a cost | `offerLastStand` in `battle/reactions.ts` |
 | Warrior utilities | Barricade delays the patrol 3 Intervals per use; Steel Nerves and Hearty Meal are my designs; Shoulder Through is the break Difficulty minus 2 | `intervalActions/abilities.ts` |
+| Patient Shadow | The name is mine; the text is the owner's. "Gain 1 Cunning" recovers one from the bag into play, like Flanking, so it does nothing with no Cunning left in the bag. Checked when the turn ends, whether the player used both actions or ended early | `endOfTurn` in `battle/passives.ts` |
 | Steadying Presence | Allies means the Warrior's other party members in the same group. It does not apply to the Warrior, and two Warriors do not stack. Applied as -2 to the attack's value, like Intercept's +2 Defend | `steadyingPresenceBonus` in `battle/reactions.ts` |
 | Sealed Resolve returning | Happens once, just before the player's first action or when they end their turn. A Critical Success sealed as 2 Resolve counts as one token when returned. Provoked and Disabled end when none of the Warrior's Resolve remains | `returnSealedResolve` in `battle/sealedResolve.ts` |
 | Enemy engagement | An unengaged enemy that was not shoved or provoked closes in on a random player | `closeIn` in `battle/enemies.ts` |
@@ -78,7 +79,8 @@ These were filled in so the tutorial would run. They are not rulings.
 | Warrior passives: Steadying Presence, Relentless Pressure (one chosen, stored as `passiveId`) | `battle/reactions.ts`, `battle/sealedResolve.ts` |
 | Warrior combat: Provoke, Disable, Shield Bash, Sweeping Blow, Shield Wall | `battle/abilities.ts`, `battle/effects.ts` |
 | Warrior triggered: Cleave, Intercept, Last Stand | `battle/followUps.ts`, `battle/reactions.ts` |
-| Rogue: Backstab, Slip Away, Cheap Shot, Flanking, Opportunist | `battle/abilities.ts`, `battle/effects.ts`, `battle/followUps.ts` |
+| Rogue passives: Flanking, Patient Shadow (one chosen) | `flankingRecovery` in `battle/effects.ts`, `battle/passives.ts` |
+| Rogue: Backstab, Slip Away, Cheap Shot, Opportunist | `battle/abilities.ts`, `battle/followUps.ts` |
 | Priest: Heal, Bless, Cleanse, Smite, Prayer, Divine Intervention | `battle/abilities.ts`, `lib/reactorRules.ts`, `battle/conditions.ts` |
 | Wizard: Magic Missile, Fireball, Chain Lightning, Transpose, Arcane Focus | `battle/effects.ts`, `battle/spells.ts` |
 | Interval abilities and their resource costs | `intervalActions/abilities.ts` |

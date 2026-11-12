@@ -39,7 +39,7 @@ const SAMPLE_RECIPES = [
     equipment: { torch: 1, antivenom: 1, healingPotion: 1 },
     hands: { main: 'dagger', off: null },
     portrait: 'rogue-2',
-    combatIds: ['backstab', 'flanking'],
+    combatIds: ['backstab', 'slipAway'],
     explorationIds: ['scoutAhead', 'findAShortcut'],
   },
   {

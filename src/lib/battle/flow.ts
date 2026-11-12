@@ -3,6 +3,7 @@ import type { ResolutionStep } from '../resolution'
 import { availableCombatActions, performAction } from './actions'
 import { actionsThisTurn } from './conditionRules'
 import { releaseAtRoundEnd } from './conditions'
+import { endOfTurn } from './passives'
 import { returnSealedResolve } from './sealedResolve'
 import { enemyActions, resetRoundState } from './enemies'
 import { offerFollowUps } from './followUps'
@@ -18,9 +19,11 @@ export function currentPlayer(b: BattleState): BattlePlayer | null {
   return p && p.hp > 0 ? p : null
 }
 
-function advanceTurn(b: BattleState) {
+function advanceTurn(engine: Engine) {
+  const { b } = engine
   const current = b.players[b.turnIndex]
   if (current && current.hp > 0 && b.actionsUsed < actionsThisTurn(current, b.round)) return
+  if (current) endOfTurn(engine, current)
   const next = b.players.findIndex((p, i) => i > b.turnIndex && p.hp > 0)
   b.actionsUsed = 0
   b.turnStarted = false
@@ -55,7 +58,7 @@ function playerActionFlow(engine: Engine, planned: PlannedCombat | null) {
   }
   if (!free) b.actionsUsed += 1
 
-  if (b.result === 'ongoing') advanceTurn(b)
+  if (b.result === 'ongoing') advanceTurn(engine)
   finalStep(engine)
 }
 
@@ -66,7 +69,7 @@ function endTurnFlow(engine: Engine) {
   if (!p) return
   startTurn(engine, p)
   b.actionsUsed = ACTIONS_PER_TURN
-  advanceTurn(b)
+  advanceTurn(engine)
   finalStep(engine)
 }
 

@@ -1461,6 +1461,35 @@ describe('Sealed Resolve returning at the start of the turn', () => {
   })
 })
 
+describe('Patient Shadow', () => {
+  const shadow = (groups: Record<string, string>, over: Partial<BattlePlayer> = {}) =>
+    battleOf(
+      [player('r', { abilityIds: ['patientShadow'], resources: { cunning: 1 }, bag: [{ tokenId: 'cunning', count: 2 }], ...over })],
+      [enemy('goblin', 'e', { hp: 99 })],
+      groups,
+    )
+  const cunning = (b: BattleState) => b.players[0].resources.cunning
+
+  it('recovers 1 Cunning when the turn ends unengaged', () => {
+    const { battle, steps } = endTurn(shadow({ r: 'g1', e: 'g2' }), rng())
+    expect(cunning(battle)).toBe(2)
+    expect(steps[0].title).toBe('Patient Shadow')
+  })
+
+  it('also applies when both actions are used', () => {
+    const b = shadow({ r: 'g1', e: 'g2' })
+    const once = takeAction(b, null, rng()).battle
+    expect(cunning(once)).toBe(1)
+    expect(cunning(takeAction(once, null, rng()).battle)).toBe(2)
+  })
+
+  it('does nothing while engaged, without the passive, or with no Cunning in the bag', () => {
+    expect(cunning(endTurn(shadow({ r: 'g1', e: 'g1' }), rng()).battle)).toBe(1)
+    expect(cunning(endTurn(shadow({ r: 'g1', e: 'g2' }, { abilityIds: [] }), rng()).battle)).toBe(1)
+    expect(cunning(endTurn(shadow({ r: 'g1', e: 'g2' }, { bag: [] }), rng()).battle)).toBe(1)
+  })
+})
+
 describe('Steadying Presence', () => {
   const crowd = (groups: Record<string, string>, passive = ['steadyingPresence']) =>
     battleOf(

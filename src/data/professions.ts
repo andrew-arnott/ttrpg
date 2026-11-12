@@ -158,6 +158,22 @@ export const PROFESSIONS: Profession[] = [
       { tokenId: 'expertise', effectWhenSpent: 'Spend as Cunning' },
     ],
     abilityPicks: 4,
+    passives: [
+      {
+        id: 'flanking',
+        name: 'Flanking',
+        types: ['Passive'],
+        cost: '—',
+        text: 'Once per combat round, when you successfully attack an enemy in an engagement group containing at least one of your allies, recover 1 Cunning.',
+      },
+      {
+        id: 'patientShadow',
+        name: 'Patient Shadow',
+        types: ['Passive'],
+        cost: '—',
+        text: 'Whenever you end your turn unengaged, gain 1 Cunning.',
+      },
+    ],
     abilities: [
       {
         id: 'backstab',
@@ -179,13 +195,6 @@ export const PROFESSIONS: Profession[] = [
         types: ['Fight'],
         cost: '1 Cunning',
         text: 'Make an attack against an enemy. On success, deal damage normally, seal the Cunning on the target, and apply Exposed. While Exposed, reduce the enemy’s Defense by 1 for each Cunning you have sealed on it.',
-      },
-      {
-        id: 'flanking',
-        name: 'Flanking',
-        types: ['Triggered'],
-        cost: 'No cost',
-        text: 'Once per combat round, when you successfully attack an enemy in an engagement group containing at least one of your allies, recover 1 Cunning.',
       },
       {
         id: 'opportunist',
