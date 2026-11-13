@@ -25,18 +25,20 @@ assert.match(
 )
 await shot('prompt', true)
 
-const brannGroup = page.locator('.engagement-group', { hasText: 'Brann Ironhold' })
-const disable = page.locator('.option', { hasText: 'Disable' })
-if ((await brannGroup.locator('.combatant.enemy').count()) > 0) {
-  assert.equal(await disable.isDisabled(), false, 'Disable should be usable against an engaged enemy')
-  await disable.click()
-  const usable = page.locator('.prompt-target select option:not([disabled])')
-  assert.ok((await usable.count()) > 0)
-} else {
-  assert.equal(await disable.isDisabled(), true)
+const brannActs = /Brann/.test(await page.locator('.card-head h2', { hasText: 'what should they do' }).first().innerText())
+if (brannActs) {
+  const brannGroup = page.locator('.engagement-group', { hasText: 'Brann Ironhold' })
+  const disable = page.locator('.option', { hasText: 'Disable' })
+  if ((await brannGroup.locator('.combatant.enemy').count()) > 0) {
+    assert.equal(await disable.isDisabled(), false, 'Disable should be usable against an engaged enemy')
+    await disable.click()
+    const usable = page.locator('.prompt-target select option:not([disabled])')
+    assert.ok((await usable.count()) > 0)
+  } else {
+    assert.equal(await disable.isDisabled(), true)
+  }
 }
 
-for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'End turn' }).click()
 let sawClash = false
 let overlayPolls = 0
 for (let i = 0; i < 80; i++) {
@@ -51,10 +53,12 @@ for (let i = 0; i < 80; i++) {
       await skipOverlay(page)
       overlayPolls = 0
     } else await page.waitForTimeout(500)
-  } else if ((await page.getByRole('button', { name: 'No thanks' }).count()) > 0) {
-    await page.getByRole('button', { name: 'No thanks' }).click()
   } else if ((await page.locator('.card-head .step-index', { hasText: 'Round 2' }).count()) > 0) {
     break
+  } else if ((await page.getByRole('button', { name: 'End turn' }).count()) > 0) {
+    await page.getByRole('button', { name: 'End turn' }).click()
+  } else if ((await page.getByRole('button', { name: 'No thanks' }).count()) > 0) {
+    await page.getByRole('button', { name: 'No thanks' }).click()
   } else {
     await page.waitForTimeout(300)
   }
