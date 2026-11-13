@@ -64,15 +64,14 @@ npm run build && npm run preview:e2e &
 
 ## Open questions for the owner
 
-1. Class design target: every class starts with a core passive (Warrior and Rogue choose one of two), 4 combat abilities and 2 utility
-   abilities. Character creation still picks 4 abilities from one pool; only the Warrior, Rogue and Priest have a separate passive choice.
-2. A passive for the Wizard, following the Warrior's choose-one pattern (`passives` on a profession, `passiveId` on the draft).
-3. Should healing items follow the guide (Health Potion 1 HP, Bandage treats Wounds only)? That makes the tutorial harder.
-4. Engage Difficulty scaling is agreed as a starting point and still being workshopped.
+1. Class design target: every class starts with a core passive (every class chooses one of two), 4 combat abilities and 2 utility
+   abilities. The passive is done (`passives` on a profession, `passiveId` on the draft); character creation still picks 4 abilities from one combined pool.
+2. Should healing items follow the guide (Health Potion 1 HP, Bandage treats Wounds only)? That makes the tutorial harder.
+3. Engage Difficulty scaling is agreed as a starting point and still being workshopped.
 
 ## Backlog, roughly in order of value
 
-1. **Class design**: separate combat and utility picks, add passives, widen the Rogue and Wizard pools (ideas for
+1. **Class design**: separate combat and utility picks, widen the Rogue pool (ideas for
    each are in the conversation history: shoves, stances, riders, Turn Undead, Ice Shackles, Counterspell).
 2. **Surprise round**: a 1-action surprise round (unspotted enemies currently take their whole turn), and enemies hidden by more than a number.
 3. **Inventory** with 6 slots, stack sizes, Armor, and the Body and Accessory slots. Weapon and shield art, more portraits, damage types, and swapping hands mid-delve.
@@ -147,7 +146,7 @@ HOW TO WORK
   did not do.
 
 NEXT STEPS (pick with the owner; see the backlog in docs/HANDOFF.md)
-1. Class design: core passives and a 4 combat plus 2 utility pick structure for every class.
+1. Class design: a 4 combat plus 2 utility pick structure for every class.
 2. Resolve the open questions listed in docs/HANDOFF.md.
 3. Inventory, Armor and the remaining equipment slots.
 4. Add npm run lint to the deploy workflow; consider component tests or running scripts/e2e in CI.

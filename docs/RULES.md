@@ -59,7 +59,7 @@ Your profession determines your adventuring abilities, starting HP, and professi
 | **Warrior** | 12 | Strength, Endurance, Agility | Protection, battlefield control, and weapons |
 | **Rogue** | 10 | Agility, Perception, Charisma | Stealth, mobility, and opportunistic attacks |
 | **Priest** | 8 | Charisma, Intelligence, Endurance | Healing, blessings, and support |
-| **Wizard** | 8 | Intelligence, Perception, Endurance | Powerful magic and resource management |
+| **Wizard** | 8 | Intelligence, Perception, Endurance | Spells that affect groups of enemies, and resource management |
 | **Ranger** | TBD | Perception, Agility, Strength | Ranged combat, hunting, and wilderness expertise |
 | **Berserker** | TBD | Strength, Endurance, Luck | Aggressive combat and taking risks |
 
@@ -1256,6 +1256,8 @@ Restore **1 HP to every member of the party**.
 
 Wizards are practitioners of powerful arcane magic. They can unleash devastating attacks, manipulate the battlefield, and uncover magical secrets.
 
+Wizards specialize in affecting groups of enemies.
+
 Wizards begin with a large reserve of Mana, but replenishing it takes time or requires successful tests. Powerful spells can consume considerable resources and sometimes impose additional consequences.
 
 **Starting HP:** 8
@@ -1283,6 +1285,22 @@ If the test fails, drawn Mana returns to the bag.
 Mana can also be recovered through Rest and certain Wizard abilities.
 
 Expertise may be spent as Mana. A Critical Success token in play counts as 2 Expertise.
+
+### Wizard Passives
+
+At character creation, choose **1 of these 2 passives**. A passive is always active, and it does not count towards your 4 Wizard abilities.
+
+#### Chain Reaction
+
+**Passive**
+
+Once per round, when one of your spells defeats an enemy, deal **1 damage** to another enemy in that enemy's engagement group.
+
+#### Selective Casting
+
+**Passive**
+
+Once per spell, choose one ally who would take damage from it. That ally takes no damage from the spell.
 
 ### Wizard Abilities
 
@@ -1338,6 +1356,9 @@ Each target must be different, and each requires a separate Intelligence attack 
 | First | 1 | 1 |
 | Second | 2 | 3 |
 | Third | 3 | 6 |
+| Fourth | 4 | 10 |
+
+The cost keeps rising by 1 for each further target.
 
 You may decide whether to continue to another target after resolving the previous attack.
 
@@ -1362,6 +1383,32 @@ Draw exactly **5 tokens** from your bag without resolving a normal test.
 Chain effects are ignored during Arcane Focus. You always draw exactly 5 tokens.
 
 Arcane Focus only recovers Mana. It cannot recover Expertise or other Resource tokens.
+
+#### Gravity Well
+
+**Action — 2 Mana**
+
+Choose two engagement groups in your room and merge them into one.
+
+Make an Intelligence attack against each enemy in the new group, using each enemy's Defense. Each enemy successfully hit takes **1 damage**.
+
+All allied characters in the new group automatically take 1 damage.
+
+The merged group is an ordinary engagement group from then on. It stays together until someone changes engagement, and it does not split on its own.
+
+#### Dissonant Pulse
+
+**Action — 2 Mana**
+
+Seal exactly **2 Mana** on an engagement group. Each enemy in that group has **−1 Defense** for each Mana sealed there.
+
+You may use additional actions to seal another 2 Mana on the same group, increasing the penalty.
+
+At the start of your turn, return **1 Mana sealed on each affected group** to your bag.
+
+If a group changes membership for any reason (someone joins, leaves, or dies), return all Mana sealed on that group to your bag and end the effect.
+
+A group merge from Gravity Well counts as a membership change: release the Mana sealed on the original groups.
 
 ### Wizard Exploration Abilities
 

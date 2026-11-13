@@ -6,6 +6,7 @@ import { recoverToken } from '../tokenFlow'
 import { engageBreakdown, engageDifficulty, needsEngageTest } from './engagement'
 import { planAttack } from './attackPlan'
 import { settleTest, takeDamage, testBonuses } from '../characterTest'
+import { enemyTargets } from './targets'
 import { drawRulesFor } from './conditionRules'
 import { gainCondition } from './conditions'
 import { offerAllyHelp, offerHealer, sealFaith } from '../priestRules'
@@ -484,51 +485,144 @@ export function magicMissile(engine: Engine, caster: BattlePlayer, e: BattleEnem
     tone: 'success',
   })
   updateResult(engine.b)
+  if (defeated) chainReaction(engine, caster, [e])
+}
+
+/** Chain Reaction: once a round, a spell that defeats an enemy deals 1 damage to another enemy in its group. */
+export function chainReaction(engine: Engine, caster: BattlePlayer, defeated: BattleEnemy[]) {
+  const { b } = engine
+  const used = caster.usedThisRound ?? []
+  if (!caster.abilityIds.includes('chainReaction') || caster.hp <= 0 || used.includes('chainReaction')) return
+  for (const fallen of defeated) {
+    const group = groupOf(b, fallen.id)
+    const neighbours = enemiesInGroup(b, group)
+    if (neighbours.length === 0) continue
+    let target = neighbours[0]
+    if (neighbours.length > 1) {
+      const answer = engine.ask({
+        abilityId: 'chainReaction',
+        reactorKey: caster.key,
+        title: 'Chain Reaction',
+        prompt: `${fallen.name} falls to ${caster.name}'s spell. Chain Reaction deals 1 damage to another enemy in its group.`,
+        cost: 'free',
+        targets: enemyTargets(neighbours),
+        required: true,
+        confirmLabel: 'Strike it',
+      })
+      target = neighbours.find((e) => e.id === answer.targetId) ?? neighbours[0]
+    }
+    caster.usedThisRound = [...used, 'chainReaction']
+    const down = damageEnemy(b, target, 1)
+    if (down) engine.defeats.push({ enemyId: target.id, byKey: caster.key, groupId: group, viaAttack: false })
+    addStep(engine, {
+      actor: playerActorOf(caster),
+      title: 'Chain Reaction',
+      intro: `${fallen.name}'s fall sets off a ripple of magic.`,
+      outcome: `${target.name} takes 1 damage (${target.hp}/${target.maxHp} HP).${down ? ` ${target.name} is defeated!` : ''}`,
+      tone: 'success',
+    })
+    updateResult(b)
+    return
+  }
+}
+
+/**
+ * Selective Casting: once per spell, one ally who would take damage from it takes none. Returns that
+ * ally, if there is one. With a choice to make, the Wizard is asked.
+ */
+export function selectiveCasting(engine: Engine, caster: BattlePlayer, exposed: BattlePlayer[]): BattlePlayer | null {
+  if (!caster.abilityIds.includes('selectiveCasting')) return null
+  const allies = exposed.filter((a) => a.key !== caster.key && a.hp > 0)
+  if (allies.length === 0) return null
+  if (allies.length === 1) return allies[0]
+  const answer = engine.ask({
+    abilityId: 'selectiveCasting',
+    reactorKey: caster.key,
+    title: 'Selective Casting',
+    prompt: `${caster.name}'s spell would hurt several allies. Choose one who takes no damage from it.`,
+    cost: 'free',
+    targets: allies.map((a) => ({ id: a.key, label: `${a.name} (${a.hp}/${a.maxHp} HP)` })),
+    required: true,
+    confirmLabel: 'Spare them',
+  })
+  return allies.find((a) => a.key === answer.targetId) ?? allies[0]
+}
+
+/** Damage a spell deals to allies standing in its group, less the one Selective Casting spares. */
+export function spellBacklash(engine: Engine, caster: BattlePlayer, allies: BattlePlayer[], amount: number): string[] {
+  const exposed = allies.filter((a) => a.hp > 0)
+  const spared = selectiveCasting(engine, caster, exposed)
+  return exposed.map((a) => {
+    if (a === spared) return `${a.name} is spared by Selective Casting`
+    takeDamage(a, amount, true)
+    const stood = a.hp === 0 && offerLastStand(engine, a)
+    return `${a.name} takes ${amount} (${a.hp}/${a.maxHp} HP)${stood ? ', and stays up with Last Stand' : a.hp === 0 ? ', and falls' : ''}`
+  })
+}
+
+export interface Volley {
+  title: string
+  intro: string
+  damage: number
+  dodge: string
+}
+
+/**
+ * One Intelligence draw compared with every enemy in a group, like Fireball. Each enemy it reaches takes
+ * `damage`. Returns the enemies that were defeated.
+ */
+export function intelligenceVolley(engine: Engine, caster: BattlePlayer, groupId: string, volley: Volley): BattleEnemy[] {
+  const { b } = engine
+  const living = enemiesInGroup(b, groupId).filter((e) => e.hp > 0)
+  if (living.length === 0) return []
+  const lowest = Math.min(...living.map((e) => enemyDefense(e)))
+  const test = playerTest(engine, caster, 'intelligence', lowest)
+  const outcome = test.result.outcome
+  const reaches = (e: BattleEnemy) =>
+    outcome === 'critical-success' || (outcome !== 'critical-failure' && test.total >= enemyDefense(e))
+  const fallen: BattleEnemy[] = []
+  const lines = living.map((e) => {
+    if (!reaches(e)) return `${e.name} (Defense ${enemyDefense(e)}) ${volley.dodge}`
+    const where = groupOf(b, e.id)
+    const defeated = damageEnemy(b, e, volley.damage)
+    if (defeated) {
+      engine.defeats.push({ enemyId: e.id, byKey: caster.key, groupId: where, viaAttack: true })
+      fallen.push(e)
+    }
+    return `${e.name} takes ${volley.damage} damage (${e.hp}/${e.maxHp} HP).${defeated ? ` ${e.name} is defeated!` : ''}`
+  })
+  addStep(engine, {
+    actor: playerActorOf(caster),
+    title: volley.title,
+    intro: volley.intro,
+    test,
+    testMode: 'score',
+    testHeading: 'Intelligence test against each enemy in the group',
+    resultLine: `Tokens ${fmtSigned(test.result.total)} + Intelligence ${test.attributeValue}${test.bonuses.map((x) => ` ${x.value < 0 ? '-' : '+'} ${x.label} ${Math.abs(x.value)}`).join('')} = ${test.total}`,
+    outcome: lines.join(' '),
+    tone: living.some(reaches) ? 'success' : 'failure',
+  })
+  updateResult(b)
+  runTriggers(engine, caster, test.result)
+  return fallen
 }
 
 export function fireball(engine: Engine, caster: BattlePlayer, groupId: string, mana: number) {
   const { b } = engine
-  const targets = enemiesInGroup(b, groupId)
   const allies = playersInGroup(b, groupId)
-  const groupName = describeGroup(b, groupId)
   const fatigue = Math.floor(mana / 3)
 
-  const living = targets.filter((e) => e.hp > 0)
-  if (living.length > 0) {
-    const lowest = Math.min(...living.map((e) => enemyDefense(e)))
-    const test = playerTest(engine, caster, 'intelligence', lowest)
-    const outcome = test.result.outcome
-    const reaches = (e: BattleEnemy) =>
-      outcome === 'critical-success' || (outcome !== 'critical-failure' && test.total >= enemyDefense(e))
-    const lines = living.map((e) => {
-      if (!reaches(e)) return `${e.name} (Defense ${enemyDefense(e)}) dodges the flames.`
-      const where = groupOf(b, e.id)
-      const defeated = damageEnemy(b, e, mana)
-      if (defeated) engine.defeats.push({ enemyId: e.id, byKey: caster.key, groupId: where, viaAttack: true })
-      return `${e.name} takes ${mana} damage (${e.hp}/${e.maxHp} HP).${defeated ? ` ${e.name} is defeated!` : ''}`
-    })
-    addStep(engine, {
-      actor: playerActorOf(caster),
-      title: 'Fireball',
-      intro: `${caster.name} unleashes a fireball (${mana} Mana) on ${groupName}. One result is compared with every enemy's Defense.`,
-      test,
-      testMode: 'score',
-      testHeading: 'Intelligence test against each enemy in the group',
-      resultLine: `Tokens ${fmtSigned(test.result.total)} + Intelligence ${test.attributeValue}${test.bonuses.map((x) => ` ${x.value < 0 ? '-' : '+'} ${x.label} ${Math.abs(x.value)}`).join('')} = ${test.total}`,
-      outcome: lines.join(' '),
-      tone: living.some(reaches) ? 'success' : 'failure',
-    })
-    updateResult(b)
-    runTriggers(engine, caster, test.result)
-  }
+  const fallen = intelligenceVolley(engine, caster, groupId, {
+    title: 'Fireball',
+    intro: `${caster.name} unleashes a fireball (${mana} Mana) on ${describeGroup(b, groupId)}. One result is compared with every enemy's Defense.`,
+    damage: mana,
+    dodge: 'dodges the flames.',
+  })
+  chainReaction(engine, caster, fallen)
 
   const burned = allies.filter((a) => a.hp > 0)
   if (burned.length > 0 || fatigue > 0) {
-    const lines = burned.map((a) => {
-      takeDamage(a, mana, true)
-      const stood = a.hp === 0 && offerLastStand(engine, a)
-      return `${a.name} takes ${mana} (${a.hp}/${a.maxHp} HP)${stood ? ', and stays up with Last Stand' : a.hp === 0 ? ', and falls' : ''}`
-    })
+    const lines = spellBacklash(engine, caster, burned, mana)
     if (fatigue > 0) caster.bag = adjustBag(caster.bag, 'fatigue', fatigue)
     addStep(engine, {
       actor: playerActorOf(caster),

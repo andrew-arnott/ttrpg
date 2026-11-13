@@ -3,6 +3,7 @@ import { TOKENS } from '../../data/tokens'
 import type { Ability } from '../../data/types'
 import type { Rng } from '../drawTest'
 import { adjustBag } from '../tokenFlow'
+import { syncPulses } from './pulses'
 import { playerActor, type ResolutionStep, type StepActor } from '../resolution'
 import type { BattleEnemy, BattlePlayer, BattleState, ReactionAnswer, ReactionRequest } from './types'
 import { LOG_LIMIT } from './types'
@@ -20,7 +21,8 @@ export const sealedCount = (e: BattleEnemy, resourceId: string) =>
   e.sealed.filter((s) => (s.as ?? s.tokenId) === resourceId).reduce((sum, s) => sum + (s.value ?? 1), 0)
 
 /** Exposed (Cunning sealed on the enemy) lowers its Defense. */
-export const enemyDefense = (e: BattleEnemy) => Math.max(0, e.defense - sealedCount(e, 'cunning'))
+export const enemyDefense = (e: BattleEnemy) =>
+  Math.max(0, e.defense - sealedCount(e, 'cunning') - (e.defensePenalty ?? 0))
 
 export const playerByKey = (b: BattleState, key: string) => b.players.find((p) => p.key === key)
 export const enemyById = (b: BattleState, id: string) => b.enemies.find((e) => e.id === id)
@@ -125,12 +127,14 @@ export function addStep(engine: Engine, original: ResolutionStep) {
 }
 
 export function updateResult(b: BattleState) {
+  syncPulses(b)
   if (livingEnemies(b).length === 0) b.result = 'victory'
   else if (livingPlayers(b).length === 0) b.result = 'defeat'
 }
 
 export function moveToGroup(b: BattleState, id: string, groupId: string) {
   b.groups[id] = groupId
+  syncPulses(b)
 }
 
 export function newGroup(b: BattleState): string {

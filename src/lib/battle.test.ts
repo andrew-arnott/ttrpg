@@ -1777,6 +1777,200 @@ describe('Chain Lightning', () => {
   })
 })
 
+describe('Wizard spells and passives', () => {
+  const wizard = (abilityIds: string[], over: Partial<BattlePlayer> = {}) =>
+    player('w', { professionId: 'wizard', abilityIds, resources: { mana: 6 }, bag: ALWAYS_PASS, ...over })
+  const mana = (b: BattleState) => b.players[0].resources.mana
+  const hps = (b: BattleState) => b.enemies.map((e) => e.hp)
+
+  it('lets Chain Lightning keep arcing at 2, 3, 4 and more Mana for each further target', () => {
+    const b = battleOf(
+      [wizard(['chainLightning'], { resources: { mana: 10 } })],
+      ['a', 'b', 'c', 'd'].map((id) => enemy('goblin', id, { hp: 2 })),
+      { w: 'g1', a: 'g1', b: 'g2', c: 'g2', d: 'g2' },
+    )
+    const costs: string[] = []
+    const { battle } = playRound(b, { w: turn({ actionId: 'ability:chainLightning', targetId: 'a' }) }, rng(), (r) => {
+      costs.push(r.cost)
+      return { use: true, targetId: r.targets![0].id }
+    })
+    expect(costs).toEqual(['2 Mana', '3 Mana', '4 Mana'])
+    expect(hps(battle)).toEqual([0, 0, 0, 0])
+  })
+
+  describe('Chain Reaction', () => {
+    const reaction = () =>
+      battleOf(
+        [wizard(['magicMissile', 'chainReaction'])],
+        [enemy('goblin', 'a', { hp: 1 }), enemy('goblin', 'b', { hp: 3 }), enemy('goblin', 'c', { hp: 1 })],
+        { w: 'g1', a: 'g2', b: 'g2', c: 'g2' },
+      )
+    const missile = (id: string): PlannedCombat => ({ actionId: 'ability:magicMissile', targetId: id })
+
+    it('deals 1 damage to another enemy in the defeated enemy’s group, chosen by the Wizard', () => {
+      const asked: string[] = []
+      const { battle } = playRound(reaction(), { w: turn(missile('a')) }, rng(), (r) => {
+        asked.push(r.abilityId)
+        return { use: true, targetId: 'b' }
+      })
+      expect(asked).toEqual(['chainReaction'])
+      expect(hps(battle)).toEqual([0, 2, 1])
+    })
+
+    it('happens once per round', () => {
+      const { battle } = playRound(reaction(), { w: turn(missile('a'), missile('c')) }, rng(), () => ({ use: true, targetId: 'b' }))
+      expect(hps(battle)).toEqual([0, 2, 0])
+    })
+
+    it('needs the passive, and another enemy in the group', () => {
+      const without = reaction()
+      without.players[0].abilityIds = ['magicMissile']
+      expect(hps(playRound(without, { w: turn(missile('a')) }, rng(), acceptAll).battle)).toEqual([0, 3, 1])
+      const alone = reaction()
+      alone.groups.b = 'g3'
+      alone.groups.c = 'g4'
+      expect(hps(playRound(alone, { w: turn(missile('a')) }, rng(), acceptAll).battle)).toEqual([0, 3, 1])
+    })
+
+    it('also follows a Fireball that defeats an enemy', () => {
+      const b = battleOf(
+        [wizard(['fireball', 'chainReaction'])],
+        [enemy('goblin', 'a', { hp: 1 }), enemy('goblin', 'b', { hp: 9 }), enemy('goblin', 'c', { hp: 9 })],
+        { w: 'g1', a: 'g2', b: 'g2', c: 'g3' },
+      )
+      const { battle } = takeAction(b, { actionId: 'ability:fireball:1', targetId: 'g2' }, rng())
+      expect(hps(battle)).toEqual([0, 7, 9])
+    })
+  })
+
+  describe('Selective Casting', () => {
+    const crowd = (passive = ['selectiveCasting']) =>
+      battleOf(
+        [wizard(['fireball', ...passive]), player('q'), player('r')],
+        [enemy('goblin', 'e', { hp: 20 })],
+        { w: 'g1', q: 'g1', r: 'g1', e: 'g1' },
+      )
+    const cast: PlannedCombat = { actionId: 'ability:fireball:2', targetId: 'g1' }
+    const hp = (b: BattleState, key: string) => b.players.find((p) => p.key === key)!.hp
+
+    it('spares the one ally the Wizard chooses, and no one else', () => {
+      const asked = takeAction(crowd(), cast, rng())
+      expect(asked.battle.pending?.request.abilityId).toBe('selectiveCasting')
+      expect(asked.battle.pending?.request.targets?.map((t) => t.id)).toEqual(['q', 'r'])
+      const { battle } = respondToReaction(asked.battle, { use: true, targetId: 'q' }, rng())
+      expect([hp(battle, 'w'), hp(battle, 'q'), hp(battle, 'r')]).toEqual([8, 10, 8])
+    })
+
+    it('spares the only ally without asking, and does nothing without the passive', () => {
+      const one = crowd()
+      one.players.pop()
+      delete one.groups.r
+      const { battle } = takeAction(one, cast, rng())
+      expect(battle.pending).toBeFalsy()
+      expect(hp(battle, 'q')).toBe(10)
+      expect(hp(takeAction(crowd([]), cast, rng()).battle, 'q')).toBe(8)
+    })
+  })
+
+  describe('Gravity Well', () => {
+    const well = (passive: string[] = []) =>
+      battleOf(
+        [wizard(['gravityWell', ...passive]), player('q')],
+        [enemy('goblin', 'a', { hp: 5 }), enemy('troll', 'b', { hp: 5 })],
+        { w: 'g1', a: 'g2', q: 'g3', b: 'g3' },
+      )
+    const pull: PlannedCombat = { actionId: 'ability:gravityWell', targetId: 'g2|g3' }
+
+    it('merges two groups, attacks every enemy in the new group once, and hurts allies there', () => {
+      const { battle, steps } = takeAction(well(), pull, rng())
+      expect(new Set([battle.groups.a, battle.groups.q, battle.groups.b]).size).toBe(1)
+      expect(steps.filter((s) => s.test).length).toBe(1)
+      expect(hps(battle)).toEqual([4, 4])
+      expect(battle.players[1].hp).toBe(9)
+      expect(battle.players[0].hp).toBe(10)
+      expect(mana(battle)).toBe(4)
+    })
+
+    it('can be spared one ally with Selective Casting', () => {
+      const { battle } = takeAction(well(['selectiveCasting']), pull, rng())
+      expect(battle.players[1].hp).toBe(10)
+      expect(hps(battle)).toEqual([4, 4])
+    })
+
+    it('needs two engagement groups and 2 Mana', () => {
+      const one = battleOf([wizard(['gravityWell'])], [enemy('goblin', 'a')], { w: 'g1', a: 'g1' })
+      expect(availableCombatActions(one, one.players[0]).find((o) => o.id === 'ability:gravityWell')!.disabledReason).toMatch(/two engagement groups/)
+      const poor = well()
+      poor.players[0].resources = { mana: 1 }
+      expect(availableCombatActions(poor, poor.players[0]).find((o) => o.id === 'ability:gravityWell')!.disabledReason).toMatch(/Needs 2 Mana/)
+    })
+  })
+
+  describe('Dissonant Pulse', () => {
+    const pulsing = () =>
+      battleOf(
+        [wizard(['dissonantPulse', 'gravityWell']), player('q')],
+        [enemy('goblin', 'a', { hp: 99 }), enemy('troll', 'b', { hp: 99 })],
+        { w: 'g3', q: 'g2', a: 'g3', b: 'g3' },
+      )
+    const pulse: PlannedCombat = { actionId: 'ability:dissonantPulse', targetId: 'g3' }
+    const defenses = (b: BattleState) => b.enemies.map((e) => enemyDefense(e))
+    const sealedMana = (b: BattleState) => (b.pulses ?? []).reduce((n, p) => n + p.tokens.length, 0)
+
+    it('seals 2 Mana on the group, which stays out of the bag, and lowers each enemy’s Defense by 2', () => {
+      const { battle } = takeAction(pulsing(), pulse, rng())
+      expect(defenses(battle)).toEqual([1, 3])
+      expect(mana(battle)).toBe(4)
+      expect(bagCount(battle.players[0], 'mana')).toBe(0)
+      expect(sealedMana(battle)).toBe(2)
+    })
+
+    it('stacks when more Mana is sealed on the same group', () => {
+      const first = takeAction(pulsing(), pulse, rng()).battle
+      const second = takeAction(first, pulse, rng()).battle
+      expect(defenses(second)).toEqual([0, 1])
+      expect(sealedMana(second)).toBe(4)
+    })
+
+    it('returns 1 sealed Mana to the bag at the start of the Wizard’s turn', () => {
+      const cast = takeAction(pulsing(), pulse, rng()).battle
+      const next = runEnemyPhase({ ...cast, phase: 'enemies' }, rng()).battle
+      const { battle, steps } = takeAction(next, null, rng())
+      expect(steps.some((s) => s.title === 'Dissonant Pulse fades')).toBe(true)
+      expect(sealedMana(battle)).toBe(1)
+      expect(bagCount(battle.players[0], 'mana')).toBe(1)
+      expect(defenses(battle)).toEqual([2, 4])
+      const last = takeAction({ ...battle, turnIndex: 0, actionsUsed: 0, turnStarted: false, phase: 'players' }, null, rng()).battle
+      expect(sealedMana(last)).toBe(0)
+      expect(defenses(last)).toEqual([3, 5])
+    })
+
+    it('ends and returns all its Mana when the group changes membership, including by a Gravity Well merge', () => {
+      const cast = takeAction(pulsing(), pulse, rng()).battle
+      const merged = takeAction({ ...cast, turnIndex: 0, actionsUsed: 0 }, { actionId: 'ability:gravityWell', targetId: 'g3|g2' }, rng()).battle
+      expect(sealedMana(merged)).toBe(0)
+      expect(bagCount(merged.players[0], 'mana')).toBe(4)
+      expect(defenses(merged)).toEqual([3, 5])
+    })
+
+    it('ends when an enemy in the group is defeated', () => {
+      const b = pulsing()
+      b.enemies[0].hp = 1
+      b.players[1].abilityIds.push('magicMissile')
+      const cast = takeAction(b, pulse, rng()).battle
+      const killed = takeAction({ ...cast, turnIndex: 1, actionsUsed: 0 }, { actionId: 'ability:magicMissile', targetId: 'a' }, rng()).battle
+      expect(sealedMana(killed)).toBe(0)
+      expect(bagCount(killed.players[0], 'mana')).toBe(2)
+    })
+
+    it('needs an enemy to target and 2 Mana', () => {
+      const poor = pulsing()
+      poor.players[0].resources = { mana: 1 }
+      expect(availableCombatActions(poor, poor.players[0]).find((o) => o.id === 'ability:dissonantPulse')!.disabledReason).toMatch(/Needs 2 Mana/)
+    })
+  })
+})
+
 describe('Transpose and Arcane Focus', () => {
   it('Transpose swaps engagement groups with an enemy or ally for 1 Mana, with no test', () => {
     const b = battleOf(

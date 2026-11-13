@@ -4,10 +4,11 @@ import { availableCombatActions, performAction } from './actions'
 import { actionsThisTurn } from './conditionRules'
 import { releaseAtRoundEnd } from './conditions'
 import { endOfTurn } from './passives'
+import { returnPulseMana } from './pulses'
 import { returnSealedResolve } from './sealedResolve'
 import { enemyActions, resetRoundState } from './enemies'
 import { offerFollowUps } from './followUps'
-import { addStep, createEngine, finalStep, type Engine } from './state'
+import { addStep, createEngine, finalStep, playerActorOf, type Engine } from './state'
 import { runReplayable } from '../replay'
 import { ACTIONS_PER_TURN } from './types'
 import type { BattleFlow, BattlePlayer, BattleState, PlannedCombat, ReactionAnswer } from './types'
@@ -39,6 +40,16 @@ function startTurn(engine: Engine, p: BattlePlayer) {
   if (engine.b.turnStarted) return
   engine.b.turnStarted = true
   returnSealedResolve(engine, p)
+  const returned = returnPulseMana(engine.b, p)
+  if (returned > 0) {
+    addStep(engine, {
+      actor: playerActorOf(p),
+      title: 'Dissonant Pulse fades',
+      intro: `${p.name}'s turn begins.`,
+      outcome: `${returned} sealed Mana returns to ${p.name}'s bag.`,
+      tone: 'neutral',
+    })
+  }
 }
 
 type Outcome = { battle: BattleState; steps: ResolutionStep[] }

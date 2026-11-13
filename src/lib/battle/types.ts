@@ -34,6 +34,16 @@ export interface BattlePlayer extends Adventurer {
   shieldWall?: boolean
 }
 
+/** Dissonant Pulse: Mana sealed on an engagement group, lowering every enemy's Defense in it. */
+export interface Pulse {
+  groupId: string
+  /** The Wizard who sealed it, and whose bag the Mana returns to. */
+  byKey: string
+  tokens: SealedToken[]
+  /** Who was standing in the group when it was sealed. Any change ends the pulse. */
+  members: string[]
+}
+
 export interface BattleEnemy {
   id: string
   defId: string
@@ -46,6 +56,8 @@ export interface BattleEnemy {
   provokedBy: string | null
   /** Knocked out of its engagement group by this player's Shield Bash; it comes straight back at them. */
   shovedBy?: string | null
+  /** Defense lost to Dissonant Pulse. Set from the pulses on its group. */
+  defensePenalty?: number
   /** Extra attack value until the end of the round. */
   empowered: number
   /** Its healing triggers no longer work, because its wards were dispelled. */
@@ -71,6 +83,8 @@ export interface BattleState {
   turnStarted?: boolean
   /** Actions the current player has used this round. Fast abilities are free and do not count. */
   actionsUsed: number
+  /** Mana the Wizard has sealed on groups of enemies. */
+  pulses?: Pulse[]
   /** Steps leading into round 1, played once when the battle begins. */
   opening: ResolutionStep[]
   /** Set while the battle waits for a player to decide whether to use a Triggered ability. */

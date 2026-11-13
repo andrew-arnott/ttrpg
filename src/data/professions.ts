@@ -365,7 +365,7 @@ export const PROFESSIONS: Profession[] = [
       'Practitioners of powerful arcane magic who unleash devastating attacks and manipulate the battlefield.',
     startingHp: 8,
     importantSpecial: ['intelligence', 'perception', 'endurance'],
-    focus: 'Powerful magic and resource management',
+    focus: 'Spells that affect groups of enemies, and resource management',
     defined: true,
     fixedStartingTokens: [{ tokenId: 'mana', count: 6 }],
     tokenChoices: [],
@@ -374,6 +374,22 @@ export const PROFESSIONS: Profession[] = [
       { tokenId: 'expertise', effectWhenSpent: 'Spend as Mana' },
     ],
     abilityPicks: 4,
+    passives: [
+      {
+        id: 'chainReaction',
+        name: 'Chain Reaction',
+        types: ['Passive'],
+        cost: '—',
+        text: 'Once per round, when one of your spells defeats an enemy, deal 1 damage to another enemy in that enemy’s engagement group.',
+      },
+      {
+        id: 'selectiveCasting',
+        name: 'Selective Casting',
+        types: ['Passive'],
+        cost: '—',
+        text: 'Once per spell, choose one ally who would take damage from it. That ally takes no damage from the spell.',
+      },
+    ],
     abilities: [
       {
         id: 'magicMissile',
@@ -394,7 +410,7 @@ export const PROFESSIONS: Profession[] = [
         name: 'Chain Lightning',
         types: ['Fight'],
         cost: 'Escalating Mana',
-        text: 'Attack an enemy with Intelligence. On success, deal 2 damage. You may spend additional Mana to attack another enemy, at escalating cost — 1 for the first target, 2 more for the second, 3 more for the third. Each target requires a separate test.',
+        text: 'Attack an enemy with Intelligence. On a success, deal 2 damage. You may spend additional Mana to attack other enemies, with a separate test for each target: 1 Mana for the first target, 2 more for the second, 3 more for the third, and so on.',
       },
       {
         id: 'transpose',
@@ -409,6 +425,20 @@ export const PROFESSIONS: Profession[] = [
         types: ['Action'],
         cost: '0 Mana',
         text: 'Draw exactly 5 tokens without resolving a test. Put each Mana drawn into play; take 1 damage for each Complication drawn; return all others without activating them. Chain effects are ignored. Recovers Mana only.',
+      },
+      {
+        id: 'gravityWell',
+        name: 'Gravity Well',
+        types: ['Action'],
+        cost: '2 Mana',
+        text: 'Choose two engagement groups in your room and merge them into one. Make an Intelligence attack against each enemy in the new group. Each enemy hit takes 1 damage. Allies in the new group take 1 damage automatically.',
+      },
+      {
+        id: 'dissonantPulse',
+        name: 'Dissonant Pulse',
+        types: ['Action'],
+        cost: '2 Mana',
+        text: 'Seal exactly 2 Mana on an engagement group. Each enemy in that group has −1 Defense for each Mana sealed there. You may use additional actions to seal another 2 Mana on the same group. At the start of your turn, return 1 Mana sealed on each affected group to your bag. If a group changes membership for any reason, return all Mana sealed on it to your bag and end the effect.',
       },
     ],
     explorationAbilities: [

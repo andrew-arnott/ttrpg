@@ -15,7 +15,7 @@ import {
   sealOn,
   sweepingBlow,
 } from './effects'
-import { arcaneFocus, chainLightning, transpose } from './spells'
+import { arcaneFocus, chainLightning, dissonantPulse, gravityWell, transpose } from './spells'
 import {
   distinctGroupIds,
   describeGroup,
@@ -250,6 +250,28 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
       const name = enemy?.name ?? ally?.name
       if (name) transpose(engine, p, target, name)
     },
+  },
+  gravityWell: {
+    options: ({ b, id, base, gate }) => {
+      const groups = distinctGroupIds(b)
+      const pairs = groups.flatMap((a, i) =>
+        groups.slice(i + 1).map((c) => ({ id: `${a}|${c}`, label: `${describeGroup(b, a)} with ${describeGroup(b, c)}` })),
+      )
+      return [{ ...base, id, targets: pairs, disabledReason: gate ?? (pairs.length === 0 ? 'Needs two engagement groups' : undefined) }]
+    },
+    perform: ({ engine, p, target }) => {
+      const [first, second] = target.split('|')
+      if (first && second) gravityWell(engine, p, first, second)
+    },
+  },
+  dissonantPulse: {
+    options: ({ b, id, base, gate }) => {
+      const groups = distinctGroupIds(b)
+        .filter((g) => enemiesInGroup(b, g).length > 0)
+        .map((g) => ({ id: g, label: describeGroup(b, g) }))
+      return [{ ...base, id, targets: groups, disabledReason: gate ?? (groups.length === 0 ? NO_ENEMY : undefined) }]
+    },
+    perform: ({ engine, p, target, commit }) => dissonantPulse(engine, p, target, commit),
   },
   arcaneFocus: {
     options: ({ id, base, gate }) => [{ ...base, id, disabledReason: gate }],
