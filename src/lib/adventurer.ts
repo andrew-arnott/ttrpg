@@ -2,6 +2,16 @@ import type { SpecialSpread, TokenStack } from '../data/types'
 import type { Hands } from '../data/weapons'
 import type { SealedCondition } from './conditionRules'
 
+export interface SealedToken {
+  /** The token that was sealed. */
+  tokenId: string
+  byKey: string
+  /** The resource it stood in for, when it was Expertise or a Critical Success rather than the resource itself. */
+  as?: string
+  /** What it counts for: 1 for most tokens, 2 for a Critical Success. */
+  value?: number
+}
+
 /** What a character is, wherever they are: in the dungeon between fights or in the middle of one. */
 export interface Adventurer {
   key: string
@@ -21,6 +31,10 @@ export interface Adventurer {
   shieldsInPlay: number
   /** What is held in each hand; the weapon decides what an ordinary attack tests. */
   hands?: Hands
+  /** Tokens other characters have sealed on this one, such as a Priest's Faith. They return to the owner's bag when released. */
+  sealedBy?: SealedToken[]
+  /** Added to the character's next test, then used up. */
+  nextTestBonus?: number
   /** Conditions sealed on the character until the end of the Interval or fight. */
   sealedConditions?: SealedCondition[]
 }
@@ -41,6 +55,8 @@ export function intoFight(a: Adventurer): Adventurer {
     abilityIds: a.abilityIds,
     shieldsInPlay: a.shieldsInPlay,
     hands: a.hands,
+    sealedBy: (a.sealedBy ?? []).map((t) => ({ ...t })),
+    nextTestBonus: a.nextTestBonus,
     sealedConditions: [],
   }
 }
@@ -53,6 +69,8 @@ export function outOfFight<T extends Adventurer>(member: T, fought: Adventurer):
     resources: fought.resources,
     bag: fought.bag,
     shieldsInPlay: fought.shieldsInPlay,
+    sealedBy: fought.sealedBy,
+    nextTestBonus: fought.nextTestBonus,
     sealedConditions: [],
   }
 }

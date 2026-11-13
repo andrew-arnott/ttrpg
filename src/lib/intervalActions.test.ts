@@ -395,7 +395,7 @@ describe('resolveInterval', () => {
         { label: 'Prayer (Sister Maren)', value: 2 },
       ])
       const priest = done.state.party.find((m) => m.key === 'p')!
-      expect(priest.resources.faith).toBe(1)
+      expect(priest.resources.faith).toBe(3)
       expect(done.steps.at(-1)!.title).toBe('The Interval ends')
     })
 
@@ -403,7 +403,7 @@ describe('resolveInterval', () => {
       const first = resolveInterval(party(), search, rng())
       const done = respondToIntervalReaction(first.state, { use: false }, rng())
       expect(done.steps[0].test?.bonuses).toEqual([{ label: 'Bright torch', value: 1 }])
-      expect(done.state.party.find((m) => m.key === 'p')!.resources.faith).toBe(3)
+      expect(done.state.party.find((m) => m.key === 'p')!.resources.faith).toBe(5)
     })
 
     it('does not ask when nobody can pray', () => {
@@ -968,5 +968,43 @@ describe('Warrior utility abilities', () => {
       const option = availableActions(s, s.party[0]).find((o) => o.id === 'ability:heartyMeal')!
       expect(option.disabledReason).toMatch(/No Ration/)
     })
+  })
+})
+
+describe('Priest passives in the dungeon', () => {
+  const sealed = [
+    { tokenId: 'faith', byKey: 'p' },
+    { tokenId: 'faith', byKey: 'p' },
+  ]
+  const priestWith = (...abilityIds: string[]) => ({ ...sampleMember('priest', 'p'), abilityIds, resources: { faith: 3 } })
+
+  it('Healer: Group Heal offers each healed ally the Faith sealed on them, once per resolution', () => {
+    const hurt = { ...testMember('a', 0), hp: 3, maxHp: 10, sealedBy: sealed }
+    const s = stateWith(priestWith('groupHeal', 'healer'), hurt)
+    const first = resolveInterval(s, { p: { actionId: 'ability:groupHeal' } }, rng())
+    expect(first.state.pending?.request).toMatchObject({ abilityId: 'healer', reactorKey: 'a' })
+    const done = respondToIntervalReaction(first.state, { use: true, targetId: '2' }, rng())
+    const ally = done.state.party.find((m) => m.key === 'a')!
+    expect(ally.hp).toBe(3 + 1 + 2)
+    expect(ally.sealedBy).toEqual([])
+    expect(countInBag(done.state.party.find((m) => m.key === 'p')!.bag, 'faith')).toBe(2)
+  })
+
+  it('Healer does not ask when nothing is sealed on the ally, or the Priest chose the other passive', () => {
+    const plain = { ...testMember('a', 0), hp: 3, maxHp: 10 }
+    expect(resolveInterval(stateWith(priestWith('groupHeal', 'healer'), plain), { p: { actionId: 'ability:groupHeal' } }, rng()).state.pending).toBeFalsy()
+    const hurt = { ...plain, sealedBy: sealed }
+    expect(resolveInterval(stateWith(priestWith('groupHeal', 'steadfastHope'), hurt), { p: { actionId: 'ability:groupHeal' } }, rng()).state.pending).toBeFalsy()
+  })
+
+  it('Steadfast Hope: cancels a Complication on an ally’s test for the Faith released', () => {
+    const tester = { ...testMember('a', 0, { bag: [{ tokenId: 'complication', count: 1 }] }), resources: {}, sealedBy: sealed }
+    const s = stateWith(tester, priestWith('steadfastHope'))
+    const first = resolveInterval(s, { a: { actionId: 'investigate' } }, rng())
+    expect(first.state.pending?.request).toMatchObject({ abilityId: 'steadfastHope', reactorKey: 'a' })
+    const done = respondToIntervalReaction(first.state, { use: true, targetId: '2' }, rng())
+    expect(done.steps[0].test?.result.canceled).toBe(true)
+    expect(done.steps[0].test?.bonuses.map((b) => b.value)).toContain(2)
+    expect(done.state.party.find((m) => m.key === 'a')!.sealedBy).toEqual([])
   })
 })

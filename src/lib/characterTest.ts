@@ -18,16 +18,19 @@ export interface TestTaker extends TokenHolder {
   /** Shield tokens drawn and waiting to absorb the next damage taken. */
   shieldsInPlay: number
   sealedConditions?: SealedCondition[]
+  /** Added to the next test, then used up. */
+  nextTestBonus?: number
 }
 
 /** Everything added to a test before the draw: the light the party has, then anything else. */
 export function testBonuses(
-  taker: { speciesId?: string },
+  taker: { speciesId?: string; nextTestBonus?: number },
   torch: TorchLevel | null | undefined,
   extras: TestBonus[] = [],
 ): TestBonus[] {
   const light = torch ? lightBonusAt(torch, hasDarkvision(taker.speciesId)) : null
-  return light ? [light, ...extras] : extras
+  const blessed = taker.nextTestBonus ? [{ label: 'Bless', value: taker.nextTestBonus }] : []
+  return [...(light ? [light] : []), ...blessed, ...extras]
 }
 
 const tokenName = (tokenId: string) => TOKENS[tokenId]?.name ?? tokenId
@@ -78,6 +81,7 @@ export function settleTest(
   succeeded: boolean,
   options: { round: number; lethal: boolean; ask: Ask },
 ): string[] {
+  taker.nextTestBonus = 0
   const shields = result.drawn.filter((d) => d.tokenId === 'shield').length
   if (shields > 0) {
     taker.shieldsInPlay += shields

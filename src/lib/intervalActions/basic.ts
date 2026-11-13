@@ -26,6 +26,7 @@ import {
   springTrap,
   updateMember,
   withArticle,
+  withHealer,
   withDarkness,
   type ActionHandler,
   type Context,
@@ -103,13 +104,14 @@ const heal: ActionHandler = {
     }))
     const next = updateMember(spent, hurt.key, (m) => ({ ...m, hp: m.hp + healed }))
     const who = hurt.key === member.key ? 'themselves' : hurt.name
+    const healer = withHealer(ctx, next, [hurt.key], 'recovered HP')
     return narrate(
       ctx,
       `Use a ${item.name}`,
       `${member.name} treats ${who} with a ${item.name.toLowerCase()}.`,
-      `${hurt.name} recovers ${healed} HP (${hurt.hp + healed}/${hurt.maxHp}).`,
+      `${hurt.name} recovers ${healed} HP (${hurt.hp + healed}/${hurt.maxHp}).${healer.text}`,
       'success',
-      next,
+      healer.state,
     )
   },
 }
@@ -152,15 +154,16 @@ const treat: ActionHandler = {
     }))
     const next = test.passed ? removeConditionToken(spent, patient.key, treats.condition) : spent
     const who = patient.key === member.key ? 'themselves' : patient.name
+    const healer = test.passed ? withHealer(ctx, next, [patient.key], 'had a condition removed') : { state: next, text: '' }
     return narrate(
       ctx,
       'Treat a condition',
       `${member.name} treats ${who} with ${withArticle(item.name.toLowerCase())}.`,
       test.passed
-        ? `The ${condition} token is removed from ${patient.name}'s bag.`
+        ? `The ${condition} token is removed from ${patient.name}'s bag.${healer.text}`
         : `The treatment does not take. The ${condition} token stays, and the ${item.name.toLowerCase()} is used up.`,
       test.passed ? 'success' : 'failure',
-      next,
+      healer.state,
       test,
     )
   },

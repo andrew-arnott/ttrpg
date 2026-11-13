@@ -1,11 +1,11 @@
-import type { Adventurer } from '../adventurer'
+import type { Adventurer, SealedToken } from '../adventurer'
 import type { SpecialKey } from '../../data/types'
 import type { TorchLevel } from '../torch'
 import type { SealedCondition } from '../conditionRules'
 import type { ReactionAnswer, ReactionRequest, TargetChoice } from '../reactionTypes'
 import type { ResolutionStep } from '../resolution'
 
-export type { ReactionAnswer, ReactionRequest, SealedCondition, TargetChoice }
+export type { ReactionAnswer, ReactionRequest, SealedCondition, SealedToken, TargetChoice }
 
 export const ACTIONS_PER_TURN = 2
 export const DEFEND_ATTRIBUTE: SpecialKey = 'agility'
@@ -14,7 +14,9 @@ export const ENGAGE_BASE_DIFFICULTY = 4
 export const ENGAGE_MIN_DIFFICULTY = 2
 export const FORTIFY_DEFENSE = 2
 export const BACKSTAB_DAMAGE = 2
-export const SMITE_BONUS_DAMAGE = 2
+export const EMPOWER_DAMAGE = 2
+export const INSPIRING_COMMAND_BONUS = 1
+export const DIVINE_JUDGMENT_DAMAGE = 5
 export const HEAL_AMOUNT = 2
 export const MAX_FIREBALL_MANA = 3
 export const LOG_LIMIT = 40
@@ -26,18 +28,10 @@ export interface BattlePlayer extends Adventurer {
   colorIndex: number
   /** Triggered abilities already used this round that only work once per round. */
   usedThisRound?: string[]
+  /** Empower the Strike: extra damage on this player's next attack, used up by the attack whether it hits or not. */
+  strikeBonus?: number
   /** Shield Wall was used this round: this Defense score can cover allies in the same group. */
   shieldWall?: boolean
-}
-
-export interface SealedToken {
-  /** The token that was sealed. */
-  tokenId: string
-  byKey: string
-  /** The resource it stood in for, when it was Expertise or a Critical Success rather than the resource itself. */
-  as?: string
-  /** What it counts for: 1 for most tokens, 2 for a Critical Success. */
-  value?: number
 }
 
 export interface BattleEnemy {

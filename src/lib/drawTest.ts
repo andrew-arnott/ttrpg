@@ -19,10 +19,13 @@ export interface TestResult {
   total: number
   outcome: TestOutcome
   complication: boolean
+  /** Steadfast Hope canceled the Complication, so it triggers nothing. */
+  canceled?: boolean
 }
 
 /** A Complication token, or the Critical Failure that generates one. */
-export const drewComplication = (r: TestResult): boolean => r.complication || r.outcome === 'critical-failure'
+export const drewComplication = (r: TestResult): boolean =>
+  !r.canceled && (r.complication || r.outcome === 'critical-failure')
 
 function expand(bag: TokenStack[]): string[] {
   return bag.flatMap((s) => Array.from({ length: s.count }, () => s.tokenId))

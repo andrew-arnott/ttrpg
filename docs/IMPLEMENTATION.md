@@ -21,6 +21,9 @@ These were filled in so the tutorial would run. They are not rulings.
 | Sweeping Blow damage | 1 plus weapon and Might bonuses per enemy reached | `sweepingBlow` in `battle/effects.ts` |
 | Last Stand cost | 1 Resolve. The owner worded it without a cost | `offerLastStand` in `battle/reactions.ts` |
 | Warrior utilities | Barricade delays the patrol 3 Intervals per use; Steel Nerves and Hearty Meal are my designs; Shoulder Through is the break Difficulty minus 2 | `intervalActions/abilities.ts` |
+| Sealed Faith | Faith an ally has sealed on them by a Priest (`sealedBy`) stays on them across fights and Intervals. Nothing releases it except the Priest's own passives, so a Priest who never chose a passive that triggers can lock Faith up for the rest of the delve. Ask the owner whether it should also return at the end of a fight or Interval | `lib/priestRules.ts` |
+| Priest passives | Steadfast Hope needs at least 1 Faith released to cancel a Complication. A Critical Failure's generated Complication is canceled but the automatic failure stands. Canceling drops the Complication token and any tokens drawn after it, since they only came from its Chain. Healer and Steadfast Hope are asked of the ally, once per Priest. Healer applies to Heal, Cleanse, Group Heal, healing items, Treat Conditions, Tend the Afflicted, Steel Nerves and Hearty Meal. Defend, which draws without a skill test, cannot trigger Steadfast Hope or Prayer | `offerSteadfastHope`, `offerHealer` in `lib/priestRules.ts` |
+| Priest abilities | Bless is +1 to the ally's next test (stacking if blessed twice) and no longer adds a Bless token. Empower the Strike's +2 damage is used up by the ally's next attack, hit or miss. Inspiring Command and Move as One are listed once per ally in the action menu so both the ally and the target can be chosen. Divine Judgment deals exactly 5 and ignores other damage bonuses. Divine Intervention and Prayer are unchanged | `battle/abilities.ts`, `battle/effects.ts` |
 | Patient Shadow | The name is mine; the text is the owner's. "Gain 1 Cunning" recovers one from the bag into play, like Flanking, so it does nothing with no Cunning left in the bag. Checked when the turn ends, whether the player used both actions or ended early | `endOfTurn` in `battle/passives.ts` |
 | Steadying Presence | Allies means the Warrior's other party members in the same group. It does not apply to the Warrior, and two Warriors do not stack. Applied as -2 to the attack's value, like Intercept's +2 Defend | `steadyingPresenceBonus` in `battle/reactions.ts` |
 | Sealed Resolve returning | Happens once, just before the player's first action or when they end their turn. A Critical Success sealed as 2 Resolve counts as one token when returned. Provoked and Disabled end when none of the Warrior's Resolve remains | `returnSealedResolve` in `battle/sealedResolve.ts` |
@@ -81,7 +84,8 @@ These were filled in so the tutorial would run. They are not rulings.
 | Warrior triggered: Cleave, Intercept, Last Stand | `battle/followUps.ts`, `battle/reactions.ts` |
 | Rogue passives: Flanking, Patient Shadow (one chosen) | `flankingRecovery` in `battle/effects.ts`, `battle/passives.ts` |
 | Rogue: Backstab, Slip Away, Cheap Shot, Opportunist | `battle/abilities.ts`, `battle/followUps.ts` |
-| Priest: Heal, Bless, Cleanse, Smite, Prayer, Divine Intervention | `battle/abilities.ts`, `lib/reactorRules.ts`, `battle/conditions.ts` |
+| Priest passives: Steadfast Hope, Healer (one chosen) | `lib/priestRules.ts` |
+| Priest: Heal, Bless, Cleanse, Prayer, Divine Intervention, Inspiring Command, Move as One, Empower the Strike, Divine Judgment | `battle/abilities.ts`, `battle/effects.ts`, `lib/reactorRules.ts`, `battle/conditions.ts` |
 | Wizard: Magic Missile, Fireball, Chain Lightning, Transpose, Arcane Focus | `battle/effects.ts`, `battle/spells.ts` |
 | Interval abilities and their resource costs | `intervalActions/abilities.ts` |
 

@@ -8,7 +8,7 @@ import { planAttack } from './attackPlan'
 import { settleTest, takeDamage, testBonuses } from '../characterTest'
 import { drawRulesFor } from './conditionRules'
 import { gainCondition } from './conditions'
-import { offerPrayer } from '../reactorRules'
+import { offerAllyHelp, offerHealer, sealFaith } from '../priestRules'
 import { INTERCEPT_DEFENSE, offerIntercept, offerLastStand, offerShieldWall, steadyingPresenceBonus } from './reactions'
 import { releaseCommitment, type Commitment } from './tokens'
 import {
@@ -31,7 +31,7 @@ import {
   updateResult,
   type Engine,
 } from './state'
-import { DEFEND_ATTRIBUTE, ENGAGE_ATTRIBUTE, HEAL_AMOUNT, NEW_GROUP } from './types'
+import { DEFEND_ATTRIBUTE, EMPOWER_DAMAGE, ENGAGE_ATTRIBUTE, HEAL_AMOUNT, INSPIRING_COMMAND_BONUS, NEW_GROUP } from './types'
 import type { BattleEnemy, BattlePlayer, BattleState } from './types'
 
 /** What a finished test does to the tokens, and the notes about it for the step that follows. */
@@ -213,7 +213,7 @@ export function playerTest(
 ): SkillTestOutcome {
   const all = testBonuses(p, engine.b.torchLevel, bonuses)
   const rolled = performSkillTest(p.bag, attribute, p.special[attribute], difficulty, engine.rng, all, drawRulesFor(p))
-  const test = offerPrayer(engine.ask, engine.b.players, p, rolled)
+  const test = offerAllyHelp(engine.ask, engine.b.players, p, rolled)
   afterTest(engine, p, test.result, test.passed)
   return test
 }
@@ -227,6 +227,10 @@ export interface AttackOptions {
   damage?: number
   /** Power committed before the draw, added to the attack result. */
   power?: number
+  /** A flat bonus to the attack's test result. */
+  testBonus?: TestBonus
+  /** The damage a hit deals in total, replacing the usual sum of bonuses. */
+  totalDamage?: number
   /** Called when the attack hits, for effects such as sealing a token. */
   onHit?: (e: BattleEnemy) => string
 }
@@ -234,7 +238,9 @@ export interface AttackOptions {
 export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, options: AttackOptions = {}): boolean {
   const { b } = engine
   const plan = planAttack(p, { attribute: options.attribute, power: options.power, closeRange: groupOf(b, e.id) === groupOf(b, p.key) })
-  const test = playerTest(engine, p, plan.attribute, enemyDefense(e), plan.modifiers)
+  const empowered = p.strikeBonus ?? 0
+  p.strikeBonus = 0
+  const test = playerTest(engine, p, plan.attribute, enemyDefense(e), [...plan.modifiers, ...(options.testBonus ? [options.testBonus] : [])])
   const title = options.title ?? 'Attack'
   const intro = options.intro ?? `${p.name} attacks ${e.name}.`
   const might = test.result.drawn.filter((d) => d.tokenId === 'might').length
@@ -253,7 +259,8 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
     return false
   }
 
-  const damage = (options.damage ?? 1) + plan.extraDamage + might + (options.bonusDamage ?? 0)
+  const damage =
+    options.totalDamage ?? (options.damage ?? 1) + plan.extraDamage + might + (options.bonusDamage ?? 0) + empowered
   const groupId = groupOf(b, e.id)
   const extra = options.onHit?.(e) ?? ''
   const defeated = damageEnemy(b, e, damage)
@@ -267,7 +274,7 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
     testMode: 'check',
     outcome: `${p.name} hits ${e.name} for ${damage} damage (${e.hp}/${e.maxHp} HP).${
       might > 0 ? ` Might adds ${might}.` : ''
-    }${extra ? ` ${extra}` : ''}${flanked}${defeated ? ` ${e.name} is defeated!` : ''}`,
+    }${empowered > 0 ? ` Empowered: +${empowered} damage.` : ''}${extra ? ` ${extra}` : ''}${flanked}${defeated ? ` ${e.name} is defeated!` : ''}`,
     tone: 'success',
   })
   updateResult(b)
@@ -338,7 +345,18 @@ export function defend(engine: Engine, p: BattlePlayer, armor = 0, title = 'Defe
   runTriggers(engine, p, result)
 }
 
-export function changeEngagement(engine: Engine, p: BattlePlayer, targetGroup: string, withTest: boolean) {
+export interface FreeMove {
+  title: string
+  intro: string
+}
+
+export function changeEngagement(
+  engine: Engine,
+  p: BattlePlayer,
+  targetGroup: string,
+  withTest: boolean,
+  free: FreeMove = { title: 'Slip Away', intro: `${p.name} slips away through the chaos.` },
+) {
   const { b } = engine
   const destination = targetGroup === NEW_GROUP ? 'a group of their own' : describeGroup(b, targetGroup)
   const move = () => moveToGroup(b, p.key, targetGroup === NEW_GROUP ? newGroup(b) : targetGroup)
@@ -346,8 +364,8 @@ export function changeEngagement(engine: Engine, p: BattlePlayer, targetGroup: s
     move()
     addStep(engine, {
       actor: playerActorOf(p),
-      title: 'Slip Away',
-      intro: `${p.name} slips away through the chaos.`,
+      title: free.title,
+      intro: free.intro,
       outcome: `${p.name} moves to ${destination}.`,
       tone: 'success',
     })
@@ -381,26 +399,76 @@ export function changeEngagement(engine: Engine, p: BattlePlayer, targetGroup: s
   runTriggers(engine, p, test.result)
 }
 
-export function healAlly(engine: Engine, caster: BattlePlayer, target: BattlePlayer) {
+/** Offers Healer to an ally who has just recovered HP or had conditions removed. */
+export function offerHealerRelease(engine: Engine, ally: BattlePlayer, cause: string): string {
+  return offerHealer(engine.ask, engine.b.players, ally, cause).note
+}
+
+export function healAlly(engine: Engine, caster: BattlePlayer, target: BattlePlayer, commit: Commitment) {
+  const sealed = sealFaith(caster, target, commit)
   const before = target.hp
   target.hp = Math.min(target.maxHp, target.hp + HEAL_AMOUNT)
+  const recovered = target.hp > before
+  const healer = recovered ? offerHealerRelease(engine, target, 'recovered HP') : ''
   addStep(engine, {
     actor: playerActorOf(caster),
     title: 'Heal',
     intro: `${caster.name} calls on healing light for ${target.name}.`,
-    outcome: `${target.name} recovers ${target.hp - before} HP (${target.hp}/${target.maxHp}).`,
+    outcome: `${sealed} ${target.name} recovers ${target.hp - before} HP (${target.hp}/${target.maxHp}).${healer}`,
     tone: 'success',
   })
 }
 
-export function blessAlly(engine: Engine, caster: BattlePlayer, target: BattlePlayer) {
-  target.bag = adjustBag(target.bag, 'bless', 1)
+export function blessAlly(engine: Engine, caster: BattlePlayer, target: BattlePlayer, commit: Commitment) {
+  const sealed = sealFaith(caster, target, commit)
+  target.nextTestBonus = (target.nextTestBonus ?? 0) + 1
   addStep(engine, {
     actor: playerActorOf(caster),
     title: 'Bless',
     intro: `${caster.name} whispers a blessing over ${target.name}.`,
-    outcome: `A Bless token (+2, Chain) is added to ${target.name}'s bag.`,
+    outcome: `${sealed} ${target.name} gains +1 to their next test.`,
     tone: 'success',
+  })
+}
+
+export function empowerStrike(engine: Engine, caster: BattlePlayer, target: BattlePlayer, commit: Commitment) {
+  const sealed = sealFaith(caster, target, commit)
+  target.strikeBonus = (target.strikeBonus ?? 0) + EMPOWER_DAMAGE
+  addStep(engine, {
+    actor: playerActorOf(caster),
+    title: 'Empower the Strike',
+    intro: `${caster.name} lends ${target.name} their strength.`,
+    outcome: `${sealed} ${target.name}'s next attack deals +${EMPOWER_DAMAGE} damage if it hits.`,
+    tone: 'success',
+  })
+}
+
+export function inspiringCommand(
+  engine: Engine,
+  caster: BattlePlayer,
+  ally: BattlePlayer,
+  enemy: BattleEnemy,
+  commit: Commitment,
+) {
+  const sealed = sealFaith(caster, ally, commit)
+  attackEnemy(engine, ally, enemy, {
+    title: 'Inspiring Command',
+    intro: `${caster.name} calls out and ${ally.name} attacks ${enemy.name} at once. ${sealed}`,
+    testBonus: { label: 'Inspiring Command', value: INSPIRING_COMMAND_BONUS },
+  })
+}
+
+export function moveAsOne(
+  engine: Engine,
+  caster: BattlePlayer,
+  ally: BattlePlayer,
+  targetGroup: string,
+  commit: Commitment,
+) {
+  const sealed = sealFaith(caster, ally, commit)
+  changeEngagement(engine, ally, targetGroup, false, {
+    title: 'Move as One',
+    intro: `${caster.name} guides ${ally.name} across the fight. ${sealed}`,
   })
 }
 

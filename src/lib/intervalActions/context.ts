@@ -6,7 +6,7 @@ import { settleTest, takeDamage, testBonuses } from '../characterTest'
 import { drawRulesFor } from '../conditionRules'
 import { drewComplication, type Rng } from '../drawTest'
 import type { DungeonState, PartyMember } from '../dungeonState'
-import { offerPrayer } from '../reactorRules'
+import { offerAllyHelp, offerHealer } from '../priestRules'
 import type { Ask } from '../replay'
 import { adjustBag } from '../tokenFlow'
 import { playerActor, type ResolutionStep, type StepTone } from '../resolution'
@@ -148,7 +148,7 @@ export function runTestFor(
   )
   const party = ctx.state.party.map((m) => ({ ...m }))
   const taker = party.find((m) => m.key === subject.key)!
-  const test = offerPrayer(ctx.ask, party, taker, rolled)
+  const test = offerAllyHelp(ctx.ask, party, taker, rolled)
   ctx.notes.push(...settleTest(taker, test.result, test.passed, { round: 0, lethal: false, ask: ctx.ask }))
   ctx.state = { ...ctx.state, party }
   ctx.member = party.find((m) => m.key === ctx.member.key) ?? ctx.member
@@ -160,6 +160,25 @@ export const runTest = (ctx: Context, attribute: SpecialKey, difficulty: number)
 
 export const withDarkness = (ctx: Context, intro: string) =>
   ctx.torch === 'dim' || ctx.torch === 'out' ? `${intro} The light is poor.` : intro
+
+/**
+ * Healer: offers each of these characters, who have just recovered HP or had conditions removed,
+ * the chance to release Faith a Priest sealed on them. Returns the new state and what to add to the outcome.
+ */
+export function withHealer(
+  ctx: Context,
+  state: DungeonState,
+  keys: string[],
+  cause: string,
+): { state: DungeonState; text: string } {
+  const party = state.party.map((m) => ({ ...m }))
+  let text = ''
+  for (const key of keys) {
+    const ally = party.find((m) => m.key === key)
+    if (ally) text += offerHealer(ctx.ask, party, ally, cause).note
+  }
+  return { state: { ...state, party }, text }
+}
 
 export function keepWatch(ctx: Context, title = 'Keep watch'): Resolution {
   return narrate(

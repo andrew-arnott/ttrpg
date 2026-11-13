@@ -58,7 +58,7 @@ Your profession determines your adventuring abilities, starting HP, and professi
 | ----- | ----- | ----- | ----- |
 | **Warrior** | 12 | Strength, Endurance, Agility | Protection, battlefield control, and weapons |
 | **Rogue** | 10 | Agility, Perception, Charisma | Stealth, mobility, and opportunistic attacks |
-| **Priest** | 8 | Charisma, Intelligence, Endurance | Healing, blessings, and supernatural support |
+| **Priest** | 8 | Charisma, Intelligence, Endurance | Healing, blessings, and support |
 | **Wizard** | 8 | Intelligence, Perception, Endurance | Powerful magic and resource management |
 | **Ranger** | TBD | Perception, Agility, Strength | Ranged combat, hunting, and wilderness expertise |
 | **Berserker** | TBD | Strength, Endurance, Luck | Aggressive combat and taking risks |
@@ -1102,11 +1102,11 @@ Their abilities are especially valuable during long dungeon expeditions, where w
 
 A Priest begins with the standard 15-token distribution, plus:
 
-* **3 Faith tokens**
+* **5 Faith tokens**
 
 Faith tokens are **+0, Chain, Resource** tokens.
 
-All 3 Faith tokens begin in play.
+All 5 Faith tokens begin in play.
 
 ### Faith
 
@@ -1118,6 +1118,40 @@ Spend Faith to activate Priest abilities. Spent Faith returns to your bag unless
 
 Expertise may be spent as Faith. A Critical Success token in play counts as 2 Expertise.
 
+### Sealing Faith
+
+Some Priest abilities seal Faith on an ally.
+
+* When an ability says to seal Faith on an ally, move the specified Faith token from your available resources and seal it on that ally.
+* Sealed Faith remains on the ally until it is released by the applicable Priest passive or ability. When it is released, it returns to **your** bag.
+* Only Faith that **you** sealed on an ally counts for your passives. Faith sealed by another Priest does not qualify.
+
+### Priest Passives
+
+At character creation, choose **1 of these 2 passives**. A passive is always active, and it does not count towards your 4 Priest abilities.
+
+These are Priest passives. They grant their benefit to allies who have Faith tokens sealed on them by that Priest. A qualifying ally is one who has at least 1 Faith sealed on them by the Priest who chose the passive.
+
+#### Steadfast Hope
+
+**Passive**
+
+When a qualifying ally draws a Complication on a test, they may release any number of their Faith tokens sealed by this Priest.
+
+Cancel the Complication completely, and add **+1 to the test result** for each Faith released.
+
+A canceled Complication contributes nothing, does not Chain, and triggers no other effects.
+
+#### Healer
+
+**Passive**
+
+When a qualifying ally recovers HP or has one or more conditions removed, they may release any number of their Faith tokens sealed by this Priest.
+
+They recover **1 HP** for each Faith released.
+
+If one ability removes multiple conditions, the ally may release tokens once for that resolution. For example, releasing 3 Faith while an ability removes 4 conditions restores 3 HP.
+
 ### Priest Abilities
 
 At character creation, choose **4 Priest abilities**.
@@ -1126,17 +1160,15 @@ At character creation, choose **4 Priest abilities**.
 
 **Action — 1 Faith**
 
-Restore **2 HP** to yourself or another character in your room.
+Seal 1 Faith on yourself or another character in your room and restore **2 HP** to that character.
+
+If you chose Healer, the target may release sealed Faith from this healing and recover 1 additional HP per Faith released.
 
 #### Bless
 
 **Fast — 1 Faith**
 
-Add 1 **Bless (+2, Chain)** token to an ally's bag.
-
-When the Bless token is drawn, it contributes +2 and Chains. After resolving the test, remove the Bless token.
-
-Bless tokens remain in the recipient's bag until drawn. There is no limit to the number of Bless tokens a character may have.
+Seal 1 Faith on an ally. They gain **+1 to their next test**.
 
 #### Cleanse
 
@@ -1146,13 +1178,7 @@ Release all sealed condition tokens from yourself or another character in your r
 
 Released conditions return to their owner's bag.
 
-#### Smite
-
-**Fight — 1 Faith**
-
-Make an attack against an enemy.
-
-On success, deal normal damage plus **2 additional damage** if the target is undead or another supernatural creature vulnerable to divine power.
+If you chose Healer, the target may release sealed Faith when the conditions are removed and recover 1 HP per Faith released.
 
 #### Prayer
 
@@ -1167,6 +1193,32 @@ Prayer cannot overcome an automatic Critical Failure.
 **Triggered — 1 Faith**
 
 When an ally would gain a condition token from an enemy attack, spend 1 Faith to prevent that condition token from being added.
+
+#### Inspiring Command
+
+**Action — 1 Faith**
+
+Seal 1 Faith on an ally in your room. They immediately make an attack with **+1 to the test result**.
+
+#### Move as One
+
+**Action — 1 Faith**
+
+Seal 1 Faith on an ally. They immediately change engagement groups without spending their own action or making an engagement test.
+
+#### Empower the Strike
+
+**Action — 1 Faith**
+
+Seal 1 Faith on an ally. Their next attack deals **+2 damage** if it hits.
+
+This bonus still applies even if the sealed Faith is released before the attack.
+
+#### Divine Judgment
+
+**Fight — 4 Faith**
+
+Make an attack against one enemy. On a hit, deal **5 damage total**.
 
 ### Priest Exploration Abilities
 
@@ -1395,8 +1447,8 @@ Enemies have no token bag and make no tests. Notice is the Perception Difficulty
 | --- | --- | --- | --- | --- | --- |
 | Goblin Scout | 3 | 3 | 6 | **Rusty Knife**: attack 4, damage 1 | **Opportunist**: When a character engaged with it draws a Complication, lunges at them. **Poisoned Blade**: When an engaged character draws a Complication, they gain 1 Poison token. |
 | Cave Troll | 4 | 5 | 3 | **Club Smash**: attack 6, damage 2, adds Wound; **Ground Slam**: attack 3, damage 1, hits the whole room | **Bellow**: When a character engaged with it draws a Complication, flies into a rage: +2 attack value until the end of the round. |
-| Skeleton Guard | 2 | 3 | 6 | **Bone Claws**: attack 4, damage 1 | **Clatter**: When a character engaged with it draws a Complication, its bones rattle in fury: +1 attack value until the end of the round. Supernatural: Smite does extra damage. |
-| Bone Colossus | 10 | 6 | 2 | **Crushing Fist**: attack 7, damage 2 | **Grinding Rage**: When a character engaged with it draws a Complication, its joints grind and it hits harder: +2 attack value until the end of the round. Starts engaged with everyone. Pulls everyone back into its group at the end of its turn. Supernatural: Smite does extra damage. |
-| Barrow Warden | 7 | 5 | 5 | **Rusted Greatsword**: attack 6, damage 2; **Grave Chill**: attack 3, damage 1, hits the whole room, adds Fear | **Undying**: When anyone in the room draws a Complication, the Warden knits itself back together and regains 1 HP. Supernatural: Smite does extra damage. |
+| Skeleton Guard | 2 | 3 | 6 | **Bone Claws**: attack 4, damage 1 | **Clatter**: When a character engaged with it draws a Complication, its bones rattle in fury: +1 attack value until the end of the round. |
+| Bone Colossus | 10 | 6 | 2 | **Crushing Fist**: attack 7, damage 2 | **Grinding Rage**: When a character engaged with it draws a Complication, its joints grind and it hits harder: +2 attack value until the end of the round. Starts engaged with everyone. Pulls everyone back into its group at the end of its turn. |
+| Barrow Warden | 7 | 5 | 5 | **Rusted Greatsword**: attack 6, damage 2; **Grave Chill**: attack 3, damage 1, hits the whole room, adds Fear | **Undying**: When anyone in the room draws a Complication, the Warden knits itself back together and regains 1 HP. |
 
 <!-- reference:end -->

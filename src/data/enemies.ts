@@ -45,8 +45,6 @@ export interface EnemyDef {
   startsEngagedWithAll?: boolean
   /** At the end of its turn, every character is back in its engagement group. */
   pullsEveryoneIn?: boolean
-  /** Undead or otherwise vulnerable to divine power, which Smite hits harder. */
-  supernatural?: boolean
   attacks: EnemyAttack[]
   /** Fires when a Complication is drawn (including from a Critical Failure). */
   triggers: EnemyTrigger[]
@@ -100,7 +98,6 @@ export const ENEMIES: EnemyDef[] = [
     hp: 2,
     defense: 3,
     noticeDifficulty: 6,
-    supernatural: true,
     attacks: [{ name: 'Bone Claws', attackValue: 4, damage: 1 }],
     triggers: [
       {
@@ -117,7 +114,6 @@ export const ENEMIES: EnemyDef[] = [
     hp: 10,
     defense: 6,
     noticeDifficulty: 2,
-    supernatural: true,
     startsEngagedWithAll: true,
     pullsEveryoneIn: true,
     attacks: [{ name: 'Crushing Fist', attackValue: 7, damage: 2 }],
@@ -136,7 +132,6 @@ export const ENEMIES: EnemyDef[] = [
     hp: 7,
     defense: 5,
     noticeDifficulty: 5,
-    supernatural: true,
     attacks: [
       { name: 'Rusted Greatsword', attackValue: 6, damage: 2 },
       { name: 'Grave Chill', attackValue: 3, damage: 1, area: true, condition: 'fear' },

@@ -1,7 +1,20 @@
-import { ENEMIES_BY_ID } from '../../data/enemies'
-import { BACKSTAB_DAMAGE, MAX_FIREBALL_MANA, SMITE_BONUS_DAMAGE } from './types'
+import { BACKSTAB_DAMAGE, DIVINE_JUDGMENT_DAMAGE, MAX_FIREBALL_MANA } from './types'
 import type { BattleEnemy, BattlePlayer, BattleState, CombatOption } from './types'
-import { attackEnemy, blessAlly, changeEngagement, defend, fireball, healAlly, magicMissile, sealOn, sweepingBlow } from './effects'
+import {
+  attackEnemy,
+  blessAlly,
+  changeEngagement,
+  defend,
+  empowerStrike,
+  fireball,
+  healAlly,
+  inspiringCommand,
+  magicMissile,
+  moveAsOne,
+  offerHealerRelease,
+  sealOn,
+  sweepingBlow,
+} from './effects'
 import { arcaneFocus, chainLightning, transpose } from './spells'
 import {
   distinctGroupIds,
@@ -16,11 +29,14 @@ import {
   moveToGroup,
   newGroup,
   playerActorOf,
+  playerByKey,
   type Engine,
 } from './state'
 import { resourceAvailable, type Commitment } from './tokens'
 import { cleanse } from './conditions'
 import { allyTargets, ENGAGED, enemyTargets, groupTargets, onlyEngaged } from './targets'
+import { canAttack } from './conditionRules'
+import { attackProfile } from '../../data/weapons'
 
 const UNSUPPORTED = 'Not in the sample battle yet'
 const NO_ENEMY = 'No enemy to target'
@@ -71,6 +87,10 @@ const enemyFightOptions =
       },
     ]
   }
+
+/** Which enemies a character's ordinary attack can reach: only those they are engaged with, unless their weapon is ranged. */
+const attackReach = (b: BattleState, ally: BattlePlayer) =>
+  attackProfile(ally.hands).ranged ? undefined : onlyEngaged(b, ally)
 
 const allyOptions = ({ b, id, base, gate }: OptionContext): CombatOption[] => [
   { ...base, id, targets: allyTargets(b), disabledReason: gate },
@@ -147,19 +167,6 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
       })
     },
   },
-  smite: {
-    options: enemyFightOptions('engaged'),
-    perform: ({ engine, p, enemy, boost }) => {
-      if (!enemy) return
-      const smitten = ENEMIES_BY_ID[enemy.defId]?.supernatural
-      attackEnemy(engine, p, enemy, {
-        title: 'Smite',
-        power: boost,
-        bonusDamage: smitten ? SMITE_BONUS_DAMAGE : 0,
-        onHit: () => (smitten ? `Divine power burns the ${enemy.name.toLowerCase()} for ${SMITE_BONUS_DAMAGE} extra.` : ''),
-      })
-    },
-  },
   backstab: {
     options: ({ b, p, id, base, gate }) => [
       {
@@ -186,8 +193,8 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
   },
   heal: {
     options: allyOptions,
-    perform: ({ engine, p, ally }) => {
-      if (ally) healAlly(engine, p, ally)
+    perform: ({ engine, p, ally, commit }) => {
+      if (ally) healAlly(engine, p, ally, commit)
     },
   },
   cleanse: {
@@ -195,11 +202,12 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     perform: ({ engine, p, ally }) => {
       if (!ally) return
       const released = cleanse(ally)
+      const healer = released > 0 ? offerHealerRelease(engine, ally, 'had conditions removed') : ''
       addStep(engine, {
         actor: playerActorOf(p),
         title: 'Cleanse',
         intro: `${p.name} washes the taint from ${ally.name}.`,
-        outcome: released > 0 ? `${released} sealed condition${released === 1 ? '' : 's'} returned to ${ally.name}'s bag.` : `${ally.name} has nothing sealed.`,
+        outcome: `${released > 0 ? `${released} sealed condition${released === 1 ? '' : 's'} returned to ${ally.name}'s bag.` : `${ally.name} has nothing sealed.`}${healer}`,
         tone: released > 0 ? 'success' : 'neutral',
       })
     },
@@ -249,8 +257,54 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
   },
   blessAbility: {
     options: allyOptions,
-    perform: ({ engine, p, ally }) => {
-      if (ally) blessAlly(engine, p, ally)
+    perform: ({ engine, p, ally, commit }) => {
+      if (ally) blessAlly(engine, p, ally, commit)
+    },
+  },
+  empowerTheStrike: {
+    options: allyOptions,
+    perform: ({ engine, p, ally, commit }) => {
+      if (ally) empowerStrike(engine, p, ally, commit)
+    },
+  },
+  inspiringCommand: {
+    options: ({ b, id, base, gate }) =>
+      livingPlayers(b).map((ally) => ({
+        ...base,
+        id: `${id}:${ally.key}`,
+        label: `Inspiring Command: ${ally.name}`,
+        targets: enemyTargets(livingEnemies(b), attackReach(b, ally)),
+        disabledReason: gate ?? (canAttack(ally) ? undefined : `${ally.name} cannot attack`),
+      })),
+    perform: ({ engine, p, enemy, extra, commit }) => {
+      const ally = extra ? playerByKey(engine.b, extra) : undefined
+      if (ally && enemy) inspiringCommand(engine, p, ally, enemy, commit)
+    },
+  },
+  moveAsOne: {
+    options: ({ b, id, base, gate }) =>
+      livingPlayers(b).map((ally) => ({
+        ...base,
+        id: `${id}:${ally.key}`,
+        label: `Move as One: ${ally.name}`,
+        targets: groupTargets(b, ally, false),
+        disabledReason: gate,
+      })),
+    perform: ({ engine, p, target, extra, commit }) => {
+      const ally = extra ? playerByKey(engine.b, extra) : undefined
+      if (ally) moveAsOne(engine, p, ally, target, commit)
+    },
+  },
+  divineJudgment: {
+    options: enemyFightOptions('engaged'),
+    perform: ({ engine, p, enemy, boost }) => {
+      if (!enemy) return
+      attackEnemy(engine, p, enemy, {
+        title: 'Divine Judgment',
+        power: boost,
+        totalDamage: DIVINE_JUDGMENT_DAMAGE,
+        intro: `${p.name} calls down divine judgment on ${enemy.name}.`,
+      })
     },
   },
   magicMissile: {

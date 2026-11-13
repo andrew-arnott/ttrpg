@@ -65,14 +65,14 @@ npm run build && npm run preview:e2e &
 ## Open questions for the owner
 
 1. Class design target: every class starts with a core passive (Warrior and Rogue choose one of two), 4 combat abilities and 2 utility
-   abilities. Character creation still picks 4 abilities from one pool; only the Warrior and Rogue have a separate passive choice.
-2. Passives for the Priest and Wizard, following the Warrior's choose-one pattern (`passives` on a profession, `passiveId` on the draft).
+   abilities. Character creation still picks 4 abilities from one pool; only the Warrior, Rogue and Priest have a separate passive choice.
+2. A passive for the Wizard, following the Warrior's choose-one pattern (`passives` on a profession, `passiveId` on the draft).
 3. Should healing items follow the guide (Health Potion 1 HP, Bandage treats Wounds only)? That makes the tutorial harder.
 4. Engage Difficulty scaling is agreed as a starting point and still being workshopped.
 
 ## Backlog, roughly in order of value
 
-1. **Class design**: separate combat and utility picks, add passives, widen the Rogue, Priest and Wizard pools (ideas for
+1. **Class design**: separate combat and utility picks, add passives, widen the Rogue and Wizard pools (ideas for
    each are in the conversation history: shoves, stances, riders, Turn Undead, Ice Shackles, Counterspell).
 2. **Surprise round**: a 1-action surprise round (unspotted enemies currently take their whole turn), and enemies hidden by more than a number.
 3. **Inventory** with 6 slots, stack sizes, Armor, and the Body and Accessory slots. Weapon and shield art, more portraits, damage types, and swapping hands mid-delve.

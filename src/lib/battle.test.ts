@@ -416,11 +416,10 @@ describe('engagement', () => {
 const bagCount = (p: BattlePlayer, tokenId: string) => countInBag(p.bag, tokenId)
 
 describe('spending resources', () => {
-  const heal: PlannedCombat = { actionId: 'ability:heal', targetId: 'p' }
 
   it('returns a spent token to the bag', () => {
-    const b = duel({ professionId: 'priest', abilityIds: ['heal'], resources: { faith: 3 }, hp: 5 })
-    const { battle } = playRound(b, { p: turn(heal) }, rng())
+    const b = duel({ professionId: 'priest', abilityIds: ['cleanse'], resources: { faith: 3 }, hp: 5 })
+    const { battle } = playRound(b, { p: turn({ actionId: 'ability:cleanse', targetId: 'p' }) }, rng())
     expect(battle.players[0].resources.faith).toBe(2)
     expect(bagCount(battle.players[0], 'faith')).toBe(1)
   })
@@ -1521,6 +1520,214 @@ describe('Steadying Presence', () => {
   })
 })
 
+describe('Priest', () => {
+  const priest = (abilityIds: string[], over: Partial<BattlePlayer> = {}) =>
+    player('r', { professionId: 'priest', abilityIds, resources: { faith: 5 }, bag: bagOf('plus0'), ...over })
+  const faithSealedOn = (p: BattlePlayer, priestKey = 'r') => (p.sealedBy ?? []).filter((s) => s.byKey === priestKey).length
+
+  describe('sealing Faith', () => {
+    it('Heal seals 1 Faith on the target, which does not return to the Priest’s bag, and restores 2 HP', () => {
+      const b = battleOf([priest(['heal']), player('q', { hp: 4 })], [enemy('goblin', 'e', { hp: 99 })], { r: 'g1', q: 'g1', e: 'g1' })
+      const { battle } = takeAction(b, { actionId: 'ability:heal', targetId: 'q' }, rng())
+      const [r, q] = battle.players
+      expect(q.hp).toBe(6)
+      expect(faithSealedOn(q)).toBe(1)
+      expect(r.resources.faith).toBe(4)
+      expect(bagCount(r, 'faith')).toBe(0)
+    })
+
+    it('Heal can seal Faith on the Priest', () => {
+      const b = battleOf([priest(['heal'], { hp: 3 })], [enemy('goblin', 'e', { hp: 99 })], { r: 'g1', e: 'g1' })
+      const { battle } = takeAction(b, { actionId: 'ability:heal', targetId: 'r' }, rng())
+      expect(faithSealedOn(battle.players[0])).toBe(1)
+      expect(battle.players[0].hp).toBe(5)
+    })
+
+    it('Bless is Fast, seals 1 Faith, and gives +1 to the ally’s next test only', () => {
+      const b = battleOf([priest(['blessAbility']), player('q')], [enemy('goblin', 'e', { hp: 99 })], { r: 'g1', q: 'g2', e: 'g3' })
+      const options = availableCombatActions(b, b.players[0])
+      expect(options.find((o) => o.id === 'ability:blessAbility')!.slot).toBe('fast')
+      const blessed = takeAction(b, { actionId: 'ability:blessAbility', targetId: 'q' }, rng()).battle
+      expect(faithSealedOn(blessed.players[1])).toBe(1)
+      expect(blessed.players[1].nextTestBonus).toBe(1)
+      const q = { ...blessed, turnIndex: 1, actionsUsed: 0 }
+      const test = takeAction(q, defend, rng())
+      expect(test.steps[0].test?.bonuses).toContainEqual({ label: 'Bless', value: 1 })
+      expect(test.battle.players[1].nextTestBonus).toBe(0)
+    })
+
+    it('Empower the Strike gives the ally’s next attack +2 damage even after the Faith is released', () => {
+      const b = battleOf(
+        [priest(['empowerTheStrike']), player('q', { bag: ALWAYS_PASS })],
+        [enemy('goblin', 'e', { hp: 20 })],
+        { r: 'g1', q: 'g1', e: 'g1' },
+      )
+      const after = takeAction(b, { actionId: 'ability:empowerTheStrike', targetId: 'q' }, rng()).battle
+      after.players[1].sealedBy = []
+      const hit = takeAction({ ...after, turnIndex: 1, actionsUsed: 0 }, attack('e'), rng())
+      expect(hit.battle.enemies[0].hp).toBe(20 - 3)
+      expect(hit.battle.players[1].strikeBonus).toBe(0)
+      const next = takeAction({ ...hit.battle, turnIndex: 1, actionsUsed: 0 }, attack('e'), rng())
+      expect(next.battle.enemies[0].hp).toBe(20 - 3 - 1)
+    })
+
+    it('Inspiring Command makes the ally attack at once with +1 to the result', () => {
+      const b = battleOf([priest(['inspiringCommand']), player('q', { bag: ALWAYS_PASS })], [enemy('goblin', 'e', { hp: 20 })], { r: 'g1', q: 'g2', e: 'g2' })
+      const options = availableCombatActions(b, b.players[0]).filter((o) => o.id.startsWith('ability:inspiringCommand'))
+      expect(options.map((o) => o.id)).toEqual(['ability:inspiringCommand:r', 'ability:inspiringCommand:q'])
+      expect(options[0].targets![0].disabledReason).toBeTruthy()
+      const { battle, steps } = takeAction(b, { actionId: 'ability:inspiringCommand:q', targetId: 'e' }, rng())
+      expect(steps[0].test?.bonuses).toContainEqual({ label: 'Inspiring Command', value: 1 })
+      expect(battle.enemies[0].hp).toBeLessThan(20)
+      expect(faithSealedOn(battle.players[1])).toBe(1)
+      expect(battle.actionsUsed).toBe(1)
+    })
+
+    it('Move as One moves the ally without a test or using their action', () => {
+      const b = battleOf([priest(['moveAsOne']), player('q')], [enemy('goblin', 'e', { hp: 99 })], { r: 'g1', q: 'g2', e: 'g2' })
+      const { battle, steps } = takeAction(b, { actionId: 'ability:moveAsOne:q', targetId: 'g1' }, rng())
+      expect(battle.groups.q).toBe('g1')
+      expect(steps[0].test).toBeUndefined()
+      expect(steps[0].title).toBe('Move as One')
+      expect(faithSealedOn(battle.players[1])).toBe(1)
+    })
+
+    it('Cleanse spends 1 Faith that returns to the bag', () => {
+      const b = battleOf([priest(['cleanse']), player('q', { sealedConditions: [{ tokenId: 'wound', round: 1 }] })], [enemy('goblin', 'e', { hp: 99 })], { r: 'g1', q: 'g1', e: 'g1' })
+      const { battle } = takeAction(b, { actionId: 'ability:cleanse', targetId: 'q' }, rng())
+      expect(battle.players[1].sealedConditions).toEqual([])
+      expect(bagCount(battle.players[0], 'faith')).toBe(1)
+      expect(faithSealedOn(battle.players[1])).toBe(0)
+    })
+  })
+
+  describe('Divine Judgment', () => {
+    it('costs 4 Faith and deals 5 damage on a hit, whatever else adds to damage', () => {
+      const b = battleOf(
+        [priest(['divineJudgment'], { bag: ALWAYS_PASS })],
+        [enemy('goblin', 'e', { hp: 20 })],
+        { r: 'g1', e: 'g1' },
+      )
+      const { battle } = takeAction(b, { actionId: 'ability:divineJudgment', targetId: 'e' }, rng())
+      expect(battle.enemies[0].hp).toBe(15)
+      expect(battle.players[0].resources.faith).toBe(1)
+      const poor = battleOf([priest(['divineJudgment'], { resources: { faith: 3 } })], [enemy('goblin', 'e')], { r: 'g1', e: 'g1' })
+      expect(availableCombatActions(poor, poor.players[0]).find((o) => o.id === 'ability:divineJudgment')!.disabledReason).toMatch(/Needs 4 Faith/)
+    })
+
+    it('misses when the attack misses', () => {
+      const b = battleOf([priest(['divineJudgment'], { bag: ALWAYS_FAIL })], [enemy('goblin', 'e', { hp: 20 })], { r: 'g1', e: 'g1' })
+      expect(takeAction(b, { actionId: 'ability:divineJudgment', targetId: 'e' }, rng()).battle.enemies[0].hp).toBe(20)
+    })
+  })
+
+  describe('Healer', () => {
+    const wounded = (passive = ['healer']) =>
+      battleOf(
+        [
+          priest(['heal', ...passive], { resources: { faith: 3 }, bag: bagOf('plus0') }),
+          player('q', { hp: 3, sealedBy: [{ tokenId: 'faith', byKey: 'r' }, { tokenId: 'faith', byKey: 'r' }, { tokenId: 'faith', byKey: 'other' }] }),
+        ],
+        [enemy('goblin', 'e', { hp: 99 })],
+        { r: 'g1', q: 'g1', e: 'g1' },
+      )
+    const heal: PlannedCombat = { actionId: 'ability:heal', targetId: 'q' }
+
+    it('lets a healed ally release Faith sealed by this Priest for 1 HP each, returning it to the Priest’s bag', () => {
+      const asked = takeAction(wounded(), heal, rng())
+      expect(asked.battle.pending?.request.abilityId).toBe('healer')
+      expect(asked.battle.pending?.request.reactorKey).toBe('q')
+      const { battle } = respondToReaction(asked.battle, { use: true, targetId: '3' }, rng())
+      const q = battle.players[1]
+      expect(q.hp).toBe(3 + 2 + 3)
+      expect(q.sealedBy?.map((s) => s.byKey)).toEqual(['other'])
+      expect(bagCount(battle.players[0], 'faith')).toBe(3)
+    })
+
+    it('counts only Faith sealed by this Priest, so a third of the three sealed here is not offered', () => {
+      const asked = takeAction(wounded(), heal, rng())
+      const targets = asked.battle.pending!.request.targets!.map((t) => t.id)
+      expect(targets).toEqual(['0', '1', '2', '3'])
+    })
+
+    it('does nothing when the ally releases none, or when the Priest chose the other passive', () => {
+      const declined = respondToReaction(takeAction(wounded(), heal, rng()).battle, { use: true, targetId: '0' }, rng()).battle
+      expect(declined.players[1].hp).toBe(5)
+      const other = takeAction(wounded(['steadfastHope']), heal, rng())
+      expect(other.battle.pending).toBeFalsy()
+    })
+
+    it('is offered once when Cleanse removes several conditions, restoring 1 HP per Faith released', () => {
+      const b = wounded()
+      b.players[1].sealedConditions = ['wound', 'fear', 'poison', 'curse'].map((tokenId) => ({ tokenId, round: 1 }))
+      b.players[0].abilityIds = ['cleanse', 'healer']
+      const asked = takeAction(b, { actionId: 'ability:cleanse', targetId: 'q' }, rng())
+      const { battle } = respondToReaction(asked.battle, { use: true, targetId: '2' }, rng())
+      expect(battle.players[1].hp).toBe(5)
+      expect(battle.players[1].sealedConditions).toEqual([])
+    })
+
+    it('does not cap recovery past maximum HP', () => {
+      const b = wounded()
+      b.players[1].hp = 9
+      const { battle } = respondToReaction(takeAction(b, heal, rng()).battle, { use: true, targetId: '2' }, rng())
+      expect(battle.players[1].hp).toBe(10)
+    })
+  })
+
+  describe('Steadfast Hope', () => {
+    const hopeful = (bag: BattlePlayer['bag'], passive = ['steadfastHope']) =>
+      battleOf(
+        [
+          priest(passive),
+          player('q', { bag, resources: {}, sealedBy: [{ tokenId: 'faith', byKey: 'r' }, { tokenId: 'faith', byKey: 'r' }] }),
+        ],
+        [enemy('goblin', 'e', { hp: 99 })],
+        { r: 'g1', q: 'g1', e: 'g1' },
+      )
+    const complicated = [{ tokenId: 'complication', count: 1 }]
+
+    it('cancels the Complication and adds +1 per Faith released, returning the Faith to the Priest’s bag', () => {
+      const b = { ...hopeful(complicated), turnIndex: 1 }
+      const asked = takeAction(b, attack('e'), rng())
+      expect(asked.battle.pending?.request.abilityId).toBe('steadfastHope')
+      const { battle, steps } = respondToReaction(asked.battle, { use: true, targetId: '2' }, rng())
+      const test = steps[0].test!
+      expect(test.result.canceled).toBe(true)
+      expect(test.result.drawn).toEqual([])
+      expect(test.bonuses).toContainEqual({ label: 'Steadfast Hope (r)', value: 2 })
+      expect(battle.players[1].sealedBy).toEqual([])
+      expect(bagCount(battle.players[0], 'faith')).toBe(2)
+    })
+
+    it('triggers no other effects, including enemy triggers and the token cost of a failed test', () => {
+      const b = { ...hopeful(complicated), turnIndex: 1 }
+      b.players[1].resources = { resolve: 2 }
+      const asked = takeAction(b, attack('e'), rng())
+      const { battle, steps } = respondToReaction(asked.battle, { use: true, targetId: '1' }, rng())
+      expect(steps.some((s) => s.title === 'Rusty Knife' || s.title === 'Opportunist')).toBe(false)
+      expect(battle.players[1].resources.resolve).toBe(2)
+    })
+
+    it('is not offered without a Complication, without the passive, or for Faith sealed by someone else', () => {
+      const none = { ...hopeful(bagOf('plus3')), turnIndex: 1 }
+      expect(takeAction(none, attack('e'), rng()).battle.pending).toBeFalsy()
+      const other = { ...hopeful(complicated, []), turnIndex: 1 }
+      expect(takeAction(other, attack('e'), rng()).battle.pending).toBeFalsy()
+      const stranger = { ...hopeful(complicated), turnIndex: 1 }
+      stranger.players[1].sealedBy = [{ tokenId: 'faith', byKey: 'someone-else' }]
+      expect(takeAction(stranger, attack('e'), rng()).battle.pending).toBeFalsy()
+    })
+
+    it('needs at least 1 Faith released', () => {
+      const b = { ...hopeful(complicated), turnIndex: 1 }
+      const asked = takeAction(b, attack('e'), rng())
+      const { battle } = respondToReaction(asked.battle, { use: true, targetId: '0' }, rng())
+      expect(battle.players[1].sealedBy).toHaveLength(2)
+    })
+  })
+})
+
 describe('Chain Lightning', () => {
   const storm = (mana = 6) =>
     battleOf(
@@ -1611,18 +1818,6 @@ describe('Transpose and Arcane Focus', () => {
     const { battle } = playRound(b, { p: turn({ actionId: 'ability:arcaneFocus' }) }, rng())
     expect(battle.players[0].resources.expertise ?? 0).toBe(0)
     expect(bagCount(battle.players[0], 'expertise')).toBe(10)
-  })
-})
-
-describe('Smite', () => {
-  it('deals 2 extra damage to undead and other supernatural enemies', () => {
-    const smite = (defId: string) => {
-      const b = duel({ abilityIds: ['smite'], bag: ALWAYS_PASS, professionId: 'priest' }, { hp: 9 }, defId)
-      return playRound(b, { p: turn({ actionId: 'ability:smite', targetId: 'e' }) }, rng()).steps[0]
-    }
-    expect(smite('skeleton').outcome).toMatch(/hits e for 3 damage/)
-    expect(smite('skeleton').outcome).toMatch(/Divine power/)
-    expect(smite('goblin').outcome).toMatch(/hits e for 1 damage/)
   })
 })
 
@@ -1824,19 +2019,6 @@ describe('class abilities', () => {
     )
     const { steps } = playRound(b, { p: turn({ actionId: 'ability:heal', targetId: 'q' }) }, rng())
     expect(steps[0].outcome).toMatch(/recovers 1 HP \(10\/10\)/)
-  })
-
-  it('Bless adds a Bless token to an ally’s bag', () => {
-    const b = battleOf(
-      [player('p', { abilityIds: ['blessAbility'] }), player('q')],
-      [enemy('goblin', 'e', { hp: 99 })],
-      { p: 'g1', q: 'g2', e: 'g3' },
-    )
-    const plan: BattlePlan = {
-      p: { actions: [null, null], fast: { actionId: 'ability:blessAbility', targetId: 'q' } },
-    }
-    const { battle } = playRound(b, plan, rng())
-    expect(battle.players[1].bag.find((s) => s.tokenId === 'bless')?.count).toBe(1)
   })
 
   it('disables abilities that need more resource than the character has', () => {

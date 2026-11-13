@@ -18,7 +18,7 @@ import {
 import { adjustBag, commitResource, countInBag, releaseCommitment, resourceAvailable } from '../tokenFlow'
 import { parseCost } from '../battle/state'
 import { totalIntervals } from '../torch'
-import { addPrepared, defuseTrap, giveReward, keepWatch, markDone, narrate, runTest, updateMember, withArticle, withDarkness } from './context'
+import { addPrepared, defuseTrap, giveReward, keepWatch, markDone, narrate, runTest, updateMember, withArticle, withDarkness, withHealer } from './context'
 import type { ActionHandler, Context, Resolution } from './context'
 import { removeConditionToken } from './conditionTreatment'
 import type { ActionOption } from './types'
@@ -127,15 +127,16 @@ const groupHeal: AbilityAction = {
       ...state,
       party: state.party.map((m) => (m.hp < m.maxHp ? { ...m, hp: m.hp + 1 } : m)),
     }
+    const healer = withHealer(ctx, healed, hurt.map((m) => m.key), 'recovered HP')
     return narrate(
       ctx,
       ability.name,
       `${member.name} calls down a soothing light on the whole party.`,
       hurt.length === 0
         ? 'No one is hurt, so the light fades harmlessly.'
-        : `${hurt.map((m) => m.name).join(', ')} recover${hurt.length === 1 ? 's' : ''} 1 HP.`,
+        : `${hurt.map((m) => m.name).join(', ')} recover${hurt.length === 1 ? 's' : ''} 1 HP.${healer.text}`,
       hurt.length === 0 ? 'neutral' : 'success',
-      healed,
+      healer.state,
     )
   },
 }
@@ -198,13 +199,14 @@ const tendTheAfflicted: AbilityAction = {
       inventory: { ...m.inventory, [itemId]: (m.inventory[itemId] ?? 0) - 1 },
     }))
     const condition = TOKENS[treats.condition]?.name ?? treats.condition
+    const healer = withHealer(ctx, removeConditionToken(spent, patient.key, treats.condition), [patient.key], 'had a condition removed')
     return narrate(
       ctx,
       ability.name,
       `${member.name} tends to ${patient.key === member.key ? 'their own' : `${patient.name}'s`} affliction.`,
-      `The ${condition} token is removed from ${patient.name}'s bag.`,
+      `The ${condition} token is removed from ${patient.name}'s bag.${healer.text}`,
       'success',
-      removeConditionToken(spent, patient.key, treats.condition),
+      healer.state,
     )
   },
 }
@@ -284,13 +286,14 @@ const steelNerves: AbilityAction = {
       ...m,
       inventory: { ...m.inventory, liquidCourage: (m.inventory.liquidCourage ?? 0) - 1 },
     }))
+    const healer = withHealer(ctx, removeConditionToken(spent, patient.key, 'fear'), [patient.key], 'had a condition removed')
     return narrate(
       ctx,
       ability.name,
       `${member.name} presses a flask of Liquid Courage into ${patient.key === member.key ? 'their own' : `${patient.name}'s`} hands with a few firm words.`,
-      `The Fear token is removed from ${patient.name}'s bag.`,
+      `The Fear token is removed from ${patient.name}'s bag.${healer.text}`,
       'success',
-      removeConditionToken(spent, patient.key, 'fear'),
+      healer.state,
     )
   },
 }
@@ -310,13 +313,15 @@ const heartyMeal: AbilityAction = {
     })
     const lighter = state.party.filter((m) => countInBag(m.bag, 'fatigue') > 0).length
     const healed = state.party.filter((m) => m.hp < m.maxHp).length
+    const helped = state.party.filter((m) => m.hp < m.maxHp || countInBag(m.bag, 'fatigue') > 0).map((m) => m.key)
+    const healer = withHealer(ctx, { ...state, party: fed }, helped, 'recovered HP')
     return narrate(
       ctx,
       ability.name,
       `${member.name} shares out a hot meal.`,
-      `Everyone recovers 1 HP${healed === 0 ? ' if they need it' : ''} and ${lighter} ${lighter === 1 ? 'person loses' : 'people lose'} a Fatigue token.`,
+      `Everyone recovers 1 HP${healed === 0 ? ' if they need it' : ''} and ${lighter} ${lighter === 1 ? 'person loses' : 'people lose'} a Fatigue token.${healer.text}`,
       'success',
-      { ...state, party: fed },
+      healer.state,
     )
   },
 }

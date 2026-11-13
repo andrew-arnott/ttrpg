@@ -50,7 +50,6 @@ function bestiary(): string {
       ...e.triggers.map((t) => `**${t.name}**: ${t.text}`),
       e.startsEngagedWithAll ? 'Starts engaged with everyone.' : '',
       e.pullsEveryoneIn ? 'Pulls everyone back into its group at the end of its turn.' : '',
-      e.supernatural ? 'Supernatural: Smite does extra damage.' : '',
     ]
       .filter(Boolean)
       .join(' '),
