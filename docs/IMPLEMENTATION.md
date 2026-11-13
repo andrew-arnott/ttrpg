@@ -72,10 +72,10 @@ These were filled in so the tutorial would run. They are not rulings.
 | Enemy attacks wear down Defense; damage lands if it is exceeded | `strikePlayer` in `battle/effects.ts` |
 | Engagement groups; a test is needed only if you are engaged; Difficulty scales with groups | `battle/engagement.ts` |
 | Unengaged enemies spend their turn closing in | `closeIn` in `battle/enemies.ts` |
-| Surprise: one Perception test per player against the median notice Difficulty | `medianNoticeDifficulty`, `surpriseCheck` in `battle/start.ts` |
+| Surprise: one Perception test per player against the median notice Difficulty; a player who fails misses their first round (`surprised`) | `medianNoticeDifficulty`, `surpriseCheck` in `battle/start.ts` |
 | Targets: unreachable enemies listed but disabled, abilities disabled when nothing is usable | `battle/targets.ts` |
 | Weapons set the attribute; two-handed +1 damage; ranged -2 when engaged | `src/data/weapons.ts`, `battle/attackPlan.ts` |
-| Triggered abilities are asked as a question when they come up; nobody reacts in a surprise round | `battle/reactions.ts`, `followUps.ts`, `lib/reactorRules.ts` |
+| Triggered abilities are asked as a question when they come up; a surprised player can still react | `battle/reactions.ts`, `followUps.ts`, `lib/reactorRules.ts` |
 | Complications set off only the enemies the character is engaged with, unless a trigger is global | `runTriggers` in `battle/effects.ts` |
 | Conditions: sealed on failed tests, effects, released at round end | `battle/conditions.ts`, `lib/conditionRules.ts` |
 
@@ -101,7 +101,6 @@ These were filled in so the tutorial would run. They are not rulings.
 - Scry beyond showing a neighbouring room.
 - Armor, the Body and Accessory slots, inventory limits and stacks, tools, and buying or selling in play.
 - Using items in combat.
-- A one-action surprise round. Surprised enemies take their whole turn.
 - Players choosing the order enemies resolve in.
 - Ranger and Berserker, which the rules do not define yet.
 - Poison damage does not offer Last Stand.

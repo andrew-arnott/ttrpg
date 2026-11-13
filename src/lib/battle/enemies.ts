@@ -66,6 +66,7 @@ export function resetRoundState(b: BattleState) {
   b.players.forEach((p) => {
     p.defense = 0
     p.usedThisRound = []
+    p.surprised = false
     p.shieldWall = false
   })
   b.enemies.forEach((e) => {
@@ -73,7 +74,7 @@ export function resetRoundState(b: BattleState) {
   })
 }
 
-/** The enemies take their turns in random order. A surprise round lets only some of them act. */
+/** The enemies take their turns in random order. */
 export function enemyActions(engine: Engine, acting: BattleEnemy[] = livingEnemies(engine.b)) {
   const { b, rng } = engine
   for (const e of shuffled(acting.filter((a) => a.hp > 0), rng)) {

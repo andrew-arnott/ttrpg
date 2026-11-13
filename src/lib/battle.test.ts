@@ -997,15 +997,6 @@ describe('Triggered abilities', () => {
       playRound(b, { w: turn() }, rng(), reactions)
       expect(seen).toEqual([])
     })
-
-    it('is not offered during a surprise round', () => {
-      const blind = { bag: ALWAYS_FAIL }
-      const party = [testMember('w', 0, blind), testMember('q', 0, blind)]
-      const warrior = { ...party[0], abilityIds: ['intercept'] }
-      const b = startBattle([warrior, party[1]], [], ['goblin'], rng(), 'A patrol appears.', { modifiers: [] })
-      expect(b.opening.some((s) => s.title === 'Surprise round')).toBe(true)
-      expect(b.pending).toBeFalsy()
-    })
   })
 
   describe('Prayer', () => {
@@ -2455,31 +2446,41 @@ describe('surprise', () => {
     expect(median(['troll', 'troll', 'goblin'])).toBe(3)
   })
 
-  it('lets the party see the danger coming if any one player passes', () => {
+  it('leaves a player who passes free to act, whoever else fails', () => {
     const b = startBattle([sighted(5)('a'), blind('b')], [], ['goblin'], rng(), 'x', check())
-    expect(b.opening.some((s) => s.title === 'Surprise round')).toBe(false)
-    expect(b.opening.find((s) => s.title === 'Surprise?')!.tone).toBe('success')
+    expect(b.players.map((p) => Boolean(p.surprised))).toEqual([false, true])
+    expect(b.opening.find((s) => s.title === 'Surprise?')!.outcome).toMatch(/b is surprised and misses the first round/)
+    expect(b.opening.some((s) => s.title === 'Surprise round' || s.clash)).toBe(false)
     expect(b.players.every((p) => p.hp === p.maxHp)).toBe(true)
   })
 
-  it('gives every enemy a surprise round when nobody passes, then hands over to the players', () => {
-    const b = startBattle([sighted(1)('a'), blind('b')], [], ['goblin', 'troll'], rng(), 'x', check())
-    expect(b.opening.some((s) => s.title === 'Surprise round')).toBe(true)
-    expect(b.opening.some((s) => s.actor?.name === 'Cave Troll' && s.clash)).toBe(true)
+  it('skips a surprised player’s turn in the first round, then they act normally', () => {
+    const b = startBattle([sighted(5)('a'), blind('b'), sighted(5)('c')], [], ['goblin'], rng(), 'x', check())
+    expect(currentPlayer(b)!.key).toBe('a')
+    const afterA = endTurn(b, rng()).battle
+    expect(currentPlayer(afterA)!.key).toBe('c')
+    const round2 = runEnemyPhase(endTurn(afterA, rng()).battle, rng()).battle
+    expect(round2.round).toBe(2)
+    expect(round2.players.some((p) => p.surprised)).toBe(false)
+    expect(currentPlayer(round2)!.key).toBe('a')
+    expect(currentPlayer(endTurn(round2, rng()).battle)!.key).toBe('b')
+  })
+
+  it('goes straight to the enemies when everyone is surprised, who then act in the usual enemy phase', () => {
+    const b = startBattle([blind('a'), blind('b')], [], ['goblin', 'troll'], rng(), 'x', check())
+    expect(b.phase).toBe('enemies')
+    expect(currentPlayer(b)).toBeNull()
     expect(b.round).toBe(1)
-    expect(b.phase).toBe('players')
-    expect(currentPlayer(b)).not.toBeNull()
+    expect(b.opening.some((s) => s.clash)).toBe(false)
+    const { battle } = runEnemyPhase(b, rng())
+    expect(battle.round).toBe(2)
+    expect(currentPlayer(battle)!.key).toBe('a')
   })
 
   it('counts a Critical Success as a pass and a Critical Failure as a fail', () => {
     const lucky = startBattle([testMember('a', 0, { bag: ALWAYS_PASS })], [], ['warden'], rng(), 'x', check())
-    expect(lucky.opening.some((s) => s.title === 'Surprise round')).toBe(false)
+    expect(lucky.players[0].surprised).toBeFalsy()
     const unlucky = startBattle([blind('a'), blind('b')], [], ['troll'], rng(), 'x', check())
-    expect(unlucky.opening.some((s) => s.title === 'Surprise round')).toBe(true)
-  })
-
-  it('uses up Fortify against the surprise round', () => {
-    const b = startBattle([blind('a')], [{ tag: 'Fortified', memberKey: 'a' }], ['goblin'], rng(), 'x', check())
-    expect(b.opening.find((s) => s.clash)!.clash!.defenseBefore).toBe(2)
+    expect(unlucky.players.every((p) => p.surprised)).toBe(true)
   })
 })

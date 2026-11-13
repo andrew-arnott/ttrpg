@@ -486,7 +486,7 @@ Keeping watch adds +2 to your party’s Perception tests to spot enemies before 
 
 Watch for approaching enemies while the party explores or rests.
 
-When determining whether enemies receive a surprise round, treat the current light level as **one level brighter**.
+When determining whether characters are surprised, treat the current light level as **one level brighter**.
 
 | Actual Light | Effective Light |
 | ----- | ----- |
@@ -673,17 +673,17 @@ An enemy that is not engaged with anyone spends its whole turn closing in on a p
 
 ### Starting Combat and Surprise
 
-Each player makes one Perception test against the median notice Difficulty of the enemies. If anyone passes, the party sees the danger coming and the fight starts on even terms. If nobody does, every enemy gets a surprise round before the players act.
+Each player makes one Perception test against the median notice Difficulty of the enemies.
+
+A player who fails their test is **surprised** and misses their first round: they take no turn in round 1. A player who passes acts normally, whatever happens to the rest of the party. If everyone fails, the enemies go first and nobody acts until round 2.
+
+Surprised characters can still be attacked, and can still use Triggered abilities.
 
 The GM determines the initial engagement groups based on the encounter and the circumstances when combat begins.
 
-#### Surprise Round
+#### Surprise
 
-If nobody in the party notices the enemies, the enemies receive a **Surprise Round**.
-
-During the Surprise Round, each combatant on the surprising side may perform **1 action**. Surprised combatants do not act.
-
-Afterward, combat proceeds normally.
+A surprised character misses only the first round. From round 2 they take their turns as usual.
 
 ## 10. Conditions
 

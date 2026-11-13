@@ -73,7 +73,7 @@ npm run build && npm run preview:e2e &
 
 1. **Class design**: separate combat and utility picks, widen the Rogue pool (ideas for
    each are in the conversation history: shoves, stances, riders, Turn Undead, Ice Shackles, Counterspell).
-2. **Surprise round**: a 1-action surprise round (unspotted enemies currently take their whole turn), and enemies hidden by more than a number.
+2. **Surprise**: enemies hidden by more than a number.
 3. **Inventory** with 6 slots, stack sizes, Armor, and the Body and Accessory slots. Weapon and shield art, more portraits, damage types, and swapping hands mid-delve.
 4. **Smaller gaps**: Scry beyond a neighbouring room, species traits that are not bag changes, items in combat, art for the treatment items.
 5. **More content**: a second dungeon, more enemies (use the `add-game-content` skill), Ranger and Berserker once defined.

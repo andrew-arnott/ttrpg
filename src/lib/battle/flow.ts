@@ -25,7 +25,7 @@ function advanceTurn(engine: Engine) {
   const current = b.players[b.turnIndex]
   if (current && current.hp > 0 && b.actionsUsed < actionsThisTurn(current, b.round)) return
   if (current) endOfTurn(engine, current)
-  const next = b.players.findIndex((p, i) => i > b.turnIndex && p.hp > 0)
+  const next = b.players.findIndex((p, i) => i > b.turnIndex && p.hp > 0 && !p.surprised)
   b.actionsUsed = 0
   b.turnStarted = false
   if (next === -1) {

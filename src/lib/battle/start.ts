@@ -3,13 +3,11 @@ import { ENEMIES_BY_ID, type EnemyDef } from '../../data/enemies'
 import type { Rng } from '../drawTest'
 import type { PartyMember, Preparation } from '../dungeonState'
 import { attackEnemy, playerTest } from './effects'
-import { enemyActions, resetRoundState } from './enemies'
 import {
   addStep,
   createEngine,
   describeGroup,
   distinctGroupIds,
-  enemyActorOf,
   finalStep,
   groupOf,
   livingEnemies,
@@ -24,7 +22,7 @@ import {
 } from './state'
 import { FORTIFY_DEFENSE } from './types'
 import type { TorchLevel } from '../torch'
-import type { BattleEnemy, BattleState, SurpriseCheck } from './types'
+import type { BattleEnemy, BattlePlayer, BattleState, SurpriseCheck } from './types'
 
 
 function nameEnemies(defs: EnemyDef[]): { id: string; name: string; def: EnemyDef }[] {
@@ -128,7 +126,9 @@ export function startBattle(
 
   updateResult(b)
   finalStep(engine)
-  b.turnIndex = Math.max(0, b.players.findIndex((p) => p.hp > 0))
+  const first = b.players.findIndex((p) => p.hp > 0 && !p.surprised)
+  if (first === -1) b.phase = 'enemies'
+  b.turnIndex = Math.max(0, first)
   b.opening = engine.steps
   return b
 }
@@ -141,20 +141,22 @@ export function medianNoticeDifficulty(enemies: BattleEnemy[]): number {
 }
 
 /**
- * Each player makes one Perception test against the median notice Difficulty of the enemies. If
- * anyone passes, the party sees the danger coming. If nobody does, the enemies get a surprise
- * round before the players can act. Light and watchfulness help, as they do on every test.
+ * Each player makes one Perception test against the median notice Difficulty of the enemies. A player
+ * who fails is surprised and misses their first round. Light and watchfulness help, as they do on
+ * every test.
  */
 function surpriseCheck(engine: Engine, check: SurpriseCheck) {
   const { b } = engine
-  const enemies = livingEnemies(b)
-  const difficulty = medianNoticeDifficulty(enemies)
+  const difficulty = medianNoticeDifficulty(livingEnemies(b))
   const bonuses = check.modifiers.map((m) => ({ label: m.label, value: m.value }))
-  let spotted = false
+  const surprised: BattlePlayer[] = []
 
   for (const p of livingPlayers(b)) {
     const test = playerTest(engine, p, 'perception', difficulty, bonuses)
-    spotted = spotted || test.passed
+    if (!test.passed) {
+      p.surprised = true
+      surprised.push(p)
+    }
     addStep(engine, {
       actor: playerActorOf(p),
       title: 'Look out!',
@@ -162,29 +164,19 @@ function surpriseCheck(engine: Engine, check: SurpriseCheck) {
       test,
       testMode: 'check',
       testHeading: `Perception test \u00b7 Difficulty ${difficulty}, the median of the enemies' notice Difficulties`,
-      outcome: test.passed ? `${p.name} spots the danger.` : `${p.name} notices nothing.`,
+      outcome: test.passed ? `${p.name} spots the danger.` : `${p.name} notices nothing, and is surprised.`,
       tone: test.passed ? 'success' : 'failure',
     })
   }
 
   addStep(engine, {
-    actor: spotted ? null : enemyActorOf(enemies[0]),
+    actor: null,
     title: 'Surprise?',
     intro: 'The party strains to see what is out there.',
-    outcome: spotted
-      ? 'Someone spotted them in time. Combat begins on even terms.'
-      : 'Nobody saw them coming. The enemies strike first!',
-    tone: spotted ? 'success' : 'failure',
+    outcome:
+      surprised.length === 0
+        ? 'Everyone spotted them in time. Combat begins on even terms.'
+        : `${surprised.map((p) => p.name).join(', ')} ${surprised.length === 1 ? 'is' : 'are'} surprised and miss${surprised.length === 1 ? 'es' : ''} the first round.`,
+    tone: surprised.length === 0 ? 'success' : 'failure',
   })
-  if (spotted) return
-
-  addStep(engine, {
-    actor: null,
-    title: 'Surprise round',
-    intro: 'The party is caught flat-footed.',
-    outcome: 'The enemies attack before anyone can defend.',
-    tone: 'failure',
-  })
-  enemyActions(engine, enemies)
-  resetRoundState(b)
 }

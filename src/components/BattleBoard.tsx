@@ -71,6 +71,7 @@ function PlayerCard({ p, active, onShowBag }: { p: BattlePlayer; active: boolean
           </button>
         </div>
         {down && <span className="tag warn">Down</span>}
+        {!down && p.surprised && <span className="tag warn">Surprised</span>}
       </div>
     </div>
   )

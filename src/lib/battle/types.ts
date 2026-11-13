@@ -28,6 +28,8 @@ export interface BattlePlayer extends Adventurer {
   colorIndex: number
   /** Triggered abilities already used this round that only work once per round. */
   usedThisRound?: string[]
+  /** Failed the surprise check and misses the first round. */
+  surprised?: boolean
   /** Empower the Strike: extra damage on this player's next attack, used up by the attack whether it hits or not. */
   strikeBonus?: number
   /** Shield Wall was used this round: this Defense score can cover allies in the same group. */
