@@ -693,6 +693,8 @@ All condition tokens have **−1, Chain**.
 
 When you draw a condition token during a failed test, seal it on your character and apply its additional effect.
 
+A Defend that adds no Defense counts as a failed test.
+
 ### Sealed Conditions
 
 Sealed conditions remain attached to your character until released.

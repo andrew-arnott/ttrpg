@@ -315,8 +315,8 @@ export function defend(engine: Engine, p: BattlePlayer, armor = 0, title = 'Defe
   const bonuses = testBonuses(p, engine.b.torchLevel, armor > 0 ? [{ label: 'Armor', value: armor }] : [])
   const total = result.total + attributeValue + bonuses.reduce((sum, x) => sum + x.value, 0)
   const failed = result.outcome === 'critical-failure'
-  afterTest(engine, p, result, !failed)
   const gain = failed ? 0 : Math.max(0, total)
+  afterTest(engine, p, result, gain > 0)
   const before = p.defense
   p.defense += gain
   const test: SkillTestOutcome = {

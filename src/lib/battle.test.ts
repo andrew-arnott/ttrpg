@@ -21,8 +21,8 @@ import {
   type BattleState,
   type PlannedCombat,
 } from './battle'
-import { releaseAllConditions } from './characterTest'
-import { mulberry32 } from './drawTest'
+import { releaseAllConditions, settleTest } from './characterTest'
+import { drawnToken, mulberry32 } from './drawTest'
 import { countInBag } from './tokenFlow'
 import type { TorchLevel } from './torch'
 import {
@@ -1238,6 +1238,26 @@ describe('conditions', () => {
       expect(sealedTypes(battle.players[0])).toEqual([])
       expect(countInBag(battle.players[0].bag, 'wound')).toBe(1)
     })
+  })
+})
+
+describe('conditions drawn while defending', () => {
+  const poisoned = (bag: BattlePlayer['bag']) => duel({ bag })
+
+  it('seals a Poison drawn in a Defend that adds no Defense, and hurts', () => {
+    const { battle, steps } = playRound(poisoned([{ tokenId: 'poison', count: 6 }]), { p: turn(defend) }, rng())
+    const p = battle.players[0]
+    expect(p.defense).toBe(0)
+    expect((p.sealedConditions ?? []).some((c) => c.tokenId === 'poison')).toBe(true)
+    expect(steps.find((s) => s.title === 'Defend')!.outcome).toMatch(/Poison is sealed on p/)
+  })
+
+  it('does not seal a condition drawn in a successful test, and says so', () => {
+    const taker = player('p')
+    const result = { drawn: [drawnToken('poison'), drawnToken('plus4')], total: 3, outcome: 'normal' as const, complication: false }
+    const notes = settleTest(taker, result, true, { round: 1, lethal: true, ask: () => ({ use: false }) })
+    expect(notes).toEqual(['Poison drawn on a successful test, so it is not sealed.'])
+    expect(taker.sealedConditions ?? []).toEqual([])
   })
 })
 

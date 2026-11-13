@@ -149,7 +149,8 @@ function settleConditions(
   const drawn = result.drawn.map((d) => d.tokenId).filter(isCondition)
   if (succeeded) {
     if (startedWithCurse) releaseCondition(taker, sealedOf(taker).find((c) => c.tokenId === 'curse')!)
-    return []
+    const unsealed = [...new Set(startedWithCurse ? drawn.slice(1) : drawn)].map(tokenName)
+    return unsealed.length > 0 ? [`${unsealed.join(' and ')} drawn on a successful test, so ${unsealed.length === 1 ? 'it is' : 'they are'} not sealed.`] : []
   }
   const notes: string[] = []
   for (const tokenId of startedWithCurse ? drawn.slice(1) : drawn) {
