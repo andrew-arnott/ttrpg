@@ -2,7 +2,7 @@ import { intoFight } from '../adventurer'
 import { ENEMIES_BY_ID, type EnemyDef } from '../../data/enemies'
 import type { Rng } from '../drawTest'
 import type { PartyMember, Preparation } from '../dungeonState'
-import { attackEnemy, playerTest } from './effects'
+import { attackEnemy, damageEnemy, playerTest } from './effects'
 import {
   addStep,
   createEngine,
@@ -114,6 +114,20 @@ export function startBattle(
         outcome: `Everyone begins combat with +${FORTIFY_DEFENSE} Defense.`,
         tone: 'success',
       })
+    } else if (prep.tag === 'Snared') {
+      const victims = livingEnemies(b)
+      if (victims.length > 0) {
+        const caught = pick(victims, rng)
+        damageEnemy(b, caught, 1)
+        moveToGroup(b, caught.id, newGroup(b))
+        addStep(engine, {
+          actor: playerActorOf(p),
+          title: 'Snared!',
+          intro: `${p.name}'s snare springs.`,
+          outcome: `${caught.name} takes 1 damage (${caught.hp}/${caught.maxHp} HP) and starts the fight unengaged.`,
+          tone: 'success',
+        })
+      }
     } else if (prep.tag === 'Ambush set') {
       const victims = livingEnemies(b)
       if (victims.length > 0) {

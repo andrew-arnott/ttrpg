@@ -56,7 +56,7 @@ npm run build && npm run preview:e2e &
 - Direct, collaborative, happy for agents to make reasonable calls, and wants assumptions flagged clearly. Say what you
   invented. `docs/IMPLEMENTATION.md` is where guesses live.
 - The app is canonical. `docs/RULES.md` is the rules text, the site renders it, and the owner's rulings go straight into
-  it. Section 15 is generated: run `npm run rules:sync` after changing `src/data`.
+  it. Section 16 is generated: run `npm run rules:sync` after changing `src/data`.
 - Has allowed pushing straight to `main` for this toy project. Otherwise: draft PRs, and post the link on updates.
 - Asks for a note on any refactoring opportunity spotted but not taken, so they can choose.
 - Wants things verified in the real UI, with screenshots checked, not only unit tests.
@@ -76,7 +76,7 @@ npm run build && npm run preview:e2e &
 2. **Surprise**: enemies hidden by more than a number.
 3. **Inventory** with 6 slots, stack sizes, Armor, and the Body and Accessory slots. Weapon and shield art, more portraits, damage types, and swapping hands mid-delve.
 4. **Smaller gaps**: Scry beyond a neighbouring room, species traits that are not bag changes, items in combat, art for the treatment items.
-5. **More content**: a second dungeon, more enemies (use the `add-game-content` skill), Ranger and Berserker once defined.
+5. **More content**: a second dungeon, more enemies (use the `add-game-content` skill), the Berserker once defined, and a Ranger in the sample party.
 6. **Smarter enemies**: engagement behaviour beyond random; let players choose the order enemies resolve in.
 7. **Quality**:
    - Add `npm run lint` to the deploy workflow. The agent token has no `workflow` scope, so the owner has to edit `deploy.yml`.

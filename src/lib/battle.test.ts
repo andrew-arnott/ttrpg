@@ -1739,6 +1739,120 @@ describe('Priest', () => {
   })
 })
 
+describe('Ranger', () => {
+  const ranger = (abilityIds: string[], over: Partial<BattlePlayer> = {}) =>
+    player('k', {
+      professionId: 'ranger',
+      abilityIds,
+      resources: { focus: 4 },
+      bag: ALWAYS_PASS,
+      hands: { main: 'shortbow', off: null },
+      ...over,
+    })
+  const hunt = (abilityIds: string[], groups: Record<string, string> = { k: 'g1', a: 'g2', b: 'g3' }, over: Partial<BattlePlayer> = {}) =>
+    battleOf([ranger(abilityIds, over)], [enemy('goblin', 'a', { hp: 20 }), enemy('goblin', 'b', { hp: 20 })], groups)
+  const mark = (id: string): PlannedCombat => ({ actionId: 'ability:markQuarry', targetId: id })
+  const focusSealed = (e: BattleEnemy) => e.sealed.filter((t) => t.byKey === 'k').length
+  const hps = (b: BattleState) => b.enemies.map((e) => e.hp)
+
+  describe('Quarry', () => {
+    it('Mark Quarry seals 1 Focus on an enemy, which stays out of the bag', () => {
+      const { battle } = takeAction(hunt(['markQuarry']), mark('a'), rng())
+      expect(focusSealed(battle.enemies[0])).toBe(1)
+      expect(battle.players[0].resources.focus).toBe(3)
+      expect(bagCount(battle.players[0], 'focus')).toBe(0)
+    })
+
+    it('allows only one Quarry: marking another returns the first one’s Focus to the bag', () => {
+      const first = takeAction(hunt(['markQuarry']), mark('a'), rng()).battle
+      const { battle } = takeAction(first, mark('b'), rng())
+      expect(focusSealed(battle.enemies[0])).toBe(0)
+      expect(focusSealed(battle.enemies[1])).toBe(1)
+      expect(bagCount(battle.players[0], 'focus')).toBe(1)
+    })
+
+    it('returns the Focus when the Quarry is defeated', () => {
+      const b = hunt(['markQuarry', 'aimedShot'])
+      b.enemies[0].hp = 1
+      const marked = takeAction(b, mark('a'), rng()).battle
+      const { battle } = takeAction(marked, { actionId: 'ability:aimedShot', targetId: 'a' }, rng())
+      expect(battle.enemies[0].hp).toBe(0)
+      expect(bagCount(battle.players[0], 'focus')).toBe(2)
+    })
+
+    it('adds +1 to attack tests against the Quarry only', () => {
+      const marked = takeAction(hunt(['markQuarry']), mark('a'), rng()).battle
+      const quarry = takeAction(marked, attack('a'), rng()).steps[0].test!.bonuses
+      const other = takeAction(marked, attack('b'), rng()).steps[0].test!.bonuses
+      expect(quarry).toContainEqual({ label: 'Quarry', value: 1 })
+      expect(other).not.toContainEqual({ label: 'Quarry', value: 1 })
+    })
+  })
+
+  describe('passives', () => {
+    it('Hunter’s Focus adds 1 damage against the Quarry, and only against it', () => {
+      const marked = takeAction(hunt(['markQuarry', 'huntersFocus']), mark('a'), rng()).battle
+      expect(hps(takeAction(marked, attack('a'), rng()).battle)).toEqual([20 - 3, 20])
+      expect(hps(takeAction(marked, attack('b'), rng()).battle)).toEqual([20, 20 - 2])
+      const without = takeAction(hunt(['markQuarry']), mark('a'), rng()).battle
+      expect(hps(takeAction(without, attack('a'), rng()).battle)).toEqual([20 - 2, 20])
+    })
+
+    it('Keen Eye removes the penalty for a ranged attack against an engaged enemy', () => {
+      const engaged = { k: 'g1', a: 'g1', b: 'g3' }
+      const withEye = takeAction(hunt(['keenEye'], engaged), attack('a'), rng()).steps[0].test!.bonuses
+      const without = takeAction(hunt([], engaged), attack('a'), rng()).steps[0].test!.bonuses
+      expect(withEye.some((x) => x.value === -2)).toBe(false)
+      expect(without.some((x) => x.value === -2)).toBe(true)
+    })
+  })
+
+  describe('abilities', () => {
+    it('Aimed Shot adds +2 to the result for 1 Focus, against any enemy a ranged weapon reaches', () => {
+      const { battle, steps } = takeAction(hunt(['aimedShot']), { actionId: 'ability:aimedShot', targetId: 'b' }, rng())
+      expect(steps[0].test!.bonuses).toContainEqual({ label: 'Aimed Shot', value: 2 })
+      expect(battle.players[0].resources.focus).toBe(3)
+      expect(hps(battle)).toEqual([20, 20 - 2])
+    })
+
+    it('Called Shot can only target the Quarry, costs 2 Focus and deals 2 more damage', () => {
+      const b = hunt(['markQuarry', 'calledShot'])
+      const none = availableCombatActions(b, b.players[0]).find((o) => o.id === 'ability:calledShot')!
+      expect(none.disabledReason).toMatch(/no Quarry/)
+      const marked = takeAction(b, mark('a'), rng()).battle
+      const option = availableCombatActions(marked, marked.players[0]).find((o) => o.id === 'ability:calledShot')!
+      expect(option.targets!.find((t) => t.id === 'b')!.disabledReason).toMatch(/Not your Quarry/)
+      const { battle } = takeAction(marked, { actionId: 'ability:calledShot', targetId: 'a' }, rng())
+      expect(hps(battle)).toEqual([20 - 4, 20])
+      expect(battle.players[0].resources.focus).toBe(1)
+    })
+
+    it('Snap Shot is Fast, attacks the Quarry for 2 Focus, and uses no action', () => {
+      const marked = takeAction(hunt(['markQuarry', 'snapShot']), mark('a'), rng()).battle
+      const fresh = { ...marked, actionsUsed: 0 }
+      expect(availableCombatActions(fresh, fresh.players[0]).find((o) => o.id === 'ability:snapShot')!.slot).toBe('fast')
+      const { battle } = takeAction(fresh, { actionId: 'ability:snapShot', targetId: 'a' }, rng())
+      expect(battle.actionsUsed).toBe(0)
+      expect(hps(battle)[0]).toBeLessThan(20)
+    })
+
+    it('Retreating Shot attacks, then moves the Ranger to a group of their own without a test', () => {
+      const engaged = { k: 'g1', a: 'g1', b: 'g1' }
+      const { battle, steps } = takeAction(hunt(['retreatingShot'], engaged), { actionId: 'ability:retreatingShot', targetId: 'a' }, rng())
+      expect(steps.map((s) => s.title)).toEqual(['Retreating Shot', 'Falls back'])
+      expect(battle.groups.k).not.toBe('g1')
+      expect(battle.groups.a).toBe('g1')
+    })
+
+    it('Covering Fire gives an ally +2 Defense this round', () => {
+      const b = battleOf([ranger(['coveringFire']), player('q')], [enemy('goblin', 'a', { hp: 20 })], { k: 'g1', q: 'g2', a: 'g2' })
+      const { battle } = takeAction(b, { actionId: 'ability:coveringFire', targetId: 'q' }, rng())
+      expect(battle.players[1].defense).toBe(2)
+      expect(battle.players[0].resources.focus).toBe(3)
+    })
+  })
+})
+
 describe('Chain Lightning', () => {
   const storm = (mana = 6) =>
     battleOf(
@@ -2504,3 +2618,17 @@ describe('surprise', () => {
     expect(unlucky.players.every((p) => p.surprised)).toBe(true)
   })
 })
+
+describe('a Snared room', () => {
+  it('has one random enemy take 1 damage and start the fight unengaged', () => {
+    const party = [testMember('a', 0), testMember('b', 0)]
+    const b = startBattle(party, [{ tag: 'Snared', memberKey: 'a' }], ['goblin', 'goblin'], rng(), 'x', null)
+    const hurt = b.enemies.filter((e) => e.hp < e.maxHp)
+    expect(hurt).toHaveLength(1)
+    const loose = b.enemies.filter((e) => engagedPlayerKeys(b, e.id).length === 0)
+    expect(loose.map((e) => e.id)).toEqual(hurt.map((e) => e.id))
+  })
+})
+
+const engagedPlayerKeys = (b: BattleState, enemyId: string) =>
+  b.players.filter((p) => b.groups[p.key] === b.groups[enemyId]).map((p) => p.key)

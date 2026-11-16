@@ -3,7 +3,7 @@
 *A fantasy tabletop roleplaying game of strategy, exploration, and adventure.*
 
 This file is the canonical rules. The Rules tab of the site renders it directly, and the app follows it. Where a rule
-is a guess rather than a ruling, `docs/IMPLEMENTATION.md` says so. Section 15 is generated from the app's data
+is a guess rather than a ruling, `docs/IMPLEMENTATION.md` says so. Section 16 is generated from the app's data
 (`npm run rules:sync`); everything else is written by hand, and a test checks that every ability in the app is listed
 here with the same type and cost.
 
@@ -60,7 +60,7 @@ Your profession determines your adventuring abilities, starting HP, and professi
 | **Rogue** | 10 | Agility, Perception, Charisma | Stealth, mobility, and opportunistic attacks |
 | **Priest** | 8 | Charisma, Intelligence, Endurance | Healing, blessings, and support |
 | **Wizard** | 8 | Intelligence, Perception, Endurance | Spells that affect groups of enemies, and resource management |
-| **Ranger** | TBD | Perception, Agility, Strength | Ranged combat, hunting, and wilderness expertise |
+| **Ranger** | 10 | Perception, Agility, Strength | Ranged combat, hunting, and wilderness expertise |
 | **Berserker** | TBD | Strength, Endurance, Luck | Aggressive combat and taking risks |
 
 The listed attributes are recommendations, not requirements.
@@ -1442,9 +1442,132 @@ Magically observe an adjacent room or a nearby location you have previously visi
 
 The GM describes what you can perceive through the magical observation.
 
+## 15. Ranger
+
+Rangers are hunters and trackers. They pick out one enemy at a time and bring it down, from a distance when they can, and they know how to live off the land and read the signs of what is hunting the party.
+
+**Starting HP:** 10
+
+**Important SPECIAL:** Perception, Agility, Strength
+
+### Starting Tokens
+
+A Ranger begins with the standard 15-token distribution, plus:
+
+* **4 Focus tokens**
+
+Focus tokens are **+0, Chain, Resource** tokens.
+
+All 4 Focus tokens begin in play.
+
+### Focus
+
+Focus represents the Ranger's concentration on the hunt.
+
+When you draw Focus during a test, put it in play after resolving the test.
+
+Spend Focus to activate Ranger abilities. Spent Focus returns to your bag unless an ability instructs you to seal it.
+
+Expertise may be spent as Focus. A Critical Success token in play counts as 2 Expertise.
+
+### Quarry
+
+Some Ranger abilities and passives work on your **Quarry**, the enemy you have marked.
+
+* You may have only one Quarry at a time. Your Quarry is the enemy with your Focus sealed on it.
+* You get **+1 to the test result** on every attack you make against your Quarry.
+* When your Quarry is defeated, its sealed Focus returns to your bag.
+* If you mark a different enemy, the Focus sealed on your previous Quarry returns to your bag.
+
+### Ranger Passives
+
+At character creation, choose **1 of these 2 passives**. A passive is always active, and it does not count towards your 4 Ranger abilities.
+
+#### Keen Eye
+
+**Passive**
+
+You take no penalty for making ranged attacks against enemies you are engaged with.
+
+#### Hunter's Focus
+
+**Passive**
+
+Your attacks against your Quarry deal **+1 damage**.
+
+### Ranger Abilities
+
+At character creation, choose **4 Ranger abilities**.
+
+#### Mark Quarry
+
+**Action — 1 Focus**
+
+Seal 1 Focus on an enemy in your room. It is your Quarry.
+
+You may have only one Quarry: marking another enemy returns the Focus sealed on the first to your bag.
+
+#### Aimed Shot
+
+**Fight — 1 Focus**
+
+Make an attack with **+2 to the test result**.
+
+#### Called Shot
+
+**Fight — 2 Focus**
+
+Make an attack against your Quarry.
+
+On a hit, deal **2 additional damage**.
+
+#### Retreating Shot
+
+**Fight — 1 Focus**
+
+Make an attack against an enemy, then break away to an engagement group of your own without making an engagement test.
+
+#### Covering Fire
+
+**Action — 1 Focus**
+
+Choose an ally. They gain **+2 Defense** this round.
+
+#### Snap Shot
+
+**Fast + Fight — 2 Focus**
+
+Make an attack against your Quarry.
+
+It does not use an action.
+
+### Ranger Exploration Abilities
+
+#### Forage
+
+**Interval — 1 Focus**
+
+Search the surroundings for food. Add 1 Ration to your pack.
+
+#### Set a Snare
+
+**Interval — 1 Focus**
+
+Rig a snare in the current room.
+
+If combat begins here before the party leaves, one random enemy takes **1 damage** and starts the fight unengaged.
+
+#### Read the Tracks
+
+**Interval**
+
+Study the signs of what hunts the party.
+
+Learn how many Intervals away the patrol is, and who is in it.
+
 <!-- reference:start -->
 
-## 15. Reference
+## 16. Reference
 
 These tables are generated from the app's data by `npm run rules:sync`. Do not edit them by hand; change `src/data` instead.
 

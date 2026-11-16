@@ -142,7 +142,7 @@ there is no second copy. Heading slugs drop their numbers (`1. Core Rules` is `c
 - `RulesLink` opens a section in a popup (`RulesDialog`) without leaving the page, which matters in the dungeon because
   leaving it loses the delve. `data/rulesLinks.ts` lists the sections the tutorial links to; a test checks they exist.
 - The rules are canonical: when a ruling changes, edit `docs/RULES.md` itself.
-- Section 15 of the file is generated. `tools/rulesReference.ts` renders hand items, consumables, torches and the
+- Section 16 of the file is generated. `tools/rulesReference.ts` renders hand items, consumables, torches and the
   bestiary from `src/data`, between `<!-- reference:start -->` and `<!-- reference:end -->`. `npm run rules:sync` rewrites
   it; `tools/syncRules.test.ts` fails when it is stale and also checks that every ability in `data/professions.ts` has a
   heading in the file with the same type and cost line.

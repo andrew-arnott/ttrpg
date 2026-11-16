@@ -31,7 +31,7 @@ enemies. A test fails if the file is out of date or if an ability in the app is 
 [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md) says where each rule lives in the code and lists the numbers that are
 guesses.
 
-**Ranger and Berserker are not defined yet.** They appear in the UI as unselectable. Filling them in means editing
+**The Berserker is not defined yet.** It appears in the UI as unselectable. Filling them in means editing
 `src/data/professions.ts` only; set `defined: true` and they become selectable.
 
 Picking abilities draws from the combat and exploration lists together: the picks come from one combined pool.

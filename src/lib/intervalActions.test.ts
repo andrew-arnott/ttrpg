@@ -1008,3 +1008,36 @@ describe('Priest passives in the dungeon', () => {
     expect(done.state.party.find((m) => m.key === 'a')!.sealedBy).toEqual([])
   })
 })
+
+describe('Ranger exploration abilities', () => {
+  const ranger = (...abilityIds: string[]) => ({
+    ...sampleMember('warrior', 'k'),
+    professionId: 'ranger',
+    abilityIds,
+    resources: { focus: 4 },
+    restResourceId: 'focus',
+    inventory: {},
+  })
+  const use = (id: string): InteractionPlan => ({ k: { actionId: `ability:${id}` } })
+
+  it('Forage adds a Ration to the Ranger’s pack for 1 Focus', () => {
+    const { state } = resolveInterval(stateWith(ranger('forage')), use('forage'), rng())
+    expect(state.party[0].inventory.ration).toBe(1)
+    expect(state.party[0].resources.focus).toBe(3)
+  })
+
+  it('Set a Snare leaves a Snared preparation on the room', () => {
+    const { state } = resolveInterval(stateWith(ranger('setASnare')), use('setASnare'), rng())
+    expect(state.prepared.entrance.map((p) => p.tag)).toEqual(['Snared'])
+    expect(state.party[0].resources.focus).toBe(3)
+  })
+
+  it('Read the Tracks says when the patrol arrives and who is in it, for no Focus', () => {
+    const quiet = resolveInterval(stateWith(ranger('readTheTracks')), use('readTheTracks'), rng())
+    expect(quiet.steps[0].outcome).toMatch(/Nothing is hunting the party yet/)
+    const hunted = unlockLock(stateWith(ranger('readTheTracks')), 'entranceDoor')
+    const after = resolveInterval(hunted, use('readTheTracks'), rng())
+    expect(after.steps[0].outcome).toMatch(/patrol of .* is about \d+ Intervals? away/)
+    expect(after.state.party[0].resources.focus).toBe(4)
+  })
+})

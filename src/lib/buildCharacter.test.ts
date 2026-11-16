@@ -189,7 +189,7 @@ describe('buildCharacter', () => {
   })
 
   it('refuses to complete an undefined profession', () => {
-    const draft = { ...fullDraft(), professionId: 'ranger', abilityIds: [], tokenChoices: {} }
+    const draft = { ...fullDraft(), professionId: 'berserker', abilityIds: [], tokenChoices: {} }
     const c = buildCharacter(draft)
     expect(c.complete).toBe(false)
     expect(c.startingHp).toBeNull()
@@ -344,5 +344,25 @@ describe('hands', () => {
     expect(parseDraft(JSON.parse(JSON.stringify(draft)))).toEqual(draft)
     const { hands: _hands, ...old } = draft
     expect((parseDraft(old) as CharacterDraft).hands).toEqual({ main: null, off: null })
+  })
+})
+
+describe('the Ranger', () => {
+  const draft = (passiveId: string | null): CharacterDraft => ({
+    ...emptyDraft(),
+    professionId: 'ranger',
+    specialAssignment: { strength: 2, perception: 6, endurance: 1, charisma: 0, intelligence: 3, agility: 4, luck: 5 },
+    speciesId: 'human',
+    backgroundId: 'hunter',
+    abilityIds: ['markQuarry', 'aimedShot', 'calledShot', 'forage'],
+    passiveId,
+  })
+
+  it('is selectable, starts with 4 Focus in play and 10 HP, and needs a passive', () => {
+    const c = buildCharacter(draft('keenEye'))
+    expect(c.complete).toBe(true)
+    expect(c.startingHp).toBe(10)
+    expect(c.inPlay).toEqual([{ tokenId: 'focus', count: 4 }])
+    expect(buildCharacter(draft(null)).issuesFor('abilities')).toContain('Choose a passive.')
   })
 })

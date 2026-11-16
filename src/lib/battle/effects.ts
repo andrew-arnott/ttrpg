@@ -7,6 +7,7 @@ import { engageBreakdown, engageDifficulty, needsEngageTest } from './engagement
 import { planAttack } from './attackPlan'
 import { settleTest, takeDamage, testBonuses } from '../characterTest'
 import { enemyTargets } from './targets'
+import { isQuarry } from './quarry'
 import { drawRulesFor } from './conditionRules'
 import { gainCondition } from './conditions'
 import { offerAllyHelp, offerHealer, sealFaith } from '../priestRules'
@@ -241,7 +242,12 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
   const plan = planAttack(p, { attribute: options.attribute, power: options.power, closeRange: groupOf(b, e.id) === groupOf(b, p.key) })
   const empowered = p.strikeBonus ?? 0
   p.strikeBonus = 0
-  const test = playerTest(engine, p, plan.attribute, enemyDefense(e), [...plan.modifiers, ...(options.testBonus ? [options.testBonus] : [])])
+  const onQuarry = isQuarry(e, p)
+  const test = playerTest(engine, p, plan.attribute, enemyDefense(e), [
+    ...plan.modifiers,
+    ...(options.testBonus ? [options.testBonus] : []),
+    ...(onQuarry ? [{ label: 'Quarry', value: 1 }] : []),
+  ])
   const title = options.title ?? 'Attack'
   const intro = options.intro ?? `${p.name} attacks ${e.name}.`
   const might = test.result.drawn.filter((d) => d.tokenId === 'might').length
@@ -261,7 +267,7 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
   }
 
   const damage =
-    options.totalDamage ?? (options.damage ?? 1) + plan.extraDamage + might + (options.bonusDamage ?? 0) + empowered
+    options.totalDamage ?? (options.damage ?? 1) + plan.extraDamage + might + (options.bonusDamage ?? 0) + empowered + (onQuarry && p.abilityIds.includes('huntersFocus') ? 1 : 0)
   const groupId = groupOf(b, e.id)
   const extra = options.onHit?.(e) ?? ''
   const defeated = damageEnemy(b, e, damage)

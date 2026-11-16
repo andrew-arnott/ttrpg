@@ -1,4 +1,5 @@
 import { linkKey, type DungeonRoom } from '../../data/dungeon'
+import { ENEMIES_BY_ID } from '../../data/enemies'
 import { HOLY_TORCH, ITEMS, ITEMS_BY_ID } from '../../data/items'
 import { PROFESSIONS } from '../../data/professions'
 import { TOKENS } from '../../data/tokens'
@@ -211,6 +212,41 @@ const tendTheAfflicted: AbilityAction = {
   },
 }
 
+const forage: AbilityAction = {
+  perform: (ctx, ability) => {
+    const reward = giveReward(ctx.state, ctx.member.key, { itemId: 'ration', count: 1 })
+    return narrate(
+      ctx,
+      ability.name,
+      `${ctx.member.name} forages around ${ctx.room.name}.`,
+      `${ctx.member.name} turns up enough to eat.${reward.text}`,
+      'success',
+      reward.state,
+    )
+  },
+}
+
+/** Read the Tracks: what hunts the party, and how long until it arrives. */
+const readTheTracks: AbilityAction = {
+  perform: (ctx, ability) => {
+    const { patrol } = ctx.state.dungeon
+    const left = patrolCountdown(ctx.state)
+    const names = patrol.enemyIds.map((id) => ENEMIES_BY_ID[id]?.name ?? id)
+    const counts = [...new Set(names)].map((n) => `${names.filter((x) => x === n).length} ${n}`).join(', ')
+    return narrate(
+      ctx,
+      ability.name,
+      `${ctx.member.name} studies the marks on the floor and walls.`,
+      left === null
+        ? ctx.state.patrolTriggered
+          ? 'Whatever was hunting the party has already found them.'
+          : `Nothing is hunting the party yet. When something comes, expect ${counts}.`
+        : `A patrol of ${counts} is about ${Math.max(0, left)} ${Math.max(0, left) === 1 ? 'Interval' : 'Intervals'} away.`,
+      'success',
+    )
+  },
+}
+
 const PATROL_DELAY = 3
 
 const barricade: AbilityAction = {
@@ -330,6 +366,9 @@ const ABILITY_ACTIONS: Record<string, AbilityAction> = {
   fortify: prepare('Fortified', 'If combat begins here before the party leaves, the party begins with +2 Defend.'),
   secureArea: prepare('Secured', 'If combat begins here before the party leaves, nobody can be surprised.'),
   setAnAmbush: prepare('Ambush set', 'If enemies enter before the party leaves, a free attack is ready for the first one.'),
+  setASnare: prepare('Snared', 'If combat begins here before the party leaves, one random enemy takes 1 damage and starts the fight unengaged.'),
+  forage,
+  readTheTracks,
   barricade,
   shoulderThrough,
   steelNerves,

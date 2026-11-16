@@ -50,6 +50,7 @@ const GLYPHS: Record<string, string> = {
   power: 'PW',
   cunning: 'CN',
   faith: 'FA',
+  focus: 'FO',
   mana: 'MA',
   wound: 'WO',
   poison: 'PO',

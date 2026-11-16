@@ -25,7 +25,9 @@ export function planAttack(
     attribute: options.attribute ?? weapon.attribute,
     modifiers: [
       ...(options.power ? [{ label: 'Power', value: options.power }] : []),
-      ...(withWeapon && weapon.ranged && options.closeRange ? [{ label: weapon.name, value: RANGED_CLOSE_PENALTY }] : []),
+      ...(withWeapon && weapon.ranged && options.closeRange && !p.abilityIds.includes('keenEye')
+        ? [{ label: weapon.name, value: RANGED_CLOSE_PENALTY }]
+        : []),
     ],
     extraDamage: withWeapon && weapon.twoHanded ? TWO_HANDED_DAMAGE : 0,
   }

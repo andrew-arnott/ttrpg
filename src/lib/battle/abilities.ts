@@ -15,6 +15,8 @@ import {
   sealOn,
   sweepingBlow,
 } from './effects'
+import { aimedShot, calledShot, coveringFire, markQuarry, retreatingShot, snapShot } from './ranger'
+import { isQuarry } from './quarry'
 import { arcaneFocus, chainLightning, dissonantPulse, gravityWell, transpose } from './spells'
 import {
   distinctGroupIds,
@@ -91,6 +93,33 @@ const enemyFightOptions =
 /** Which enemies a character's ordinary attack can reach: only those they are engaged with, unless their weapon is ranged. */
 const attackReach = (b: BattleState, ally: BattlePlayer) =>
   attackProfile(ally.hands).ranged ? undefined : onlyEngaged(b, ally)
+
+/** A Fight option reaching whatever the weapon in hand can: any enemy for a ranged weapon, otherwise only engaged ones. */
+const weaponFightOptions = ({ b, p, id, base, gate }: OptionContext): CombatOption[] => {
+  const living = livingEnemies(b)
+  return [
+    {
+      ...base,
+      id,
+      targets: enemyTargets(living, attackReach(b, p)),
+      disabledReason: gate ?? (living.length === 0 ? NO_ENEMY : undefined),
+    },
+  ]
+}
+
+/** A Fight option that can only be aimed at the Ranger's Quarry, within the weapon's reach. */
+const quarryFightOptions = ({ b, p, id, base, gate }: OptionContext): CombatOption[] => {
+  const living = livingEnemies(b)
+  const reach = attackReach(b, p)
+  return [
+    {
+      ...base,
+      id,
+      targets: enemyTargets(living, (e) => (isQuarry(e, p) ? reach?.(e) : 'Not your Quarry')),
+      disabledReason: gate ?? (living.some((e) => isQuarry(e, p)) ? undefined : 'You have no Quarry'),
+    },
+  ]
+}
 
 const allyOptions = ({ b, id, base, gate }: OptionContext): CombatOption[] => [
   { ...base, id, targets: allyTargets(b), disabledReason: gate },
@@ -281,6 +310,49 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     options: allyOptions,
     perform: ({ engine, p, ally, commit }) => {
       if (ally) blessAlly(engine, p, ally, commit)
+    },
+  },
+  markQuarry: {
+    options: ({ b, p, id, base, gate }) => [
+      {
+        ...base,
+        id,
+        targets: enemyTargets(livingEnemies(b), (e) => (isQuarry(e, p) ? 'Already your Quarry' : undefined)),
+        disabledReason: gate ?? (livingEnemies(b).length === 0 ? NO_ENEMY : undefined),
+      },
+    ],
+    perform: ({ engine, p, enemy, commit }) => {
+      if (enemy) markQuarry(engine, p, enemy, commit)
+    },
+  },
+  aimedShot: {
+    options: weaponFightOptions,
+    perform: ({ engine, p, enemy }) => {
+      if (enemy) aimedShot(engine, p, enemy)
+    },
+  },
+  calledShot: {
+    options: quarryFightOptions,
+    perform: ({ engine, p, enemy }) => {
+      if (enemy) calledShot(engine, p, enemy)
+    },
+  },
+  snapShot: {
+    options: quarryFightOptions,
+    perform: ({ engine, p, enemy }) => {
+      if (enemy) snapShot(engine, p, enemy)
+    },
+  },
+  retreatingShot: {
+    options: weaponFightOptions,
+    perform: ({ engine, p, enemy }) => {
+      if (enemy) retreatingShot(engine, p, enemy)
+    },
+  },
+  coveringFire: {
+    options: allyOptions,
+    perform: ({ engine, p, ally }) => {
+      if (ally) coveringFire(engine, p, ally)
     },
   },
   empowerTheStrike: {

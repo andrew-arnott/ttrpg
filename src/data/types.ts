@@ -127,7 +127,7 @@ export interface Profession {
   id: string
   name: string
   blurb: string
-  /** Null for Ranger and Berserker, which the Player's Guide lists as TBD. */
+  /** Null for the Berserker, which the Player's Guide lists as TBD. */
   startingHp: number | null
   importantSpecial: SpecialKey[]
   focus: string

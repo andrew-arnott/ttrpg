@@ -61,7 +61,7 @@ function bestiary(): string {
 export function renderReference(): string {
   return [
     REFERENCE_START,
-    '## 15. Reference',
+    '## 16. Reference',
     `These tables are generated from the app's data by \`npm run rules:sync\`. Do not edit them by hand; change \`src/data\` instead.`,
     '### Hands and Weapons',
     handItems(),
