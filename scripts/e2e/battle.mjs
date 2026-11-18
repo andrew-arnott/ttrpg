@@ -12,6 +12,7 @@ await enterDungeon(page)
 await page.getByRole('button', { name: 'Start sample battle' }).click()
 await skipOverlay(page)
 await page.waitForSelector('.engagement-group')
+for (let i = 0; i < 5 && (await page.locator('.resolution').count()) > 0; i++) await skipOverlay(page)
 
 await page.locator('.combatant.enemy').first().hover()
 await page.waitForSelector('.statcard', { state: 'visible' })
