@@ -497,7 +497,7 @@ export const PROFESSIONS: Profession[] = [
         name: 'Keen Eye',
         types: ['Passive'],
         cost: '—',
-        text: 'You take no penalty for making ranged attacks against enemies you are engaged with.',
+        text: 'You take no penalty for making ranged attacks against your Quarry, even when you are engaged with it.',
       },
       {
         id: 'huntersFocus',
@@ -530,8 +530,8 @@ export const PROFESSIONS: Profession[] = [
         text: 'Make an attack against your Quarry. On a hit, deal 2 additional damage.',
       },
       {
-        id: 'retreatingShot',
-        name: 'Retreating Shot',
+        id: 'retreatingStrike',
+        name: 'Retreating Strike',
         types: ['Fight'],
         cost: '1 Focus',
         text: 'Make an attack against an enemy, then break away to an engagement group of your own without making an engagement test.',
@@ -541,7 +541,7 @@ export const PROFESSIONS: Profession[] = [
         name: 'Covering Fire',
         types: ['Action'],
         cost: '1 Focus',
-        text: 'Choose an ally. They gain +2 Defense this round.',
+        text: 'Choose an ally and make a Perception test. Add the result to their Defense score this round.',
       },
       {
         id: 'snapShot',
@@ -557,7 +557,7 @@ export const PROFESSIONS: Profession[] = [
         name: 'Forage',
         types: ['Interval'],
         cost: '1 Focus',
-        text: 'Search the surroundings for food. Add 1 Ration to your pack.',
+        text: 'Search the surroundings for food with a Perception test. Each Ration you have already found while foraging adds 1 to the Difficulty. On a success, add 1 Ration to your pack.',
       },
       {
         id: 'setASnare',

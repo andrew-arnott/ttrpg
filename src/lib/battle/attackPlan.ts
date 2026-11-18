@@ -17,7 +17,7 @@ export interface AttackPlan {
  */
 export function planAttack(
   p: BattlePlayer,
-  options: { attribute?: SpecialKey; power?: number; closeRange: boolean },
+  options: { attribute?: SpecialKey; power?: number; closeRange: boolean; quarry?: boolean },
 ): AttackPlan {
   const weapon = attackProfile(p.hands)
   const withWeapon = options.attribute === undefined
@@ -25,7 +25,7 @@ export function planAttack(
     attribute: options.attribute ?? weapon.attribute,
     modifiers: [
       ...(options.power ? [{ label: 'Power', value: options.power }] : []),
-      ...(withWeapon && weapon.ranged && options.closeRange && !p.abilityIds.includes('keenEye')
+      ...(withWeapon && weapon.ranged && options.closeRange && !(options.quarry && p.abilityIds.includes('keenEye'))
         ? [{ label: weapon.name, value: RANGED_CLOSE_PENALTY }]
         : []),
     ],

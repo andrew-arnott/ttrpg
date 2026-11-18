@@ -17,7 +17,6 @@ export const BACKSTAB_DAMAGE = 2
 export const EMPOWER_DAMAGE = 2
 export const INSPIRING_COMMAND_BONUS = 1
 export const DIVINE_JUDGMENT_DAMAGE = 5
-export const COVERING_FIRE_DEFENSE = 2
 export const CALLED_SHOT_DAMAGE = 2
 export const AIMED_SHOT_BONUS = 2
 export const HEAL_AMOUNT = 2

@@ -1020,10 +1020,30 @@ describe('Ranger exploration abilities', () => {
   })
   const use = (id: string): InteractionPlan => ({ k: { actionId: `ability:${id}` } })
 
-  it('Forage adds a Ration to the Ranger’s pack for 1 Focus', () => {
-    const { state } = resolveInterval(stateWith(ranger('forage')), use('forage'), rng())
-    expect(state.party[0].inventory.ration).toBe(1)
-    expect(state.party[0].resources.focus).toBe(3)
+  describe('Forage', () => {
+    const forager = (bag = ALWAYS_PASS) => ({ ...ranger('forage'), bag })
+
+    it('makes a Perception test for 1 Focus and adds a Ration on a success', () => {
+      const { state, steps } = resolveInterval(stateWith(forager()), use('forage'), rng())
+      expect(steps[0].test?.attribute).toBe('perception')
+      expect(steps[0].test?.difficulty).toBe(5)
+      expect(state.party[0].inventory.ration).toBe(1)
+      expect(state.party[0].resources.focus).toBe(3)
+    })
+
+    it('finds nothing on a failure, and still spends the Focus', () => {
+      const { state } = resolveInterval(stateWith(forager(bagOf('plus0'))), use('forage'), rng())
+      expect(state.party[0].inventory.ration ?? 0).toBe(0)
+      expect(state.party[0].resources.focus).toBe(3)
+    })
+
+    it('gets harder by 1 for every Ration already found by foraging', () => {
+      const first = resolveInterval(stateWith(forager()), use('forage'), rng()).state
+      const second = resolveInterval(first, use('forage'), rng())
+      expect(second.steps[0].test?.difficulty).toBe(6)
+      expect(second.state.party[0].inventory.ration).toBe(2)
+      expect(resolveInterval(second.state, use('forage'), rng()).steps[0].test?.difficulty).toBe(7)
+    })
   })
 
   it('Set a Snare leaves a Snared preparation on the room', () => {

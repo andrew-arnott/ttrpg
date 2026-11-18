@@ -15,7 +15,7 @@ import {
   sealOn,
   sweepingBlow,
 } from './effects'
-import { aimedShot, calledShot, coveringFire, markQuarry, retreatingShot, snapShot } from './ranger'
+import { aimedShot, calledShot, coveringFire, markQuarry, retreatingStrike, snapShot } from './ranger'
 import { isQuarry } from './quarry'
 import { arcaneFocus, chainLightning, dissonantPulse, gravityWell, transpose } from './spells'
 import {
@@ -343,10 +343,10 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
       if (enemy) snapShot(engine, p, enemy)
     },
   },
-  retreatingShot: {
+  retreatingStrike: {
     options: weaponFightOptions,
     perform: ({ engine, p, enemy }) => {
-      if (enemy) retreatingShot(engine, p, enemy)
+      if (enemy) retreatingStrike(engine, p, enemy)
     },
   },
   coveringFire: {

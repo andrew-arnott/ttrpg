@@ -239,10 +239,10 @@ export interface AttackOptions {
 
 export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, options: AttackOptions = {}): boolean {
   const { b } = engine
-  const plan = planAttack(p, { attribute: options.attribute, power: options.power, closeRange: groupOf(b, e.id) === groupOf(b, p.key) })
+  const onQuarry = isQuarry(e, p)
+  const plan = planAttack(p, { attribute: options.attribute, power: options.power, closeRange: groupOf(b, e.id) === groupOf(b, p.key), quarry: onQuarry })
   const empowered = p.strikeBonus ?? 0
   p.strikeBonus = 0
-  const onQuarry = isQuarry(e, p)
   const test = playerTest(engine, p, plan.attribute, enemyDefense(e), [
     ...plan.modifiers,
     ...(options.testBonus ? [options.testBonus] : []),

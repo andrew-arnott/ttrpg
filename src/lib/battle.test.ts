@@ -1798,12 +1798,15 @@ describe('Ranger', () => {
       expect(hps(takeAction(without, attack('a'), rng()).battle)).toEqual([20 - 2, 20])
     })
 
-    it('Keen Eye removes the penalty for a ranged attack against an engaged enemy', () => {
-      const engaged = { k: 'g1', a: 'g1', b: 'g3' }
-      const withEye = takeAction(hunt(['keenEye'], engaged), attack('a'), rng()).steps[0].test!.bonuses
-      const without = takeAction(hunt([], engaged), attack('a'), rng()).steps[0].test!.bonuses
-      expect(withEye.some((x) => x.value === -2)).toBe(false)
-      expect(without.some((x) => x.value === -2)).toBe(true)
+    it('Keen Eye removes the penalty for a ranged attack against an engaged Quarry, and only against it', () => {
+      const engaged = { k: 'g1', a: 'g1', b: 'g1' }
+      const penalty = (abilityIds: string[], target: string) => {
+        const marked = takeAction(hunt(['markQuarry', ...abilityIds], engaged), mark('a'), rng()).battle
+        return takeAction(marked, attack(target), rng()).steps[0].test!.bonuses.some((x) => x.value === -2)
+      }
+      expect(penalty(['keenEye'], 'a')).toBe(false)
+      expect(penalty(['keenEye'], 'b')).toBe(true)
+      expect(penalty([], 'a')).toBe(true)
     })
   })
 
@@ -1836,19 +1839,26 @@ describe('Ranger', () => {
       expect(hps(battle)[0]).toBeLessThan(20)
     })
 
-    it('Retreating Shot attacks, then moves the Ranger to a group of their own without a test', () => {
+    it('Retreating Strike attacks, then moves the Ranger to a group of their own without a test', () => {
       const engaged = { k: 'g1', a: 'g1', b: 'g1' }
-      const { battle, steps } = takeAction(hunt(['retreatingShot'], engaged), { actionId: 'ability:retreatingShot', targetId: 'a' }, rng())
-      expect(steps.map((s) => s.title)).toEqual(['Retreating Shot', 'Falls back'])
+      const { battle, steps } = takeAction(hunt(['retreatingStrike'], engaged), { actionId: 'ability:retreatingStrike', targetId: 'a' }, rng())
+      expect(steps.map((s) => s.title)).toEqual(['Retreating Strike', 'Falls back'])
       expect(battle.groups.k).not.toBe('g1')
       expect(battle.groups.a).toBe('g1')
     })
 
-    it('Covering Fire gives an ally +2 Defense this round', () => {
-      const b = battleOf([ranger(['coveringFire']), player('q')], [enemy('goblin', 'a', { hp: 20 })], { k: 'g1', q: 'g2', a: 'g2' })
-      const { battle } = takeAction(b, { actionId: 'ability:coveringFire', targetId: 'q' }, rng())
-      expect(battle.players[1].defense).toBe(2)
+    it('Covering Fire adds a Perception test result to an ally’s Defense for 1 Focus', () => {
+      const b = battleOf([ranger(['coveringFire'], { bag: bagOf('plus3'), special: { ...flat, perception: 3 } }), player('q')], [enemy('goblin', 'a', { hp: 20 })], { k: 'g1', q: 'g2', a: 'g2' })
+      const { battle, steps } = takeAction(b, { actionId: 'ability:coveringFire', targetId: 'q' }, rng())
+      expect(steps[0].test!.attribute).toBe('perception')
+      expect(battle.players[1].defense).toBe(6)
+      expect(battle.players[0].defense).toBe(0)
       expect(battle.players[0].resources.focus).toBe(3)
+    })
+
+    it('Covering Fire adds nothing on a Critical Failure', () => {
+      const b = battleOf([ranger(['coveringFire'], { bag: ALWAYS_FAIL }), player('q')], [enemy('goblin', 'a', { hp: 20 })], { k: 'g1', q: 'g2', a: 'g2' })
+      expect(takeAction(b, { actionId: 'ability:coveringFire', targetId: 'q' }, rng()).battle.players[1].defense).toBe(0)
     })
   })
 })

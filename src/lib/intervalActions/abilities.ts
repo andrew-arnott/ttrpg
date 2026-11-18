@@ -212,17 +212,19 @@ const tendTheAfflicted: AbilityAction = {
   },
 }
 
+const FORAGE_BASE_DIFFICULTY = 5
+const FORAGE_FLAG = 'forage:'
+
+/** Forage: a Perception test for a Ration, harder for every Ration already found by foraging. */
 const forage: AbilityAction = {
   perform: (ctx, ability) => {
-    const reward = giveReward(ctx.state, ctx.member.key, { itemId: 'ration', count: 1 })
-    return narrate(
-      ctx,
-      ability.name,
-      `${ctx.member.name} forages around ${ctx.room.name}.`,
-      `${ctx.member.name} turns up enough to eat.${reward.text}`,
-      'success',
-      reward.state,
-    )
+    const found = ctx.state.done.filter((flag) => flag.startsWith(FORAGE_FLAG)).length
+    const difficulty = FORAGE_BASE_DIFFICULTY + found
+    const intro = withDarkness(ctx, `${ctx.member.name} forages around ${ctx.room.name}.`)
+    const test = runTest(ctx, 'perception', difficulty)
+    if (!test.passed) return narrate(ctx, ability.name, intro, 'Nothing edible turns up.', 'failure', ctx.state, test)
+    const reward = giveReward(markDone(ctx.state, `${FORAGE_FLAG}${found + 1}`), ctx.member.key, { itemId: 'ration', count: 1 })
+    return narrate(ctx, ability.name, intro, `${ctx.member.name} turns up enough to eat.${reward.text}`, 'success', reward.state, test)
   },
 }
 

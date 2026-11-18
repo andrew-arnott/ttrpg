@@ -1487,7 +1487,7 @@ At character creation, choose **1 of these 2 passives**. A passive is always act
 
 **Passive**
 
-You take no penalty for making ranged attacks against enemies you are engaged with.
+You take no penalty for making ranged attacks against your Quarry, even when you are engaged with it.
 
 #### Hunter's Focus
 
@@ -1521,7 +1521,7 @@ Make an attack against your Quarry.
 
 On a hit, deal **2 additional damage**.
 
-#### Retreating Shot
+#### Retreating Strike
 
 **Fight — 1 Focus**
 
@@ -1531,7 +1531,9 @@ Make an attack against an enemy, then break away to an engagement group of your 
 
 **Action — 1 Focus**
 
-Choose an ally. They gain **+2 Defense** this round.
+Choose an ally and make a **Perception test**. Add the result to their Defense score this round, as for a Defend.
+
+A Critical Failure adds nothing.
 
 #### Snap Shot
 
@@ -1547,7 +1549,9 @@ It does not use an action.
 
 **Interval — 1 Focus**
 
-Search the surroundings for food. Add 1 Ration to your pack.
+Search the surroundings for food with a **Perception test**. Each Ration you have already found while foraging adds 1 to the Difficulty.
+
+On a success, add 1 Ration to your pack. The Focus is spent either way.
 
 #### Set a Snare
 
