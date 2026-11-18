@@ -627,9 +627,21 @@ Abilities may combine action types, such as **Engage + Fight**, to perform both 
 
 ### Attacking
 
-Your weapon decides what an attack tests: sword and mace Strength, dagger Agility, shortbow Perception, magic staff Intelligence, bare hands Strength. A two-handed weapon does 1 extra damage. A ranged weapon can attack enemies you are not engaged with, but is at −2 against ones you are. Melee weapons can only attack enemies you are engaged with.
+Your weapon decides what an attack tests: sword and mace Strength, dagger Agility, shortbow Perception, magic staff Intelligence, bare hands Strength. A two-handed weapon does 1 extra damage. A ranged weapon makes ranged attacks. Every other weapon, and bare hands, make melee attacks.
 
 To attack an enemy, make a test using the appropriate SPECIAL attribute against the enemy's **Defense**.
+
+#### Melee and Ranged Attacks
+
+Every attack is a **melee attack**, a **ranged attack**, or a **ranged or melee attack**.
+
+* A **melee attack** can only be made against an enemy you are engaged with.
+* A **ranged attack** can only be made against an enemy you are not engaged with.
+* A **ranged or melee attack** can be made against any enemy, whatever your engagement.
+
+An ordinary attack is a ranged attack if your weapon is ranged, and a melee attack otherwise. An ability that makes an attack says which kind it is.
+
+Some abilities change these limits. For example, Keen Eye lets a Ranger make ranged attacks against their Quarry even when engaged with it.
 
 On success, the attack hits and applies its damage and any additional effects.
 
@@ -831,11 +843,11 @@ Resources spent on Fight abilities are committed before drawing tokens for the a
 
 #### Provoke
 
-Provoke can target any enemy in the room, not only the ones you are engaged with.
+Provoke is a ranged or melee attack, so it can target any enemy in the room, not only the ones you are engaged with.
 
 **Fight — 1 Resolve**
 
-Make an attack against an enemy.
+Make a **ranged or melee attack** against an enemy.
 
 On success, deal damage normally, seal the Resolve on the enemy, and apply **Provoked**.
 
@@ -848,7 +860,7 @@ While Provoked:
 
 **Fight — 1 Resolve**
 
-Make an attack against an enemy.
+Make a **melee attack** against an enemy.
 
 On success, deal damage normally, seal the Resolve on the enemy, and apply **Disabled**.
 
@@ -858,7 +870,7 @@ While Disabled, reduce damage from the enemy's attacks by 1 for each Resolve you
 
 **Triggered — 1 Resolve**
 
-When you defeat an enemy with an attack, spend 1 Resolve to immediately make another attack against a different enemy you can reach.
+When you defeat an enemy with an attack, spend 1 Resolve to immediately make another **melee attack** against a different enemy you are engaged with.
 
 #### Intercept
 
@@ -882,7 +894,7 @@ You choose which incoming attacks consume your Defend score.
 
 **Fight — 1 Resolve**
 
-Make an attack against an enemy you are engaged with.
+Make a melee attack against an enemy you are engaged with.
 
 On success, deal damage normally and knock the enemy out of its engagement group. It is no longer engaged with anyone, so on its next turn it can only close in on you.
 
@@ -890,7 +902,7 @@ On success, deal damage normally and knock the enemy out of its engagement group
 
 **Fight — 2 Resolve**
 
-Make one attack against every enemy in your engagement group. Compare the single result with each enemy's Defense, and deal damage to every enemy it reaches.
+Make one **melee attack** against every enemy in your engagement group. Compare the single result with each enemy's Defense, and deal damage to every enemy it reaches.
 
 #### Last Stand
 
@@ -1018,7 +1030,7 @@ At character creation, choose **4 Rogue abilities**.
 
 You must not be engaged when using this ability.
 
-Engage an enemy without making an engagement test, then attack it.
+Engage an enemy without making an engagement test, then make a **melee attack** against it.
 
 On success, deal **2 additional damage**.
 
@@ -1034,7 +1046,7 @@ You may join another engagement group or remain unengaged.
 
 **Fight — 1 Cunning**
 
-Make an attack against an enemy.
+Make a **melee attack** against an enemy.
 
 On success, deal damage normally, seal the Cunning on the target, and apply **Exposed**.
 
@@ -1044,7 +1056,7 @@ While Exposed, reduce the enemy's Defense by 1 for each Cunning you have sealed 
 
 **Triggered — 1 Cunning**
 
-When an ally defeats an enemy in your engagement group, spend 1 Cunning to immediately make an attack against another enemy in that group.
+When an ally defeats an enemy in your engagement group, spend 1 Cunning to immediately make a **melee attack** against another enemy in that group.
 
 ### Rogue Exploration Abilities
 
@@ -1220,7 +1232,7 @@ This bonus still applies even if the sealed Faith is released before the attack.
 
 **Fight — 4 Faith**
 
-Make an attack against one enemy. On a hit, deal **5 damage total**.
+Make a **melee attack** against one enemy. On a hit, deal **5 damage total**.
 
 ### Priest Exploration Abilities
 
@@ -1324,7 +1336,7 @@ A Fireball makes one Intelligence draw and compares the result with every enemy�
 
 Choose an engagement group in your room and spend X Mana.
 
-Make an Intelligence attack against each enemy in that engagement group, using each enemy's Defense.
+Make a **ranged or melee** Intelligence attack against each enemy in that engagement group, using each enemy's Defense.
 
 Each enemy successfully hit takes **X damage**.
 
@@ -1345,7 +1357,7 @@ For every **3 Mana spent**, add 1 Fatigue token to your bag.
 
 **Fight — Escalating Mana**
 
-Choose an enemy and make an Intelligence attack against its Defense.
+Choose an enemy and make a **ranged or melee** Intelligence attack against its Defense.
 
 On success, deal **2 damage**.
 
@@ -1392,7 +1404,7 @@ Arcane Focus only recovers Mana. It cannot recover Expertise or other Resource t
 
 Choose two engagement groups in your room and merge them into one.
 
-Make an Intelligence attack against each enemy in the new group, using each enemy's Defense. Each enemy successfully hit takes **1 damage**.
+Make a **ranged or melee** Intelligence attack against each enemy in the new group, using each enemy's Defense. Each enemy successfully hit takes **1 damage**.
 
 All allied characters in the new group automatically take 1 damage.
 
@@ -1487,7 +1499,7 @@ At character creation, choose **1 of these 2 passives**. A passive is always act
 
 **Passive**
 
-You take no penalty for making ranged attacks against your Quarry, even when you are engaged with it.
+You may make ranged attacks against your Quarry even when you are engaged with it.
 
 #### Hunter's Focus
 
@@ -1511,13 +1523,13 @@ You may have only one Quarry: marking another enemy returns the Focus sealed on 
 
 **Fight — 1 Focus**
 
-Make an attack with **+2 to the test result**.
+Make a **ranged attack** with **+2 to the test result**.
 
 #### Called Shot
 
 **Fight — 2 Focus**
 
-Make an attack against your Quarry.
+Make a **ranged attack** against your Quarry.
 
 On a hit, deal **2 additional damage**.
 
@@ -1525,7 +1537,7 @@ On a hit, deal **2 additional damage**.
 
 **Fight — 1 Focus**
 
-Make an attack against an enemy, then break away to an engagement group of your own without making an engagement test.
+Make a **melee attack** against an enemy, then break away to an engagement group of your own without making an engagement test.
 
 #### Covering Fire
 
@@ -1539,7 +1551,7 @@ A Critical Failure adds nothing.
 
 **Fast + Fight — 2 Focus**
 
-Make an attack against your Quarry.
+Make a **ranged attack** against your Quarry.
 
 It does not use an action.
 
@@ -1577,7 +1589,7 @@ These tables are generated from the app's data by `npm run rules:sync`. Do not e
 
 ### Hands and Weapons
 
-Each character has two hand slots, Main Hand and Off Hand. A two-handed weapon does 1 extra damage. A ranged weapon can attack enemies you are not engaged with, and is at -2 against ones you are.
+Each character has two hand slots, Main Hand and Off Hand. A two-handed weapon does 1 extra damage. A ranged weapon makes ranged attacks, which can only target enemies you are not engaged with. Every other weapon makes melee attacks, which can only target enemies you are engaged with.
 
 | Item | Coins | Hands | Attacks test | Notes |
 | --- | --- | --- | --- | --- |
@@ -1585,7 +1597,7 @@ Each character has two hand slots, Main Hand and Off Hand. A two-handed weapon d
 | Mace | 2 | 1 | Strength | Attacks test Strength. |
 | Dagger | 1 | 1 | Agility | Attacks test Agility. |
 | Greataxe | 3 | 2 | Strength | Two-handed. Attacks test Strength and do 1 extra damage. |
-| Shortbow | 3 | 2 | Perception | Two-handed and ranged. Attacks test Perception and do 1 extra damage. Can hit enemies you are not engaged with, but is at -2 against ones you are. |
+| Shortbow | 3 | 2 | Perception | Two-handed and ranged. Attacks test Perception and do 1 extra damage. Makes ranged attacks, which can only hit enemies you are not engaged with. |
 | Magic Staff | 3 | 2 | Intelligence | Two-handed. Attacks test Intelligence and do 1 extra damage. |
 | Shield | 2 | 1 | none | Adds 2 Shield (+2) tokens to your bag. Each one you draw soaks up damage until it is used. |
 

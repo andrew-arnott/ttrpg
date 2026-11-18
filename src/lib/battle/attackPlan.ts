@@ -1,11 +1,11 @@
 import { SPECIAL_LABELS, type SpecialKey } from '../../data/types'
-import { attackProfile, RANGED_CLOSE_PENALTY, TWO_HANDED_DAMAGE } from '../../data/weapons'
+import { attackProfile, TWO_HANDED_DAMAGE } from '../../data/weapons'
 import type { TestBonus } from '../skillTest'
 import type { BattlePlayer } from './types'
 
 export interface AttackPlan {
   attribute: SpecialKey
-  /** Power committed, and the penalty for a ranged weapon at close quarters. */
+  /** Power committed. */
   modifiers: TestBonus[]
   /** Damage added to a hit before anything else, such as a two-handed weapon. */
   extraDamage: number
@@ -17,18 +17,13 @@ export interface AttackPlan {
  */
 export function planAttack(
   p: BattlePlayer,
-  options: { attribute?: SpecialKey; power?: number; closeRange: boolean; quarry?: boolean },
+  options: { attribute?: SpecialKey; power?: number },
 ): AttackPlan {
   const weapon = attackProfile(p.hands)
   const withWeapon = options.attribute === undefined
   return {
     attribute: options.attribute ?? weapon.attribute,
-    modifiers: [
-      ...(options.power ? [{ label: 'Power', value: options.power }] : []),
-      ...(withWeapon && weapon.ranged && options.closeRange && !(options.quarry && p.abilityIds.includes('keenEye'))
-        ? [{ label: weapon.name, value: RANGED_CLOSE_PENALTY }]
-        : []),
-    ],
+    modifiers: options.power ? [{ label: 'Power', value: options.power }] : [],
     extraDamage: withWeapon && weapon.twoHanded ? TWO_HANDED_DAMAGE : 0,
   }
 }
@@ -40,7 +35,7 @@ export function describeAttack(p: BattlePlayer): string {
   const weapon = attackProfile(p.hands)
   const damage = weapon.twoHanded ? '2 damage' : '1 damage'
   const reach = weapon.ranged
-    ? `You can attack any enemy, but it is ${RANGED_CLOSE_PENALTY} against one you are engaged with.`
-    : 'You can only attack an enemy you are engaged with.'
+    ? 'It is a ranged attack: you can only attack an enemy you are not engaged with.'
+    : 'It is a melee attack: you can only attack an enemy you are engaged with.'
   return `Make ${withArticle(SPECIAL_LABELS[weapon.attribute])} test with your ${weapon.name} against an enemy's Defense. A hit deals ${damage}. ${reach}`
 }

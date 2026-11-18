@@ -446,8 +446,8 @@ export function StepEquipment({ draft, built, update }: StepProps) {
       <h3 className="section-title">Hands</h3>
       <p className="hint">
         Two hand slots, bought with your starting coins. Your weapon decides what an attack tests. A two-handed weapon takes both hands
-        and does 1 extra damage. A ranged weapon can attack enemies you are not engaged with, but is at -2 against
-        ones you are. A shield adds 2 Shield tokens to your bag.{' '}
+        and does 1 extra damage. A ranged weapon makes ranged attacks, which can only target enemies you are not engaged
+        with; other weapons make melee attacks, which can only target enemies you are engaged with. A shield adds 2 Shield tokens to your bag.{' '}
         <RulesLink slug={RULES_LINKS.equipment}>Equipment rules</RulesLink>
       </p>
       <div className="hands">

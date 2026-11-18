@@ -98,6 +98,9 @@ export type AbilityType =
   | 'Interval'
   | 'Passive'
 
+/** How an attack reaches: melee only at enemies you are engaged with, ranged only at ones you are not, either at any. */
+export type AttackKind = 'melee' | 'ranged' | 'either'
+
 export interface Ability {
   id: string
   name: string
@@ -105,6 +108,8 @@ export interface Ability {
   types: AbilityType[]
   cost: string
   text: string
+  /** Set when the ability makes an attack, which decides what it can target. */
+  attack?: AttackKind
 }
 
 export interface ResourceDef {

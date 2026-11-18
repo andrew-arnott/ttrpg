@@ -240,7 +240,7 @@ export interface AttackOptions {
 export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, options: AttackOptions = {}): boolean {
   const { b } = engine
   const onQuarry = isQuarry(e, p)
-  const plan = planAttack(p, { attribute: options.attribute, power: options.power, closeRange: groupOf(b, e.id) === groupOf(b, p.key), quarry: onQuarry })
+  const plan = planAttack(p, { attribute: options.attribute, power: options.power })
   const empowered = p.strikeBonus ?? 0
   p.strikeBonus = 0
   const test = playerTest(engine, p, plan.attribute, enemyDefense(e), [
@@ -655,7 +655,7 @@ export function sweepingBlow(engine: Engine, p: BattlePlayer, power: number) {
   const groupId = groupOf(b, p.key)
   const living = enemiesInGroup(b, groupId).filter((e) => e.hp > 0)
   if (living.length === 0) return
-  const plan = planAttack(p, { power, closeRange: true })
+  const plan = planAttack(p, { power })
   const lowest = Math.min(...living.map((e) => enemyDefense(e)))
   const test = playerTest(engine, p, plan.attribute, lowest, plan.modifiers)
   const outcome = test.result.outcome

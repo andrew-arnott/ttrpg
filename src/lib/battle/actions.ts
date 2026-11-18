@@ -1,4 +1,3 @@
-import { attackProfile } from '../../data/weapons'
 import { describeAttack } from './attackPlan'
 import { ABILITY_HANDLERS, unsupportedAbility } from './abilities'
 import { canAttack, canUseFastOrTriggered } from './conditionRules'
@@ -7,7 +6,6 @@ import {
   abilityById,
   addStep,
   enemyById,
-  engagedEnemies,
   livingEnemies,
   parseCost,
   playerActorOf,
@@ -16,7 +14,7 @@ import {
 } from './state'
 import { engageTargetLabel } from './engagement'
 import { boostOption, commitResource, resourceAvailable, commitmentValue, noCommitment, releaseCommitment, type Commitment } from './tokens'
-import { enemyTargets, groupTargets, noUsableTarget, onlyEngaged, resourceGate } from './targets'
+import { attackReach, enemyTargets, groupTargets, noUsableTarget, resourceGate, weaponKind } from './targets'
 import type { BattlePlayer, BattleState, CombatOption, PlannedCombat } from './types'
 
 const FEAR_REASON = 'Fear: you cannot attack'
@@ -33,6 +31,7 @@ function abilityOptions(b: BattleState, p: BattlePlayer): CombatOption[] {
         p,
         id: `ability:${ability.id}`,
         gate: resourceGate(p, ability),
+        attack: ability.attack,
         base: {
           slot: ability.types.includes('Fast') ? 'fast' : 'action',
           label: ability.name,
@@ -65,7 +64,6 @@ export function availableCombatActions(b: BattleState, p: BattlePlayer): CombatO
 }
 
 function listCombatActions(b: BattleState, p: BattlePlayer): CombatOption[] {
-  const weapon = attackProfile(p.hands)
   const groups = groupTargets(b, p, false)
   return [
     {
@@ -73,7 +71,7 @@ function listCombatActions(b: BattleState, p: BattlePlayer): CombatOption[] {
       slot: 'action',
       label: 'Attack',
       description: describeAttack(p),
-      targets: enemyTargets(livingEnemies(b), weapon.ranged ? undefined : onlyEngaged(b, p)),
+      targets: enemyTargets(livingEnemies(b), attackReach(b, p, weaponKind(p))),
       boost: boostOption(p, 'power'),
       disabledReason: !canAttack(p) ? FEAR_REASON : livingEnemies(b).length === 0 ? 'No enemy to target' : undefined,
     },
@@ -153,12 +151,10 @@ export function performAction(engine: Engine, p: BattlePlayer, planned: PlannedC
   releaseCommitment(p, boostCommit)
 }
 
-/** What to pre-select for a player: attack if they can, otherwise defend. A ranged weapon prefers an enemy it is not at close quarters with. */
+/** What to pre-select for a player: attack the first enemy their weapon can reach if they can, otherwise defend. */
 export function suggestedAction(b: BattleState, p: BattlePlayer): PlannedCombat {
   if (!canAttack(p)) return { actionId: 'defend' }
-  const engaged = engagedEnemies(b, p)
-  const target = attackProfile(p.hands).ranged
-    ? (livingEnemies(b).find((e) => !engaged.includes(e)) ?? engaged[0])
-    : engaged[0]
+  const reach = attackReach(b, p, weaponKind(p))
+  const target = livingEnemies(b).find((e) => !reach(e))
   return target ? { actionId: 'attack', targetId: target.id } : { actionId: 'defend' }
 }

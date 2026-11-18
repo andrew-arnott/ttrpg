@@ -509,8 +509,9 @@ describe('weapons', () => {
     expect(attribute(null)).toBe('strength')
     expect(attribute('sword')).toBe('strength')
     expect(attribute('dagger')).toBe('agility')
-    expect(attribute('shortbow')).toBe('perception')
     expect(attribute('magicStaff')).toBe('intelligence')
+    const bow = battleOf([player('p', { hands: { main: 'shortbow', off: null }, bag: ALWAYS_PASS })], [enemy('goblin', 'far', { hp: 20 })], { p: 'g1', far: 'g2' })
+    expect(takeAction(bow, attack('far'), rng()).steps[0].test!.attribute).toBe('perception')
   })
 
   it('uses the first weapon held, even in the off hand, and ignores a shield', () => {
@@ -542,18 +543,20 @@ describe('weapons', () => {
     expect(steps[0].outcome).toMatch(/hits far/)
   })
 
-  it('is at -2 against an enemy it is engaged with', () => {
-    const { steps } = takeAction(armed('shortbow'), attack('e'), rng())
-    expect(steps[0].test?.bonuses).toEqual([{ label: 'shortbow', value: -2 }])
-    expect(steps[0].test?.total).toBe(steps[0].test!.result.total + 1 - 2)
+  it('cannot make a ranged attack against an enemy it is engaged with', () => {
+    const b = armed('shortbow')
+    expect(near(b).targets![0].disabledReason).toMatch(/too close for a ranged attack/)
+    expect(near(b).disabledReason).toBe('No enemy you are not engaged with')
+    const { steps } = takeAction(b, attack('e'), rng())
+    expect(steps[0].title).toBe('No move')
   })
 
-  it('keeps melee weapons to engaged enemies, and describes the attack', () => {
+  it('keeps melee weapons to engaged enemies, and describes both kinds of attack', () => {
     const b = battleOf([player('p', { hands: { main: 'sword', off: null } })], [enemy('goblin', 'far')], { p: 'g1', far: 'g2' })
     expect(near(b).disabledReason).toBe('No enemy you are engaged with')
-    expect(near(b).description).toMatch(/Strength test with your sword/)
+    expect(near(b).description).toMatch(/Strength test with your sword.*melee attack/)
     const bow = battleOf([player('p', { hands: { main: 'shortbow', off: null } })], [enemy('goblin', 'far')], { p: 'g1', far: 'g2' })
-    expect(near(bow).description).toMatch(/Perception test with your shortbow.*2 damage.*-2/)
+    expect(near(bow).description).toMatch(/Perception test with your shortbow.*2 damage.*ranged attack/)
   })
 
   it('does not change spell attacks, which name their own attribute', () => {
@@ -1798,15 +1801,16 @@ describe('Ranger', () => {
       expect(hps(takeAction(without, attack('a'), rng()).battle)).toEqual([20 - 2, 20])
     })
 
-    it('Keen Eye removes the penalty for a ranged attack against an engaged Quarry, and only against it', () => {
+    it('Keen Eye lets a ranged attack target an engaged Quarry, and only the Quarry', () => {
       const engaged = { k: 'g1', a: 'g1', b: 'g1' }
-      const penalty = (abilityIds: string[], target: string) => {
-        const marked = takeAction(hunt(['markQuarry', ...abilityIds], engaged), mark('a'), rng()).battle
-        return takeAction(marked, attack(target), rng()).steps[0].test!.bonuses.some((x) => x.value === -2)
+      const reach = (abilityIds: string[]) => {
+        const marked = takeAction(hunt(['markQuarry', 'aimedShot', ...abilityIds], engaged), mark('a'), rng()).battle
+        const option = availableCombatActions(marked, marked.players[0]).find((o) => o.id === 'ability:aimedShot')!
+        return Object.fromEntries(option.targets!.map((t) => [t.id, t.disabledReason]))
       }
-      expect(penalty(['keenEye'], 'a')).toBe(false)
-      expect(penalty(['keenEye'], 'b')).toBe(true)
-      expect(penalty([], 'a')).toBe(true)
+      expect(reach(['keenEye']).a).toBeUndefined()
+      expect(reach(['keenEye']).b).toMatch(/too close/)
+      expect(reach([]).a).toMatch(/too close/)
     })
   })
 
@@ -1859,6 +1863,64 @@ describe('Ranger', () => {
     it('Covering Fire adds nothing on a Critical Failure', () => {
       const b = battleOf([ranger(['coveringFire'], { bag: ALWAYS_FAIL }), player('q')], [enemy('goblin', 'a', { hp: 20 })], { k: 'g1', q: 'g2', a: 'g2' })
       expect(takeAction(b, { actionId: 'ability:coveringFire', targetId: 'q' }, rng()).battle.players[1].defense).toBe(0)
+    })
+  })
+})
+
+describe('melee and ranged attacks', () => {
+  const field = (abilityIds: string[]) =>
+    battleOf(
+      [player('p', { abilityIds, resources: { resolve: 5, cunning: 5, mana: 6, focus: 5, faith: 5 }, hands: { main: 'sword', off: null } })],
+      [enemy('goblin', 'near', { hp: 20 }), enemy('goblin', 'far', { hp: 20 })],
+      { p: 'g1', near: 'g1', far: 'g2' },
+    )
+  const reachable = (ability: string) => {
+    const b = field([ability])
+    const option = availableCombatActions(b, b.players[0]).find((o) => o.id.startsWith(`ability:${ability}`))!
+    return option.targets!.filter((t) => !t.disabledReason).map((t) => t.id)
+  }
+
+  it('limits melee attacks to enemies you are engaged with', () => {
+    for (const ability of ['disable', 'shieldBash', 'cheapShot', 'retreatingStrike', 'divineJudgment']) {
+      expect(reachable(ability), ability).toEqual(['near'])
+    }
+  })
+
+  it('limits ranged attacks to enemies you are not engaged with', () => {
+    for (const ability of ['aimedShot']) {
+      const b = field([ability, 'markQuarry'])
+      const marked = takeAction(b, { actionId: 'ability:markQuarry', targetId: 'far' }, rng()).battle
+      const option = availableCombatActions(marked, marked.players[0]).find((o) => o.id === `ability:${ability}`)!
+      expect(option.targets!.filter((t) => !t.disabledReason).map((t) => t.id)).toEqual(['far'])
+    }
+    const aimed = field(['aimedShot'])
+    expect(availableCombatActions(aimed, aimed.players[0]).find((o) => o.id === 'ability:aimedShot')!.targets!.filter((t) => !t.disabledReason).map((t) => t.id)).toEqual(['far'])
+  })
+
+  it('lets a ranged or melee attack reach anyone', () => {
+    expect(reachable('provoke').sort()).toEqual(['far', 'near'])
+    expect(reachable('chainLightning').sort()).toEqual(['far', 'near'])
+  })
+
+  it('marks each attack ability with the kind it is', () => {
+    const kinds = Object.fromEntries(
+      PROFESSIONS.flatMap((prof) => [...(prof.passives ?? []), ...prof.abilities, ...prof.explorationAbilities]).map((a) => [a.id, a.attack]),
+    )
+    expect(kinds).toMatchObject({
+      provoke: 'either',
+      disable: 'melee',
+      shieldBash: 'melee',
+      sweepingBlow: 'melee',
+      cheapShot: 'melee',
+      backstab: 'melee',
+      divineJudgment: 'melee',
+      aimedShot: 'ranged',
+      calledShot: 'ranged',
+      snapShot: 'ranged',
+      retreatingStrike: 'melee',
+      fireball: 'either',
+      chainLightning: 'either',
+      gravityWell: 'either',
     })
   })
 })

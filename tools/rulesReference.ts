@@ -1,6 +1,6 @@
 import { ENEMIES, type EnemyAttack } from '../src/data/enemies'
 import { HOLY_TORCH, ITEMS, ORDINARY_TORCH, STARTING_COINS } from '../src/data/items'
-import { RANGED_CLOSE_PENALTY, HAND_ITEMS, TWO_HANDED_DAMAGE } from '../src/data/weapons'
+import { HAND_ITEMS, TWO_HANDED_DAMAGE } from '../src/data/weapons'
 import { TOKENS } from '../src/data/tokens'
 import { SPECIAL_LABELS } from '../src/data/types'
 
@@ -24,7 +24,7 @@ function handItems(): string {
     i.description,
   ])
   return [
-    `Each character has two hand slots, Main Hand and Off Hand. A two-handed weapon does ${TWO_HANDED_DAMAGE} extra damage. A ranged weapon can attack enemies you are not engaged with, and is at ${RANGED_CLOSE_PENALTY} against ones you are.`,
+    `Each character has two hand slots, Main Hand and Off Hand. A two-handed weapon does ${TWO_HANDED_DAMAGE} extra damage. A ranged weapon makes ranged attacks, which can only target enemies you are not engaged with. Every other weapon makes melee attacks, which can only target enemies you are engaged with.`,
     table(['Item', 'Coins', 'Hands', 'Attacks test', 'Notes'], rows),
   ].join('\n\n')
 }

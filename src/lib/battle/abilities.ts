@@ -1,4 +1,5 @@
 import { BACKSTAB_DAMAGE, DIVINE_JUDGMENT_DAMAGE, MAX_FIREBALL_MANA } from './types'
+import type { AttackKind } from '../../data/types'
 import type { BattleEnemy, BattlePlayer, BattleState, CombatOption } from './types'
 import {
   attackEnemy,
@@ -36,9 +37,8 @@ import {
 } from './state'
 import { resourceAvailable, type Commitment } from './tokens'
 import { cleanse } from './conditions'
-import { allyTargets, ENGAGED, enemyTargets, groupTargets, onlyEngaged } from './targets'
+import { allyTargets, ENGAGED, attackReach, enemyTargets, groupTargets, weaponKind } from './targets'
 import { canAttack } from './conditionRules'
-import { attackProfile } from '../../data/weapons'
 
 const UNSUPPORTED = 'Not in the sample battle yet'
 const NO_ENEMY = 'No enemy to target'
@@ -52,6 +52,8 @@ export interface OptionContext {
   base: OptionBase
   /** Why the ability's cost cannot be paid, if it cannot. */
   gate?: string
+  /** How its attack reaches, for an ability that makes one. */
+  attack?: AttackKind
 }
 
 export interface PerformContext {
@@ -75,47 +77,28 @@ export interface AbilityHandler {
   costOf?(extra: string | undefined): { tokenId: string; amount: number }
 }
 
-/** A Fight option against enemies. Most can only reach the enemies the player is engaged with. */
-const enemyFightOptions =
-  (reach: 'engaged' | 'room') =>
-  ({ b, p, id, base, gate }: OptionContext): CombatOption[] => {
-    const living = livingEnemies(b)
-    return [
-      {
-        ...base,
-        id,
-        targets: enemyTargets(living, reach === 'engaged' ? onlyEngaged(b, p) : undefined),
-        disabledReason: gate ?? (living.length === 0 ? NO_ENEMY : undefined),
-      },
-    ]
-  }
-
-/** Which enemies a character's ordinary attack can reach: only those they are engaged with, unless their weapon is ranged. */
-const attackReach = (b: BattleState, ally: BattlePlayer) =>
-  attackProfile(ally.hands).ranged ? undefined : onlyEngaged(b, ally)
-
-/** A Fight option reaching whatever the weapon in hand can: any enemy for a ranged weapon, otherwise only engaged ones. */
-const weaponFightOptions = ({ b, p, id, base, gate }: OptionContext): CombatOption[] => {
+/** A Fight option against enemies, limited to the ones its kind of attack can reach. */
+const attackFightOptions = ({ b, p, id, base, gate, attack }: OptionContext): CombatOption[] => {
   const living = livingEnemies(b)
   return [
     {
       ...base,
       id,
-      targets: enemyTargets(living, attackReach(b, p)),
+      targets: enemyTargets(living, attackReach(b, p, attack)),
       disabledReason: gate ?? (living.length === 0 ? NO_ENEMY : undefined),
     },
   ]
 }
 
-/** A Fight option that can only be aimed at the Ranger's Quarry, within the weapon's reach. */
-const quarryFightOptions = ({ b, p, id, base, gate }: OptionContext): CombatOption[] => {
+/** A Fight option that can only be aimed at the Ranger's Quarry, within the reach of its kind of attack. */
+const quarryFightOptions = ({ b, p, id, base, gate, attack }: OptionContext): CombatOption[] => {
   const living = livingEnemies(b)
-  const reach = attackReach(b, p)
+  const reach = attackReach(b, p, attack)
   return [
     {
       ...base,
       id,
-      targets: enemyTargets(living, (e) => (isQuarry(e, p) ? reach?.(e) : 'Not your Quarry')),
+      targets: enemyTargets(living, (e) => (isQuarry(e, p) ? reach(e) : 'Not your Quarry')),
       disabledReason: gate ?? (living.some((e) => isQuarry(e, p)) ? undefined : 'You have no Quarry'),
     },
   ]
@@ -132,7 +115,7 @@ export const unsupportedAbility: AbilityHandler = {
 
 export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
   provoke: {
-    options: enemyFightOptions('room'),
+    options: attackFightOptions,
     perform: ({ engine, p, enemy, commit, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {
@@ -147,7 +130,7 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     },
   },
   disable: {
-    options: enemyFightOptions('engaged'),
+    options: attackFightOptions,
     perform: ({ engine, p, enemy, commit, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {
@@ -161,7 +144,7 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     },
   },
   shieldBash: {
-    options: enemyFightOptions('engaged'),
+    options: attackFightOptions,
     perform: ({ engine, p, enemy, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {
@@ -186,7 +169,7 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     perform: ({ engine, p, boost }) => sweepingBlow(engine, p, boost),
   },
   cheapShot: {
-    options: enemyFightOptions('engaged'),
+    options: attackFightOptions,
     perform: ({ engine, p, enemy, commit, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {
@@ -326,7 +309,7 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     },
   },
   aimedShot: {
-    options: weaponFightOptions,
+    options: attackFightOptions,
     perform: ({ engine, p, enemy }) => {
       if (enemy) aimedShot(engine, p, enemy)
     },
@@ -344,7 +327,7 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     },
   },
   retreatingStrike: {
-    options: weaponFightOptions,
+    options: attackFightOptions,
     perform: ({ engine, p, enemy }) => {
       if (enemy) retreatingStrike(engine, p, enemy)
     },
@@ -367,7 +350,7 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
         ...base,
         id: `${id}:${ally.key}`,
         label: `Inspiring Command: ${ally.name}`,
-        targets: enemyTargets(livingEnemies(b), attackReach(b, ally)),
+        targets: enemyTargets(livingEnemies(b), attackReach(b, ally, weaponKind(ally))),
         disabledReason: gate ?? (canAttack(ally) ? undefined : `${ally.name} cannot attack`),
       })),
     perform: ({ engine, p, enemy, extra, commit }) => {
@@ -390,7 +373,7 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     },
   },
   divineJudgment: {
-    options: enemyFightOptions('engaged'),
+    options: attackFightOptions,
     perform: ({ engine, p, enemy, boost }) => {
       if (!enemy) return
       attackEnemy(engine, p, enemy, {

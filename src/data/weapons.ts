@@ -11,7 +11,7 @@ export interface HandItem {
   attribute?: SpecialKey
   /** Hand slots it takes. A two-handed weapon takes both and does 1 extra damage. */
   hands: 1 | 2
-  /** Can attack enemies you are not engaged with, but is at a penalty against ones you are. */
+  /** Makes ranged attacks, which can only reach enemies you are not engaged with. Other weapons make melee attacks. */
   ranged?: boolean
   /** Shield (+2) tokens it adds to the bag. */
   shieldTokens?: number
@@ -19,7 +19,6 @@ export interface HandItem {
 }
 
 export const TWO_HANDED_DAMAGE = 1
-export const RANGED_CLOSE_PENALTY = -2
 
 export const HAND_ITEMS: HandItem[] = [
   {
@@ -67,7 +66,7 @@ export const HAND_ITEMS: HandItem[] = [
     hands: 2,
     ranged: true,
     description:
-      'Two-handed and ranged. Attacks test Perception and do 1 extra damage. Can hit enemies you are not engaged with, but is at -2 against ones you are.',
+      'Two-handed and ranged. Attacks test Perception and do 1 extra damage. Makes ranged attacks, which can only hit enemies you are not engaged with.',
   },
   {
     id: 'magicStaff',
@@ -106,6 +105,10 @@ export interface AttackProfile {
 }
 
 const UNARMED: AttackProfile = { name: 'bare hands', attribute: 'strength', twoHanded: false, ranged: false }
+
+/** Whether an ordinary attack with these hands is melee or ranged. */
+export const weaponAttackKind = (hands: Hands | undefined): 'melee' | 'ranged' =>
+  attackProfile(hands).ranged ? 'ranged' : 'melee'
 
 /** What an ordinary attack uses: the first weapon held, main hand first, otherwise bare hands. */
 export function attackProfile(hands: Hands | undefined): AttackProfile {
