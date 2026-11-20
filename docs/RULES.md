@@ -3,7 +3,7 @@
 *A fantasy tabletop roleplaying game of strategy, exploration, and adventure.*
 
 This file is the canonical rules. The Rules tab of the site renders it directly, and the app follows it. Where a rule
-is a guess rather than a ruling, `docs/IMPLEMENTATION.md` says so. Section 16 is generated from the app's data
+is a guess rather than a ruling, `docs/IMPLEMENTATION.md` says so. Section 17 is generated from the app's data
 (`npm run rules:sync`); everything else is written by hand, and a test checks that every ability in the app is listed
 here with the same type and cost.
 
@@ -61,7 +61,7 @@ Your profession determines your adventuring abilities, starting HP, and professi
 | **Priest** | 8 | Charisma, Intelligence, Endurance | Healing, blessings, and support |
 | **Wizard** | 8 | Intelligence, Perception, Endurance | Spells that affect groups of enemies, and resource management |
 | **Ranger** | 10 | Perception, Agility, Strength | Ranged combat, hunting, and wilderness expertise |
-| **Berserker** | TBD | Strength, Endurance, Luck | Aggressive combat and taking risks |
+| **Barbarian** | 14 | Strength, Endurance, Luck | Aggressive combat and taking risks |
 
 The listed attributes are recommendations, not requirements.
 
@@ -1581,9 +1581,115 @@ Study the signs of what hunts the party.
 
 Learn how many Intervals away the patrol is, and who is in it.
 
+## 16. Barbarian
+
+Barbarians are fighters who hit hard and take hits harder. They are at their best when things are going badly, and they gamble their own health and fortune for a better blow.
+
+**Starting HP:** 14
+
+**Important SPECIAL:** Strength, Endurance, Luck
+
+### Starting Tokens
+
+A Barbarian begins with the standard 15-token distribution, plus:
+
+* **3 Fury tokens**
+
+Fury tokens are **+0, Chain, Resource** tokens.
+
+All 3 Fury tokens begin in play.
+
+### Fury
+
+Fury represents the Barbarian's battle rage.
+
+When you draw Fury during a test, put it in play after resolving the test.
+
+Spend Fury to activate Barbarian abilities. Spent Fury returns to your bag.
+
+Expertise may be spent as Fury. A Critical Success token in play counts as 2 Expertise.
+
+### Reckless
+
+Some Barbarian abilities are **Reckless**. A Reckless ability adds a condition token, such as Fatigue, to **your own bag** as the price of its effect. It stays in your bag until it is removed through treatment, so each Reckless ability makes your later tests a little more dangerous.
+
+### Barbarian Passives
+
+At character creation, choose **1 of these 2 passives**. A passive is always active, and it does not count towards your 4 Barbarian abilities.
+
+#### Bloodied Rage
+
+**Passive**
+
+While you are at half your maximum HP or less (rounded down), your attacks deal **+1 damage**.
+
+#### Reckless Fury
+
+**Passive**
+
+Whenever you use a Reckless ability, recover 1 Fury.
+
+### Barbarian Abilities
+
+At character creation, choose **4 Barbarian abilities**.
+
+#### Savage Blow
+
+**Fight — 1 Fury**
+
+Make a **melee attack**. On a hit, deal **2 additional damage**.
+
+#### Reckless Charge
+
+**Engage + Fight — 1 Fury**
+
+Reckless. Engage any enemy without an engagement test, then make a **melee attack** against it with **+2 to the test result**.
+
+Afterwards, add 1 Fatigue token to your bag.
+
+#### Berserk Blow
+
+**Fight — 1 Fury**
+
+You cannot use this if it would reduce you to 0 HP.
+
+Take **2 damage**, then make a **melee attack**. On a hit, deal **4 damage total**.
+
+#### Terrifying Roar
+
+**Action — 1 Fury**
+
+Until the end of the round, enemies in your engagement group have **−2 attack value**.
+
+#### Shrug It Off
+
+**Triggered — 1 Fury**
+
+When an attack would deal damage to you, spend 1 Fury to reduce that damage by **2**.
+
+#### Rally Through Pain
+
+**Fast — 1 Fury**
+
+Release 1 sealed condition token of your choice from yourself.
+
+### Barbarian Exploration Abilities
+
+#### Grit Your Teeth
+
+**Interval — 1 Fury**
+
+Reckless. Recover **2 HP**, then add 1 Fatigue token to your bag.
+
+#### Gorge
+
+**Interval — Ration**
+
+Use up a Ration. Recover **3 HP** and recover 1 Fury.
+
 <!-- reference:start -->
 
-## 16. Reference
+## 17. Reference
 
 These tables are generated from the app's data by `npm run rules:sync`. Do not edit them by hand; change `src/data` instead.
 

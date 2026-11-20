@@ -1867,6 +1867,109 @@ describe('Ranger', () => {
   })
 })
 
+describe('Barbarian', () => {
+  const barbarian = (abilityIds: string[], over: Partial<BattlePlayer> = {}) =>
+    player('b', { professionId: 'barbarian', abilityIds, resources: { fury: 4 }, bag: ALWAYS_PASS, hp: 14, maxHp: 14, ...over })
+  const brawl = (abilityIds: string[], over: Partial<BattlePlayer> = {}, groups: Record<string, string> = { b: 'g1', e: 'g1' }) =>
+    battleOf([barbarian(abilityIds, over)], [enemy('goblin', 'e', { hp: 20 }), enemy('goblin', 'f', { hp: 20 })], { f: 'g3', ...groups })
+  const hit = (id: string, targetId = 'e'): PlannedCombat => ({ actionId: `ability:${id}`, targetId })
+  const fatigue = (b: BattleState) => bagCount(b.players[0], 'fatigue')
+
+  it('Savage Blow is a melee attack for 1 Fury that deals 2 more damage', () => {
+    const b = brawl(['savageBlow'])
+    const { battle } = takeAction(b, hit('savageBlow'), rng())
+    expect(battle.enemies[0].hp).toBe(20 - 3)
+    expect(battle.players[0].resources.fury).toBe(3)
+    const option = availableCombatActions(b, b.players[0]).find((o) => o.id === 'ability:savageBlow')!
+    expect(option.targets!.find((t) => t.id === 'f')!.disabledReason).toBeTruthy()
+  })
+
+  describe('Reckless Charge', () => {
+    it('engages any enemy with no test, attacks it at +2, then adds Fatigue to the Barbarian’s bag', () => {
+      const b = brawl(['recklessCharge'], {}, { b: 'g2', e: 'g1' })
+      const { battle, steps } = takeAction(b, hit('recklessCharge', 'f'), rng())
+      expect(battle.groups.b).toBe(battle.groups.f)
+      expect(steps[0].test!.bonuses).toContainEqual({ label: 'Reckless Charge', value: 2 })
+      expect(steps.at(-1)!.title).toBe('Reckless')
+      expect(fatigue(battle)).toBe(1)
+    })
+
+    it('recovers 1 Fury with Reckless Fury, and not without it', () => {
+      const withPassive = takeAction(brawl(['recklessCharge', 'recklessFury'], { bag: [...ALWAYS_PASS, { tokenId: 'fury', count: 2 }] }), hit('recklessCharge'), rng()).battle
+      expect(withPassive.players[0].resources.fury).toBe(4)
+      const without = takeAction(brawl(['recklessCharge'], { bag: [...ALWAYS_PASS, { tokenId: 'fury', count: 2 }] }), hit('recklessCharge'), rng()).battle
+      expect(without.players[0].resources.fury).toBe(3)
+    })
+  })
+
+  it('Berserk Blow takes 2 damage, then deals 4 damage total on a hit', () => {
+    const { battle, steps } = takeAction(brawl(['berserkBlow']), hit('berserkBlow'), rng())
+    expect(steps[0].title).toBe('Berserk')
+    expect(battle.players[0].hp).toBe(12)
+    expect(battle.enemies[0].hp).toBe(16)
+  })
+
+  it('Berserk Blow cannot be used when it would reduce the Barbarian to 0 HP', () => {
+    const b = brawl(['berserkBlow'], { hp: 2 })
+    expect(availableCombatActions(b, b.players[0]).find((o) => o.id === 'ability:berserkBlow')!.disabledReason).toMatch(/0 HP/)
+  })
+
+  it('Terrifying Roar takes 2 off the attack value of enemies in the Barbarian’s group until the round ends', () => {
+    const b = battleOf([barbarian(['terrifyingRoar'])], [enemy('goblin', 'e', { hp: 99 }), enemy('goblin', 'f', { hp: 99 })], { b: 'g1', e: 'g1', f: 'g2' })
+    const { battle } = takeAction(b, { actionId: 'ability:terrifyingRoar' }, rng())
+    expect(battle.enemies.map((e) => e.empowered)).toEqual([-2, 0])
+    const round = playRound(b, { b: turn({ actionId: 'ability:terrifyingRoar' }) }, rng())
+    expect(round.steps.find((s) => s.clash)!.resultLine).toMatch(/Attack 2/)
+    expect(round.battle.enemies[0].empowered).toBe(0)
+  })
+
+  describe('Shrug It Off', () => {
+    const struck = (over: Partial<BattlePlayer> = {}) =>
+      battleOf([barbarian(['shrugItOff'], over)], [enemy('troll', 't', { hp: 99 })], { b: 'g1', t: 'g1' })
+
+    it('reduces damage by 2 for 1 Fury when accepted', () => {
+      const accepted = playRound(struck(), { b: turn() }, rng(), acceptAll)
+      const declined = playRound(struck(), { b: turn() }, rng(), declineAll)
+      const lost = (r: typeof accepted) => 14 - r.battle.players[0].hp
+      expect(lost(declined)).toBe(3)
+      expect(lost(accepted)).toBe(0)
+      expect(accepted.battle.players[0].resources.fury).toBe(2)
+    })
+
+    it('is not offered without Fury', () => {
+      const seen: string[] = []
+      playRound(struck({ resources: { fury: 0 } }), { b: turn() }, rng(), (r) => (seen.push(r.abilityId), { use: true }))
+      expect(seen).not.toContain('shrugItOff')
+    })
+  })
+
+  describe('Rally Through Pain', () => {
+    it('is Fast, and releases a chosen sealed condition from the Barbarian', () => {
+      const b = brawl(['rallyThroughPain'], { sealedConditions: [{ tokenId: 'wound', round: 1 }, { tokenId: 'fear', round: 1 }] })
+      const option = availableCombatActions(b, b.players[0]).find((o) => o.id === 'ability:rallyThroughPain')!
+      expect(option.slot).toBe('fast')
+      const asked = takeAction(b, { actionId: 'ability:rallyThroughPain' }, rng())
+      const { battle } = respondToReaction(asked.battle, { use: true, targetId: '1' }, rng())
+      expect(battle.players[0].sealedConditions?.map((c) => c.tokenId)).toEqual(['wound'])
+      expect(bagCount(battle.players[0], 'fear')).toBe(1)
+    })
+
+    it('needs a sealed condition', () => {
+      const b = brawl(['rallyThroughPain'])
+      expect(availableCombatActions(b, b.players[0]).find((o) => o.id === 'ability:rallyThroughPain')!.disabledReason).toMatch(/Nothing is sealed/)
+    })
+  })
+
+  describe('passives', () => {
+    it('Bloodied Rage adds 1 damage at half HP or less, and not above it', () => {
+      const dmg = (hp: number, passive: string[]) => 20 - takeAction(brawl(['savageBlow', ...passive], { hp }), hit('savageBlow'), rng()).battle.enemies[0].hp
+      expect(dmg(7, ['bloodiedRage'])).toBe(4)
+      expect(dmg(8, ['bloodiedRage'])).toBe(3)
+      expect(dmg(7, [])).toBe(3)
+    })
+  })
+})
+
 describe('melee and ranged attacks', () => {
   const field = (abilityIds: string[]) =>
     battleOf(

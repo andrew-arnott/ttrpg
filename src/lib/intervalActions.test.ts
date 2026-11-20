@@ -1061,3 +1061,42 @@ describe('Ranger exploration abilities', () => {
     expect(after.state.party[0].resources.focus).toBe(4)
   })
 })
+
+describe('Barbarian exploration abilities', () => {
+  const barbarian = (abilityIds: string[], over: Record<string, unknown> = {}) => ({
+    ...sampleMember('warrior', 'b'),
+    professionId: 'barbarian',
+    abilityIds,
+    resources: { fury: 2 },
+    restResourceId: 'fury',
+    hp: 5,
+    maxHp: 14,
+    bag: [...bagOf('plus1'), { tokenId: 'fury', count: 2 }],
+    inventory: { ration: 1 },
+    ...over,
+  })
+  const planFor = (id: string): InteractionPlan => ({ b: { actionId: `ability:${id}` } })
+  const run = (m: ReturnType<typeof barbarian>, id: string) => resolveInterval(stateWith(m), planFor(id), rng()).state.party[0]
+
+  it('Grit Your Teeth recovers 2 HP for 1 Fury and adds Fatigue to the Barbarian’s own bag', () => {
+    const after = run(barbarian(['gritYourTeeth']), 'gritYourTeeth')
+    expect(after.hp).toBe(7)
+    expect(after.resources.fury).toBe(1)
+    expect(countInBag(after.bag, 'fatigue')).toBe(1)
+  })
+
+  it('Grit Your Teeth recovers 1 Fury with Reckless Fury', () => {
+    const after = run(barbarian(['gritYourTeeth', 'recklessFury']), 'gritYourTeeth')
+    expect(after.resources.fury).toBe(2)
+    expect(countInBag(after.bag, 'fury')).toBe(2)
+  })
+
+  it('Gorge uses up a Ration to recover 3 HP and 1 Fury, and needs a Ration', () => {
+    const after = run(barbarian(['gorge']), 'gorge')
+    expect(after.hp).toBe(8)
+    expect(after.inventory.ration).toBe(0)
+    expect(after.resources.fury).toBe(3)
+    const s = stateWith(barbarian(['gorge'], { inventory: {} }))
+    expect(availableActions(s, s.party[0]).find((o) => o.id === 'ability:gorge')!.disabledReason).toMatch(/No Ration/)
+  })
+})

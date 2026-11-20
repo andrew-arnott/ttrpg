@@ -1,4 +1,4 @@
-import { BACKSTAB_DAMAGE, DIVINE_JUDGMENT_DAMAGE, MAX_FIREBALL_MANA } from './types'
+import { BACKSTAB_DAMAGE, BERSERK_BLOW_COST_HP, DIVINE_JUDGMENT_DAMAGE, MAX_FIREBALL_MANA } from './types'
 import type { AttackKind } from '../../data/types'
 import type { BattleEnemy, BattlePlayer, BattleState, CombatOption } from './types'
 import {
@@ -18,6 +18,8 @@ import {
 } from './effects'
 import { aimedShot, calledShot, coveringFire, markQuarry, retreatingStrike, snapShot } from './ranger'
 import { isQuarry } from './quarry'
+import { berserkBlow, rallyThroughPain, recklessCharge, savageBlow, terrifyingRoar } from './barbarian'
+import { sealedOf } from './conditionRules'
 import { arcaneFocus, chainLightning, dissonantPulse, gravityWell, transpose } from './spells'
 import {
   distinctGroupIds,
@@ -294,6 +296,43 @@ export const ABILITY_HANDLERS: Record<string, AbilityHandler> = {
     perform: ({ engine, p, ally, commit }) => {
       if (ally) blessAlly(engine, p, ally, commit)
     },
+  },
+  savageBlow: {
+    options: attackFightOptions,
+    perform: ({ engine, p, enemy }) => {
+      if (enemy) savageBlow(engine, p, enemy)
+    },
+  },
+  recklessCharge: {
+    options: ({ b, id, base, gate }) => {
+      const living = livingEnemies(b)
+      return [{ ...base, id, targets: enemyTargets(living), disabledReason: gate ?? (living.length === 0 ? NO_ENEMY : undefined) }]
+    },
+    perform: ({ engine, p, enemy }) => {
+      if (enemy) recklessCharge(engine, p, enemy)
+    },
+  },
+  berserkBlow: {
+    options: (ctx) =>
+      attackFightOptions(ctx).map((o) => ({
+        ...o,
+        disabledReason: o.disabledReason ?? (ctx.p.hp <= BERSERK_BLOW_COST_HP ? 'It would reduce you to 0 HP' : undefined),
+      })),
+    perform: ({ engine, p, enemy }) => {
+      if (enemy) berserkBlow(engine, p, enemy)
+    },
+  },
+  terrifyingRoar: {
+    options: ({ b, p, id, base, gate }) => [
+      { ...base, id, disabledReason: gate ?? (engagedEnemies(b, p).length === 0 ? 'No enemy you are engaged with' : undefined) },
+    ],
+    perform: ({ engine, p }) => terrifyingRoar(engine, p),
+  },
+  rallyThroughPain: {
+    options: ({ p, id, base, gate }) => [
+      { ...base, id, disabledReason: gate ?? (sealedOf(p).length === 0 ? 'Nothing is sealed on you' : undefined) },
+    ],
+    perform: ({ engine, p }) => rallyThroughPain(engine, p),
   },
   markQuarry: {
     options: ({ b, p, id, base, gate }) => [

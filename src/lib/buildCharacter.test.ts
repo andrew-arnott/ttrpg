@@ -189,7 +189,7 @@ describe('buildCharacter', () => {
   })
 
   it('refuses to complete an undefined profession', () => {
-    const draft = { ...fullDraft(), professionId: 'berserker', abilityIds: [], tokenChoices: {} }
+    const draft = { ...fullDraft(), professionId: 'unknown', abilityIds: [], tokenChoices: {} }
     const c = buildCharacter(draft)
     expect(c.complete).toBe(false)
     expect(c.startingHp).toBeNull()
@@ -364,5 +364,24 @@ describe('the Ranger', () => {
     expect(c.startingHp).toBe(10)
     expect(c.inPlay).toEqual([{ tokenId: 'focus', count: 4 }])
     expect(buildCharacter(draft(null)).issuesFor('abilities')).toContain('Choose a passive.')
+  })
+})
+
+describe('the Barbarian', () => {
+  it('is selectable, starts with 3 Fury in play and 14 HP, and needs a passive', () => {
+    const draft: CharacterDraft = {
+      ...emptyDraft(),
+      professionId: 'barbarian',
+      specialAssignment: { strength: 6, perception: 1, endurance: 5, charisma: 0, intelligence: 2, agility: 3, luck: 4 },
+      speciesId: 'orc',
+      backgroundId: 'soldier',
+      abilityIds: ['savageBlow', 'recklessCharge', 'shrugItOff', 'gorge'],
+      passiveId: 'bloodiedRage',
+    }
+    const c = buildCharacter(draft)
+    expect(c.complete).toBe(true)
+    expect(c.startingHp).toBe(14)
+    expect(c.inPlay).toEqual([{ tokenId: 'fury', count: 3 }])
+    expect(buildCharacter({ ...draft, passiveId: null }).issuesFor('abilities')).toContain('Choose a passive.')
   })
 })

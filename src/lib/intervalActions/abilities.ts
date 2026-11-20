@@ -16,7 +16,7 @@ import {
   type DungeonState,
   type PartyMember,
 } from '../dungeonState'
-import { adjustBag, commitResource, countInBag, releaseCommitment, resourceAvailable } from '../tokenFlow'
+import { adjustBag, commitResource, countInBag, recoverToken, releaseCommitment, resourceAvailable } from '../tokenFlow'
 import { parseCost } from '../battle/state'
 import { totalIntervals } from '../torch'
 import { addPrepared, defuseTrap, giveReward, keepWatch, markDone, narrate, runTest, updateMember, withArticle, withDarkness, withHealer } from './context'
@@ -249,6 +249,61 @@ const readTheTracks: AbilityAction = {
   },
 }
 
+const GRIT_HEALING = 2
+const GORGE_HEALING = 3
+
+/** Grit Your Teeth: Reckless. Recover 2 HP, then add a Fatigue token to your own bag. */
+const gritYourTeeth: AbilityAction = {
+  perform: (ctx, ability) => {
+    const { member, state } = ctx
+    const furious = member.abilityIds.includes('recklessFury')
+    let regained = false
+    const next = updateMember(state, member.key, (m) => {
+      const holder = { ...m, hp: Math.min(m.maxHp, m.hp + GRIT_HEALING), bag: adjustBag(m.bag, 'fatigue', 1) }
+      regained = furious && recoverToken(holder, 'fury')
+      return holder
+    })
+    const healer = withHealer(ctx, next, [member.key], 'recovered HP')
+    const hurt = next.party.find((m) => m.key === member.key)!
+    return narrate(
+      ctx,
+      ability.name,
+      `${member.name} grits their teeth and pushes on.`,
+      `${member.name} recovers ${hurt.hp - member.hp} HP (${hurt.hp}/${hurt.maxHp}) and adds 1 Fatigue to their bag.${regained ? ` Reckless Fury: ${member.name} recovers 1 Fury.` : ''}${healer.text}`,
+      'success',
+      healer.state,
+    )
+  },
+}
+
+/** Gorge: a Ration restores 3 HP and recovers 1 Fury. */
+const gorge: AbilityAction = {
+  unavailable: (_state, member) => ((member.inventory.ration ?? 0) <= 0 ? 'No Ration to use up' : undefined),
+  perform: (ctx, ability) => {
+    const { member, state } = ctx
+    let regained = false
+    const next = updateMember(state, member.key, (m) => {
+      const holder = {
+        ...m,
+        hp: Math.min(m.maxHp, m.hp + GORGE_HEALING),
+        inventory: { ...m.inventory, ration: (m.inventory.ration ?? 0) - 1 },
+      }
+      regained = recoverToken(holder, 'fury')
+      return holder
+    })
+    const healer = withHealer(ctx, next, [member.key], 'recovered HP')
+    const fed = next.party.find((m) => m.key === member.key)!
+    return narrate(
+      ctx,
+      ability.name,
+      `${member.name} tears into a Ration.`,
+      `${member.name} recovers ${fed.hp - member.hp} HP (${fed.hp}/${fed.maxHp})${regained ? ' and 1 Fury' : ''}.${healer.text}`,
+      'success',
+      healer.state,
+    )
+  },
+}
+
 const PATROL_DELAY = 3
 
 const barricade: AbilityAction = {
@@ -370,6 +425,8 @@ const ABILITY_ACTIONS: Record<string, AbilityAction> = {
   setAnAmbush: prepare('Ambush set', 'If enemies enter before the party leaves, a free attack is ready for the first one.'),
   setASnare: prepare('Snared', 'If combat begins here before the party leaves, one random enemy takes 1 damage and starts the fight unengaged.'),
   forage,
+  gritYourTeeth,
+  gorge,
   readTheTracks,
   barricade,
   shoulderThrough,

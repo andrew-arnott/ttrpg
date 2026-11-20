@@ -106,6 +106,14 @@ export const TOKENS: Record<string, TokenDef> = {
     effect: 'Activates Priest abilities.',
     startsInPlay: true,
   },
+  fury: {
+    id: 'fury',
+    name: 'Fury',
+    modifier: 0,
+    keywords: ['chain', 'resource'],
+    effect: 'Activates Barbarian abilities.',
+    startsInPlay: true,
+  },
   focus: {
     id: 'focus',
     name: 'Focus',

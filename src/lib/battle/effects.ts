@@ -11,7 +11,7 @@ import { isQuarry } from './quarry'
 import { drawRulesFor } from './conditionRules'
 import { gainCondition } from './conditions'
 import { offerAllyHelp, offerHealer, sealFaith } from '../priestRules'
-import { INTERCEPT_DEFENSE, offerIntercept, offerLastStand, offerShieldWall, steadyingPresenceBonus } from './reactions'
+import { INTERCEPT_DEFENSE, offerIntercept, offerLastStand, offerShieldWall, offerShrugItOff, steadyingPresenceBonus } from './reactions'
 import { releaseCommitment, type Commitment } from './tokens'
 import {
   adjustBag,
@@ -119,9 +119,11 @@ export function strikePlayer(
   }
 
   const reduction = e.disabled ? sealedCount(e, 'resolve') : 0
-  const { dealt, absorbed } = takeDamage(target, Math.max(0, attack.damage - reduction), true)
+  const shrugged = offerShrugItOff(engine, target, Math.max(0, attack.damage - reduction))
+  const { dealt, absorbed } = takeDamage(target, Math.max(0, attack.damage - reduction - shrugged), true)
   const notes = [
     reduction > 0 ? `Disabled: damage reduced by ${reduction}.` : '',
+    shrugged > 0 ? `Shrug It Off: damage reduced by ${shrugged}.` : '',
     absorbed > 0 ? `${absorbed} absorbed by Shield.` : '',
   ].filter(Boolean)
   const stood = target.hp === 0 && offerLastStand(engine, target)
@@ -267,7 +269,8 @@ export function attackEnemy(engine: Engine, p: BattlePlayer, e: BattleEnemy, opt
   }
 
   const damage =
-    options.totalDamage ?? (options.damage ?? 1) + plan.extraDamage + might + (options.bonusDamage ?? 0) + empowered + (onQuarry && p.abilityIds.includes('huntersFocus') ? 1 : 0)
+    options.totalDamage ?? (options.damage ?? 1) + plan.extraDamage + might + (options.bonusDamage ?? 0) + empowered + (onQuarry && p.abilityIds.includes('huntersFocus') ? 1 : 0) +
+      (p.abilityIds.includes('bloodiedRage') && p.hp * 2 <= p.maxHp ? 1 : 0)
   const groupId = groupOf(b, e.id)
   const extra = options.onHit?.(e) ?? ''
   const defeated = damageEnemy(b, e, damage)

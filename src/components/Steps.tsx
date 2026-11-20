@@ -85,8 +85,7 @@ export function StepProfession({ draft, update }: StepProps) {
         ))}
       </div>
       <p className="hint" style={{ marginTop: 12 }}>
-        Suggested attributes are recommendations, not requirements. The Berserker is listed as TBD
-        in the Player&rsquo;s Guide, so it cannot be built yet.
+        Suggested attributes are recommendations, not requirements.
       </p>
     </section>
   )

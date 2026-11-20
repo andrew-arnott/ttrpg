@@ -2,6 +2,7 @@ import { canUseFastOrTriggered } from '../conditionRules'
 import { canReact, payForReaction, type Cost } from '../reactorRules'
 import { releaseCommitment, resourceAvailable, type Commitment } from '../tokenFlow'
 import { groupOf, livingPlayers, type Engine } from './state'
+import { SHRUG_IT_OFF_REDUCTION } from './types'
 import type { BattleEnemy, BattlePlayer, BattleState, ReactionRequest } from './types'
 
 export const INTERCEPT_DEFENSE = 2
@@ -105,4 +106,21 @@ export function steadyingPresenceBonus(b: BattleState, attacker: BattleEnemy, ta
     (w) => w.key !== target.key && w.abilityIds.includes('steadyingPresence') && groupOf(b, w.key) === group,
   )
   return steadied ? STEADYING_PRESENCE_DEFENSE : 0
+}
+
+const SHRUG_COST: Cost = { tokenId: 'fury', amount: 1 }
+
+/** A Barbarian who is about to take damage may spend 1 Fury to take 2 less. Returns the damage prevented. */
+export function offerShrugItOff(engine: Engine, p: BattlePlayer, incoming: number): number {
+  if (incoming <= 0 || !canReact(p, 'shrugItOff', SHRUG_COST)) return 0
+  const request: ReactionRequest = {
+    abilityId: 'shrugItOff',
+    reactorKey: p.key,
+    title: 'Shrug It Off',
+    prompt: `${p.name} is about to take ${incoming} damage. Shrug It Off spends 1 Fury to take ${SHRUG_IT_OFF_REDUCTION} less.`,
+    cost: '1 Fury',
+  }
+  if (!engine.ask(request).use) return 0
+  releaseCommitment(p, payForReaction(p, SHRUG_COST))
+  return Math.min(incoming, SHRUG_IT_OFF_REDUCTION)
 }
